@@ -57,7 +57,7 @@ def calc_RDF(crds, max_dist=False, dr=False, origin=False):
     return r, rdf
 
 
-def plot_RDF_from_file(xyz_file, num_ats_per_mol=36):
+def plot_RDF_from_file(xyz_file, num_ats_per_mol=36, max_dist=False, dr=False, origin=False):
     """
     Will load the xyz_coords from an xyz file and will plot the RDF vs R
     for the COM of each molecule in the file.
@@ -69,7 +69,7 @@ def plot_RDF_from_file(xyz_file, num_ats_per_mol=36):
     ats, crds = load_xyz.read_1_step_xyz(xyz_file)
     mol_COMs = topology.get_mol_COMs(crds, ats, num_ats_per_mol)
     
-    r, rdf = calc_RDF(mol_COMs, dr=3)
+    r, rdf = calc_RDF(mol_COMs, dr=dr, max_dist=max_dist, origin=origin)
 
     f, a = plt.subplots()
     a.plot(r, rdf, 'k--')

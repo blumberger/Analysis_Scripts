@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 import os
 
 
-folder = "/home/kev-boi-2k18/Documents/PhD/AMORPHOUS_PENTACENE/10ns_quenched_NVT_equilibriation"
-filename = "10nsNPT_quench.xyz"
-
-xyz_fpath = os.path.join(folder, filename)
-if not os.path.isfile(xyz_fpath):
-    raise SystemExit("Can't find file %s" % xyz_fpath)
+#folder = "/home/kev-boi-2k18/Documents/PhD/AMORPHOUS_PENTACENE/10ns_quenched_NVT_equilibriation"`
+#filename = "10nsNPT_quench.xyz"
+#
+#xyz_fpath = os.path.join(folder, filename)
+#if not os.path.isfile(xyz_fpath):
+#    raise SystemExit("Can't find file %s" % xyz_fpath)
 
 
 def calc_RDF(crds, max_dist=False, dr=False, origin=False, nbins="2sqrt(N)"):

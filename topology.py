@@ -44,3 +44,42 @@ def get_mol_COMs(at_crds, ats, num_ats_in_mol):
 
     all_COM = [geom.get_COM(i, masses) for i in ats_per_mol]
     return all_COM
+
+
+def get_long_axis_vec(molCrds, ats=[5, 23]):
+    """
+    Will get the vector describing the displacement from atom 6 to atom 24.
+    In the geomety this was coded for these atoms sit on the long axis. If
+    this isn't the case please change the ats list.
+
+    Inputs:
+        * molCrds => The coords of the atoms in the molecule.
+        * ats => The indices of the atoms that sit on the long axis.
+
+    Outputs:
+        A 1D vector of length 3.
+    """
+    if len(ats) != 2:
+        raise SystemExit("Only 2 input atoms are allowed")
+
+    vec1 = np.array(molCrds[ats[0]])
+    vec2 = np.array(molCrds[ats[1]])
+
+    return vec1 - vec2
+
+
+def get_long_axis_rotation_about(molCrds, vec=[1, 0, 0], long_ax_ats=[5, 23]):
+    """
+    Will get the rotation of the long axis of the molecule about a given vector.
+
+    Inputs:
+        * molCrds => 2D array of molecular coordinates of shape (num_atoms, 3)
+        * vec => The vector to check the rotation about.
+        * long_ax_ats => The indices of the atoms sitting on the long axis.
+    
+    Outputs:
+        A float with the rotation angle of the long axis from the vector given.
+    """
+    rot_vec = get_long_axis_vec(molCrds, long_ax_ats)
+    return geom.get_angle_between_2_vecs(rot_vec, vec)
+

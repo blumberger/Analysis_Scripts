@@ -29,7 +29,7 @@ def plot_random_rdf():
     """
     Will plot an rdf distribution against the radius for some random numbers.
     """    
-    rand_coords = np.random.random((3000, 3))
+    rand_coords = np.random.random((6000, 3))
 
     r, rdf = RDF.calc_RDF(rand_coords)      
 

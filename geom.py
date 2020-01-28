@@ -3,6 +3,7 @@ import numpy as np
 
 #### Define Consts #####
 pi_4_3 = 4./3. * np.pi #
+pi_4   = 4. * np.pi    #
 ########################
 
 
@@ -24,6 +25,13 @@ def volume_concentric_spheres(R1, R2):
         return pi_4_3 * (R1**3 - R2**3)
     else:
         return pi_4_3 * (R2**3 - R1**3)
+
+
+def volume_differential_shell(r, dr):
+    """
+    Should be the same as volume_concentric_spheres for vanishing dr.
+    """
+    return pi_4 * (r**2) * dr
 
 
 def beginning_tests(xyz, mass=False):
@@ -84,3 +92,38 @@ def find_center_atom(crds):
     center_xyz = crds[min_at_ind]
 
     return min_at_ind, center_xyz
+
+
+def get_vector_from_cds(at1, at2):
+    """
+    Will get the displacement vector from at1 to at2.
+
+    Inputs:
+        * at1 => 1D vector of length 3.
+        * at2 => 1D vector of length 3.
+
+    Outputs:
+        * 3D vector pointing from atom1 to atom2.
+    """
+    at1, at2 = np.array(at1), np.array(at2)
+    return at2 - at1
+
+
+def get_angle_between_2_vecs(vec1, vec2):
+    """
+    Will find the angle between 2 vectors.
+    
+    Inputs:
+        * vec1 => 1D vector (np.array)
+        * vec2 => 1D vector (np.array)
+
+    Outputs:
+        Single float with angle between the 2 vectors
+    """
+    if len(vec1) != len(vec2):
+        raise SystemExit("Vectors must be same dimension!")
+
+    dot_prod = np.dot(vec1, vec2)
+    norm_mult = np.linalg.norm(vec1) * np.linalg.norm(vec2)
+    return np.arccos(dot_prod / norm_mult)
+    

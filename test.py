@@ -31,7 +31,7 @@ def plot_random_rdf():
     """    
     rand_coords = np.random.random((6000, 3))
 
-    r, rdf = RDF.calc_RDF(rand_coords)      
+    r, rdf = RDF.calc_RDF(rand_coords)
 
     plt.plot(r, rdf)
     plt.title("g(r) of random points")

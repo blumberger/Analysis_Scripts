@@ -2,6 +2,8 @@ import numpy as np
 import consts
 import geom
 
+import collections as coll
+
 
 def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3):
     """
@@ -83,3 +85,23 @@ def get_long_axis_rotation_about(molCrds, vec=[1, 0, 0], long_ax_ats=[5, 23]):
     rot_vec = get_long_axis_vec(molCrds, long_ax_ats)
     return geom.get_angle_between_2_vecs(rot_vec, vec)
 
+
+def get_num_ats_per_mol(atCrds):
+   """
+   Will estimate the number of atoms per molecule by checking when the gradient with respect to atom number of the x coordinate spikes.
+
+   Inputs:
+      * atCrds => The atomic coordinates as an array of shape (num_at, 3)
+
+   Outputs:
+      An integer
+   """
+   x_crds = atCrds[:, 0]
+   grad = np.gradient(x_crds)
+   grad_tol = np.std(grad) * 2
+   at_inds = np.arange(len(x_crds))[np.abs(grad) > grad_tol]
+
+   counts = coll.Counter(np.diff(at_inds))
+   counts = {i: counts[i] for i in counts if i > 5}
+
+   return min(counts.keys()) + 1

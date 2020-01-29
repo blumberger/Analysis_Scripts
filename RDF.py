@@ -70,7 +70,8 @@ def calc_RDF(crds, max_dist=False, dr=False, origin=False, nbins="2sqrt(N)"):
     return r, rdf
 
 
-def plot_RDF_from_file(xyz_file, num_ats_per_mol=36, max_dist=False, dr=False, origin=False):
+def plot_RDF_from_file(xyz_file, num_ats_per_mol=False, max_dist=False, dr=False,
+                       origin=False, nbins="2sqrt(N)"):
     """
     Will load the xyz_coords from an xyz file and will plot the RDF vs R
     for the COM of each molecule in the file.
@@ -79,20 +80,26 @@ def plot_RDF_from_file(xyz_file, num_ats_per_mol=36, max_dist=False, dr=False, o
     if not os.path.isfile(xyz_file):
         raise SystemExit("Can't find file %s" % xyz_file)
 
+
     ats, crds = load_xyz.read_1_step_xyz(xyz_file)
+    if not num_ats_per_mol: num_ats_per_mol = topology.get_num_ats_per_mol(crds)
+
     mol_COMs = topology.get_mol_COMs(crds, ats, num_ats_per_mol)
     
-    r, rdf = calc_RDF(mol_COMs, dr=dr, max_dist=max_dist, origin=origin)
+    r, rdf = calc_RDF(mol_COMs, dr=dr, max_dist=max_dist, origin=origin, nbins=nbins)
 
     f, a = plt.subplots()
-    a.plot(r, rdf, 'k--')
-    a.set_xlabel(r"R [$\AA$]", fontsize=18)
-    a.set_ylabel(r"g(r)", fontsize=18)
-    a.set_title("File = %s" % xyz_file)
-    plt.show()
-    
-    
+    a.plot(r, rdf, 'k')
+    a.set_xlabel(r"R [$\AA$]", fontsize=20)
+    a.set_ylabel(r"g(r)", fontsize=20)
 
+    title = xyz_file[xyz_file.rfind('/')+1:]
+    title = title.replace("_", " ").replace(".xyz", "") 
+    title = title.replace("quenched", "quenching").replace(" quench ", " quenching ").replace(" quench.", " quenching ")
+    title = title.replace("NPT", "").replace("NVT", "") 
+
+    a.set_title(title, fontsize=22)
+    plt.tight_layout()
+
+    return f, a, title
     
-    
-        

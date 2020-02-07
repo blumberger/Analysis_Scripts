@@ -20,7 +20,7 @@ As Guido von Russof says 'Code it read much more than it is written' so reabilit
 
 
 ## How to document your code.
-Some of the documentation will be automatically created through the default variables that are used in the input file. Though a lot of it can't be created with a nice script i.e. how the code works, how to edit it and what it is used for. For this one should create a folder within the directory 'examples' with markdown files contained inside. These markdown files should explain how the code works, how to edit it and give and example of how it would be ran.
+Some of the documentation will be automatically created through the default variables that are used in the input file. Though a lot of it can't be created so easily with a nice script i.e. how the code works, how to edit it and what it is used for. For this one should create a folder within the directory 'examples' with markdown files contained inside. These markdown files should explain how the code works, how to edit it and give and example of how it would be ran.  I will expand this section once I have finalised how it should work.
 
 ## What should go in the repo.
 Any code you think may be helpful, can be ran with an input file and is documented.

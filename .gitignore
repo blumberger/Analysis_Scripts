@@ -2,3 +2,5 @@
 *__pycache__/
 */*.pyc
 *.py[a-d]
+
+config/vars

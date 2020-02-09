@@ -8,8 +8,6 @@ A module containing methods relevant to xyz files.
 To read an xyz file use the function `read_xyz_file(filepath <str>)`
 
 To write an xyz file use the function `write_xyz_file(xyz_data <np.array | list>, filepath <str>)`
-
-@author: oem
 """
 
 import re
@@ -19,8 +17,42 @@ from collections import OrderedDict
 import numpy as np
 from scipy.stats import mode
 
-from io_utils import general_io as IO
+from src.io_utils import general_io as IO
 
+
+class XYZ_File(object):
+    """
+    A container to store xyz data in.
+
+    This class will store data from an xyz file and also overload the in_built
+    mathematical operators e.g. adding, subtracting, multiplying etc... to allow
+    easy manipulation of the data without loosing any metadata.
+
+    Inputs/Attributes:
+        * data <numpy.array> => The parsed xyz data from an xyz file.
+        * cols <numpy.array> => The parsed column data from the xyz file.
+        * timesteps <numpy.array> => The parsed timesteps from the xyz file.
+    """
+    def __init__(self, data, cols, timesteps):
+        self.data = data
+        self.cols = cols
+        self.timestep = timestep
+
+    # Overload adding
+    def __add__(self, val):
+        return self.data + val
+    # Overload multiplying
+    def __mul__(self, val):
+        return self.data * val
+    # Overload subtracting
+    def __sub__(self, val):
+        return self.data - val
+    # Overload division
+    def __div__(self, val):
+        return self.data / val
+    # Overload the power operator
+    def __pow__(self, val):
+        return self.data ** val
 
 def string_between(Str, substr1, substr2):
     """
@@ -342,4 +374,4 @@ def read_xyz_file(filename, num_data_cols=False,
        cols = cols[0]
        timesteps = timesteps[0]
 
-    return data, cols, timesteps
+    return XYZ_File(data, cols, timesteps)

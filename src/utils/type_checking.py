@@ -2,9 +2,25 @@
 # -*- coding: utf-8 -*-
 """
 A module that provides useful functions for checking the type of certain variables.
-
-@author: mellis
 """
+
+def remove_quotation_marks(String):
+    """
+    Will remove any quotation marks from a string.
+
+    Inputs:
+        * String <str> => A string that needs quotation marks removed.
+    Outputs:
+        <str> A string with quotation marks removed.
+    """
+    String = String.strip()
+    for i in ('"', "'"):
+        while String[0] == i and String[-1] == i:
+            String = String[1:-1]
+
+    return String
+
+
 
 def eval_type(String):
     """
@@ -40,6 +56,7 @@ def is_float(Str):
           if not float(num).is_integer():
              return True
     return False
+
 
 def is_num(Str):
     """

@@ -8,6 +8,16 @@ One of the main reasons the analysis scripts are re-written is (I think) because
 As Guido von Russof says 'Code it read much more than it is written' so reability is important!
 
 
+## How to run the code.
+
+  1) Go to the examples and choose a folder you like the sound of.
+  2) Copy the contents of the folder to the root director (where this README file is).
+  3) Run the file run.sh with an -i flag giving the input file, e.g. `./run.sh -i <input_file>`
+
+  The first time you run the file it may take a while as it will try to install dependencies.
+
+  To run your own analyses create your own input file and run that.
+
 
 ## The rules
 
@@ -19,9 +29,18 @@ As Guido von Russof says 'Code it read much more than it is written' so reabilit
  - **Document your code**. It is very helpful to document your code, without the documentation people won't know if your code even exists and they will write their own! I have written a separate section on documentation below.
  - **If your writing in python: Use python3**. Any development on Python2 has stopped and the langauge has become deprecated. It will still work as it should do but won't get better. Python3 also has lots of nice new features.
 
-## How to document your code.
-Some of the documentation will be automatically created through the default variables that are used in the input file. Though a lot of it can't be created so easily with a nice script i.e. how the code works, how to edit it and what it is used for. For this one should create a folder within the directory 'examples' with markdown files contained inside. These markdown files should explain how the code works, how to edit it and give and example of how it would be ran.  I will expand this section once I have finalised how it should work.
 
-## What should go in the repo.
+## Where to put new code?
+
+Put it in the src directory in an appropriately named folder. All of the code will be called from the main.py file so make sure it can be imported from this file.
+
+
+## How to document your new code?
+
+As you add functionality you should test it in your own input file. E.g. if you add some code to load and write .dat files then write an input file that does that to run it. After you are happy your code and the input file commands work comment the input file well and copy it into an appropriate directory in the examples directory.
+
+
+## What should go in the repo?
+
 Any code you think may be helpful, can be ran with an input file and is documented.
 

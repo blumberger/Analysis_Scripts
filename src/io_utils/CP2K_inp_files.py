@@ -3,20 +3,18 @@
 """
 Created on Tue Oct  9 11:00:42 2018
 
-
 A module to parse and edit and save inp files used with CP2K.
 
 To load inp files use the function `parsed_inp_files(filepath <str>)`.
 
 To write them with correct indents etc use the function `write_inp(parsed_inp <dict>, filepath)`
-
-
-@author: mellis
 """
 import re
 import os
 from collections import OrderedDict
 import copy
+
+from src.parsing import general_parsing as gen_parse
 
 
 class INP_Line(object):
@@ -42,18 +40,21 @@ class INP_Line(object):
         * is_section_start => <bool> if the line is a section_start line
         * is_section_end => <bool> if the line is a section_end line
    """
-   def  __init__(self, line, line_num=False):
-      self.line_num = line_num
-      self.line = line
+   def  __init__(self, line, curr_section, line_num=False):
+       self.line = line
+       self.curr_section = curr_section
+       self.line_num = line_num
 
-      self.comment, self.extra_parameters = "", []
-      self.unit, self.parameter, self.value = "", "", ""
-      self.whitespace, self.is_include = False, False
-      self.is_parameter, self.is_section = False, False
-      self.is_section_end, self.is_section_start = False, False
+       self.comment, self.extra_parameters = "", []
+       self.unit, self.parameter, self.value = "", "", ""
+       self.whitespace, self.is_include = False, False
+       self.is_parameter, self.is_section = False, False
+       self.is_section_end, self.is_section_start = False, False
+       self.is_set, self.set_txt = False, ""
 
-      self.__clean_line()
-      self.__parse_line()
+
+       self.__clean_line()
+       self.__parse_line()
 
    def __clean_line(self):
        """
@@ -61,14 +62,14 @@ class INP_Line(object):
        attribute self.edit_line.
        """
        self.edit_line = self.line.strip()
-       self.edit_line, self.comment = rm_comment_from_line(self.line)
+       self.edit_line, self.comment = gen_parse.rm_comment_from_line(self.line)
+       self.comment = self.comment.strip()
        self.edit_line = self.edit_line.strip()
 
    def __parse_line(self):
        """
        Will choose which line parsing function to use in order to parse the inp line.
        """
-
        if self.edit_line == "" or self.edit_line.isspace():
           self.whitespace = True
           return
@@ -76,9 +77,15 @@ class INP_Line(object):
            self.is_section = True
            self.__parse_section_line()
        elif '@' == self.edit_line[0]:
-           if 'include' in self.edit_line.lower():
+           words = self.edit_line.split()
+           if 'include' in words[0].lower():
                self.is_include = True
                self.include_file = self.edit_line.split()[1:]
+           elif 'set' in words[0].lower():
+               self.is_set = True
+               self.set_txt = '  '.join(self.edit_line.split()[1:])
+           else:
+               print("WARNING: I don't understand the line '%s'" % self.line)
        else:
            self.is_parameter = True
            self.__parse_paramter_line()
@@ -91,8 +98,11 @@ class INP_Line(object):
        words = self.edit_line.lstrip("&").strip().split()
        if 'end' in words[0].lower():
           self.is_section_end = True
-          self.section = words[1]
-          self.extra_parameters = words[2:]
+          self.section = self.curr_section
+          if len(words) > 1:
+              self.section = words[1]
+          if len(words) > 2:
+              self.extra_parameters = words[2:]
        else:
           self.is_section_start = True
           self.section = words[0]
@@ -108,10 +118,13 @@ class INP_Line(object):
        if len(words) == 2:  self.parameter, self.value = words
        elif re.findall("\[[a-zA-Z]+\]", self.edit_line):
             unit_ind = [i for i, word in enumerate(words) if '[' in word and ']' in word]
-            if len(unit_ind) == 1: self.unit = words[unit_ind[0]].strip('[]')
-            else: self.unit = [words[i].strip('[]') for i in unit_ind]
+            if len(unit_ind) == 1:
+                self.unit = words[unit_ind[0]].strip('[]')
+            else:
+                self.unit = [words[i].strip('[]') for i in unit_ind]
 
-            self.parameter, self.value = words[0], [words[i] for i in range(1, len(words)) if i not in unit_ind]
+            self.parameter = words[0]
+            self.value = '   '.join([words[i] for i in range(1, len(words)) if i not in unit_ind])
 
    def __str__(self):
        """
@@ -126,7 +139,7 @@ def find_section_end(parsed_inp_lines, section, curr_line):
     has the section end in.
 
     Inputs:
-        * inp_file <list<inp_line>> => The text from the inp file with every line parsed into an inp_line object.
+        * inp_file <list<INP_Line>> => The text from the inp file with every line parsed into an INP_Line object.
         * section <str>        => The name of the section to find the end of.
         * curr_line <int>      => The index of the line to start looking from.
 
@@ -172,7 +185,12 @@ def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=Fal
     if inp_dict is False: inp_dict = {}
     if full_data_dict is False: full_data_dict = {}
     if all_lines is False:
-        all_lines = [inp_line(i) for i in inp_file]
+        all_lines, curr_section = [], ""
+        for i in inp_file:
+            parsed_line = INP_Line(i, curr_section)
+            if parsed_line.is_section:
+                curr_section = parsed_line.section
+            all_lines.append(parsed_line)
 
     # Loop over all lines
     line_num = 0
@@ -219,92 +237,132 @@ def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=Fal
     return {'params': inp_dict, 'full_data': full_data_dict, 'lines': all_lines}
 
 
-def rm_comment_from_line(line):
+def get_max_parameter_len_in_section(lines, curr_line_ind):
     """
-    Will remove any comments in a line for parsing.
+    Will get the length of the longest parameter in a section within an inp file.
+
+    This is useful when writing the inp file in a pretty way and allow the file
+    to have the parameters all written with the same indentation.
 
     Inputs:
-        * line   =>  line from input file
-
+        * lines <list<INP_Line>> => All lines in the inp file with each one parsed
+                                  into an INP_Line object within a list.
+        * curr_line_ind <int> => An integer giving the index where the section
+                                 line appears in the lines list.
     Ouputs:
-        The line with comments removed
+        <int> The maximum length of the parameter string in a section of an inp file.
     """
-    poss_comment_strs = ['#','!']
-    for s in poss_comment_strs:
-        words = line.split(s)
-        if len(words) >= 1:
-            line = words[0]
-            comment = s.join(words[1:])
+    # Check if we have the correct input type
+    if not lines[curr_line_ind].is_section:
+        raise SystemExit("The input line to 'get_max_parameter_len_in_section' should be a section line!")
+
+    # Get the section name
+    curr_section = lines[curr_line_ind].section.upper()
+    max_param_len = 0
+
+    # Loop over lines until we hit the end section and record the max_param_len
+    for line in lines[curr_line_ind:]:
+        if line.is_section_end and line.section.upper() == curr_section:
             break
-        else:
-            line = ''.join(words[:-1])
-            comment = ""
+        if line.is_parameter:
+            max_param_len = max([len(line.parameter),
+                                 max_param_len])
 
-    return line, comment
+    return max_param_len
 
 
-def write_inp(nested_inp, s="", tab_depth=0, line_depth=0, tab="    ", prev="section"):
+def write_inp(inp_dict, filename=False):
     """
     Will create a string containing the inp file.
 
     Inputs:
-        * nested_inp => A nested dictionary containing all parameters (if order needs to be preserved use an ordered dictionary.
+        * inp_dict <dict> => The output of the 'parse_inp_file' function.
+        * filename <str> OPTIONAL => A string specifying where to output the inp_file (if given).
 
     Outputs:
         * A string containing the inp file.
     """
-    good_types = (int, float, str)
-    for key in nested_inp:
-        # A little hack to put some nice whitespace between sections after a block of parameters
-        curr = "param"
-        if isinstance(nested_inp[key], (dict, type(OrderedDict()))) or key == "":
-            curr = "section"
-        if prev == "param" and curr == "section":
-           s += "\n"
-        prev = curr
+    if type(inp_dict) != dict or 'lines' not in inp_dict:
+        msg = "Argument 'inp_dict' must be a dictionary as outputted by the function"
+        msg += " 'parse_inp_file'.\n\n"
+        msg += "Error: Wrong input to fucntion 'write_inp'. Bad 'inp_dict' argument."
+        raise SystemExit(msg)
 
-        # Print a section and then call the function again recursively
-        if isinstance(nested_inp[key], (dict, type(OrderedDict()))):
-           # Write the extra parameters for the section
-           if '' in nested_inp[key] and nested_inp[key]['']:
-               section = "  ".join([key, '  '.join(nested_inp[key][''])])
-               if type(nested_inp[key]['']) == str:
-                  section = "  ".join([key, nested_inp[key]['']])
-           else: section = key
-           section = section.strip()
+    inp_txt = ""
+    indent_level = 0
+    prev_line_type = ""
 
-           # Write the section
-           new_depth = max([len(i) + len(tab) for i in nested_inp[key]])
-           tabs = tab * tab_depth
-           if '@IF' in section.upper():
-              s += "%s%s\n" % (tabs, section)
-              s = write_inp(nested_inp[key], s, tab_depth+1, line_depth=new_depth, prev=prev)
-              s = s.rstrip("\n")
-              s += "\n%sEND%s\n\n" % (tabs, key.lstrip('@'))
-           else:
-              s += "%s&%s\n" % (tabs, section)
-              s = write_inp(nested_inp[key], s, tab_depth+1, line_depth=new_depth, prev=prev)
-              s = s.rstrip("\n")
-              s += "\n%s&END %s\n\n" % (tabs, key)
+    # Loop over every line and add it to the
+    param_len = 0
+    for line_num, line in enumerate(inp_dict['lines']):
+        indent = "   " * indent_level  # the indentation for each line
+        line_txt = ""
+        if not line.whitespace:
+            # Handle writing the setions
+            if line.is_section:
+                if line.is_section_start:
+                    param_len = get_max_parameter_len_in_section(inp_dict['lines'], line_num)
+                    if prev_line_type == "parameter" or prev_line_type == "end_section":
+                        line_txt += "\n"
 
-        # Write any parameters within a section
-        elif key != "":
-           tabs = tab * tab_depth
-           if isinstance(nested_inp[key], list):
-              unit = ""
-              if len(nested_inp[key]) == 2:
-                 if nested_inp[key][1]: unit = "%s[%s]" % ("  ", nested_inp[key][1])
-              keyStr = "%s%s" % (key.strip(), unit)
-              keyStr = keyStr.ljust(line_depth)
+                    line_txt += "%s&%s\t%s" % (indent,
+                                              line.section.upper(),
+                                              '  '.join(line.extra_parameters))
+                    indent_level += 1
+                    prev_line_type = "start_section"
 
-              s += "%s%s%s%s\n" % (tabs, keyStr, tab, nested_inp[key][0])
+                elif line.is_section_end:
+                    indent_level -= 1
+                    indent = "   " * indent_level # Need to change indent here to take effect on this line
+                    line_txt += "%s&END %s\t%s" % (indent,
+                                                   line.section.upper(),
+                                                   '  '.join(line.extra_parameters))
+                    prev_line_type = "end_section"
 
-           if isinstance(nested_inp[key], good_types):
-              keyStr = key.ljust(line_depth)
-              s += "%s%s%s%s\n" % (tabs, keyStr, tab, str(nested_inp[key]))
 
-    return s
+            # Write any parameters (i.e. MD_TIMESTEP   [fs]   0.1)
+            elif line.is_parameter:
+                unit = "[%s]" % line.unit if line.unit else ""
+                line_txt += "%s%s  %s  %s" % (indent,
+                                              line.parameter.ljust(param_len),
+                                              unit,
+                                              line.value)
+                prev_line_type = "parameter"
 
+            # If the line has an @include in write it
+            elif line.is_include:
+                if prev_line_type == "end_section":
+                    line_txt += "\n"
+                line_txt += "%s%s    %s" % (indent,
+                                            "@INCLUDE".ljust(param_len),
+                                            '  '.join(line.include_file))
+                prev_line_type = "include"
+
+            # If the line has an @set in write it
+            elif line.is_set:
+                if prev_line_type == "end_section":
+                    line_txt += "\n"
+                line_txt += "%s%s    %s" % (indent,
+                                            "@SET".ljust(param_len),
+                                            line.set_txt)
+                prev_line_type = "set"
+
+            comment = "# %s" % line.comment if line.comment else ""
+            inp_txt += "%s    %s\n" % (line_txt, comment)
+
+        # If there are any comments then write them
+        elif line.comment:
+            if prev_line_type == "end_section":
+                inp_txt += "\n%s# %s\n" % (indent, line.comment)
+            else: inp_txt += "%s# %s\n" % (indent, line.comment)
+            prev_line_type = "comment"
+
+    # If there is a filename given then write the file
+    if filename:
+        with open(filename, "w") as f:
+            f.write(inp_txt)
+
+    return inp_txt
 
 def check_section_path(section_path, inp_dict):
    """

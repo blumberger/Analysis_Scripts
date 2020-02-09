@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 A module containing methods relevant to general input and output operations.
-
-@author: oem
 """
 
 import os

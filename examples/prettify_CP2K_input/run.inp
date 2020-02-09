@@ -1,0 +1,201 @@
+
+&GLOBAL
+  BLACS_GRID             SQUARE
+  PREFERRED_FFT_LIBRARY  FFTW
+  PRINT_LEVEL            LOW
+  PROGRAM_NAME           CP2K
+  PROJECT_NAME           run
+  RUN_TYPE               CTMQC
+  !RUN_TYPE               CT-MQC
+&END GLOBAL
+
+&MOTION
+&CTMQC
+!&CT-MQC
+  NREP                200
+  PROC_PER_REPLICA    1
+  NBASIS              2
+  NMOL                1
+  NUM_STEPS           200000
+  INITIAL_SIGMA       1  # Initial nuclear widths (in bohr)
+  USE_QM_FORCE        T
+  USE_QM_COEFF        T
+  RLK_GRADIENT_TOLERANCE 2
+  RENORMALISE         F
+  INTERCEPT_SMOOTH_METHOD RI0
+
+  # Initialisation of coords, veloc and expansion coeffs
+  &INIT
+    &COORD
+       @include pos.include 
+    &END COORD
+    &VELOCITY
+       @include vel.include 
+    &END VELOCITY
+    &WF
+      INIT_TYPE   ADIABATIC
+      @include wf.include 
+    &END WF
+  &END INIT
+  &PRINT
+     &ENERGY
+        &EACH
+           MD              10
+        &END EACH
+     &END ENERGY
+     &QM
+        &EACH
+           MD              10
+        &END EACH
+     &END QM
+     &SIGMA
+        &EACH
+           MD              10
+        &END EACH
+     &END SIGMA
+     &K
+        &EACH
+           MD              10
+        &END EACH
+     &END K
+     &QM_force
+        &EACH
+           MD              10
+        &END EACH
+     &END QM_force
+     &RLK
+        &EACH
+           MD              10
+        &END EACH
+     &END RLK
+     &RI0
+        &EACH
+           MD              10
+        &END EACH
+     &END RI0
+     &AD_MOM
+        &EACH
+           MD              10
+        &END EACH
+     &END AD_MOM
+     &AD_COEFF
+        &EACH
+           MD              10
+        &END EACH
+     &END AD_COEFF
+     &AD_ENER
+        &EACH
+           MD              10
+        &END EACH
+     &END AD_ENER
+     &AD_FORCES
+        &EACH
+           MD              10
+        &END EACH
+     &END AD_FORCES
+  &END PRINT
+&END CTMQC
+!&END CT-MQC
+
+&PRINT
+    &TRAJECTORY  LOW
+        FORMAT  XYZ
+        &EACH
+            MD              10
+        &END EACH
+    &END TRAJECTORY
+    &VELOCITIES  LOW
+        FORMAT  XYZ
+        &EACH
+            MD              10
+        &END EACH
+    &END VELOCITIES
+    &FORCES  LOW
+        FORMAT  XYZ
+        &EACH
+            MD              10
+        &END EACH
+    &END FORCES
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &RESTART OFF
+    &END RESTART
+&END PRINT
+@include CONSTRAINT.include
+&END MOTION
+
+
+&MULTIPLE_FORCE_EVALS
+   FORCE_EVAL_ORDER 1..3
+   MULTIPLE_SUBSYS
+&END
+&FORCE_EVAL
+        METHOD MIXED
+        &MIXED
+                MIXING_TYPE ADIABATIC
+                &ADIABATIC
+                        METHOD_PROPAGATION                    CTMQC !CT-MQC
+                        METHOD_COUPLING                       AOM
+                        SEED                                  68569979
+                        FAST_EHRENFEST                        T
+                        &AOM
+                             PSIGMA_FILE_NAME                 ../topologies/S_psigma.txt
+                             PPI_FILE_NAME                    ../topologies/S_ppi.txt
+                             NUMBER_DIABATIC_STATES                2
+                             NUMBER_ATOMS_PER_SITE                 6
+                             NUMBER_ORBITALS                       1
+                             CUT_OFF_BETWEEN_SITES [angstrom]      12.0
+                             CUT_OFF_CONNECTIVITY                  3.5
+                             SCALING_FACTOR   [hartree]            0.03
+                             CBAR                                  0.5082
+                             ATOMIC_OVERLAP_CUTOFF                 1e-17
+                             NUCLEAR_TIMESTEP  [fs]                0.01
+                             ELECTRONIC_PARTIAL_STEP               10
+                             CENTER_OF_MASS                        T
+                             NACV_INCREMENT   [bohr]               0.0018872589
+                             @INCLUDE AOM_COEFF.include
+                        &END AOM
+                        &PRINT
+                            #&PVECS LOW
+                            #   &EACH
+                            #       MD              10
+                            #   &END EACH
+                            #&END PVECS
+
+                            &COEFFICIENTS  LOW
+ &EACH
+     MD              10
+ &END EACH
+                            &END COEFFICIENTS
+                            &HAMILTONIAN
+                               UNIT     hartree
+                               &EACH
+                                   MD              10
+                               &END EACH
+                            &END HAMILTONIAN
+                        &END PRINT
+                &END ADIABATIC
+                #&PRINT
+                #        &PROGRAM_RUN_INFO OFF
+                #                        &EACH
+                #                                MD 1
+                #                        &END EACH
+                #        &END PROGRAM_RUN_INFO
+                #&END PRINT
+        &END MIXED
+        &SUBSYS
+#&COORD
+#    @INCLUDE COORD.init
+#:&END COORD
+&VELOCITY
+@INCLUDE VELOC.init
+&END VELOCITY
+@SET ACTIVE_MOL 1
+@INCLUDE TOPOLOGY.include
+&END
+
+&END FORCE_EVAL
+@SET  ACTIVE_MOL 1
+@INCLUDE FORCE_EVAL.include
+@SET  ACTIVE_MOL 2
+@INCLUDE FORCE_EVAL.include

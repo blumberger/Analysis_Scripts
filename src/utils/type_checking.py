@@ -41,23 +41,6 @@ def eval_type(String):
         return String
 
 
-def is_float(Str):
-    """
-    Check whether a string can be represented as a non-integer float
-
-    Inputs:
-      * Str <str> => A string to check
-
-    Outputs:
-      <bool> Whether the string can be represented as a non-integer float or not.
-    """
-    if type(Str) == str:
-       if is_num(Str):
-          if not float(num).is_integer():
-             return True
-    return False
-
-
 def is_num(Str):
     """
     Check whether a string can be represented as a number
@@ -73,3 +56,20 @@ def is_num(Str):
         return True
     except ValueError:
         return False
+
+
+def is_float(Str):
+    """
+    Check whether a string can be represented as a non-integer float
+
+    Inputs:
+      * Str <str> => A string to check
+
+    Outputs:
+      <bool> Whether the string can be represented as a non-integer float or not.
+    """
+    if type(Str) == str:
+       if is_num(Str):
+          if not float(Str).is_integer():
+             return True
+    return False

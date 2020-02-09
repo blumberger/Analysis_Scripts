@@ -17,7 +17,8 @@ from collections import OrderedDict
 import numpy as np
 from scipy.stats import mode
 
-from src.io_utils import general_io as IO
+from src.io_utils import general_io as gen_io
+from src.utils import type_checking as type_check
 
 
 class XYZ_File(object):
@@ -29,30 +30,78 @@ class XYZ_File(object):
     easy manipulation of the data without loosing any metadata.
 
     Inputs/Attributes:
-        * data <numpy.array> => The parsed xyz data from an xyz file.
+        * xyz <numpy.array> => The parsed xyz data from an xyz file.
         * cols <numpy.array> => The parsed column data from the xyz file.
         * timesteps <numpy.array> => The parsed timesteps from the xyz file.
+
+        # * write_precision <int> => The precision with which to write the data.
     """
-    def __init__(self, data, cols, timesteps):
-        self.data = data
-        self.cols = cols
-        self.timestep = timestep
+    # write_precision = 5
+    def __init__(self, xyz, cols, timesteps):
+        self.xyz = np.array(xyz)
+        self.cols = np.array(cols)
+        self.timesteps = np.array(timesteps)
+
+        self.nstep = len(self.xyz)
+        self.natom = self.xyz.shape[1]
+        self.ncol = self.xyz.shape[2]
 
     # Overload adding
     def __add__(self, val):
-        return self.data + val
+        self.xyz += val
+        return self
     # Overload multiplying
     def __mul__(self, val):
-        return self.data * val
+        self.xyz *= val
+        return self
     # Overload subtracting
     def __sub__(self, val):
-        return self.data - val
-    # Overload division
-    def __div__(self, val):
-        return self.data / val
+        self.xyz -= val
+        return self
+    # Overload division operator i.e. a / b
+    def __truediv__(self, val):
+        self.xyz /= val
+        return self
+    # Overload floor division operator i.e. a // b
+    def __floordiv__(self, val):
+        self.xyz //= val
+        return self
     # Overload the power operator
     def __pow__(self, val):
-        return self.data ** val
+        self.xyz **= val
+        return self
+    # Overload the str function (useful for writing files).
+    def __str__(self):
+        # Create an array of spaces/newlines to add between data columns in str
+        space = ["    "] * self.natom
+
+        # Convert floats to strings (the curvy brackets are important for performance here)
+        xyz = self.xyz.astype(str)
+        xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+        cols = np.char.add(self.cols[0], space)
+        head_str = '%i\ntime = ' % self.natom
+        s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+             for step_data, t in zip(xyz, self.timesteps))
+
+        # Create the str
+        return ''.join(s)
+
+
+def write_xyz_file(XYZ_Data, filepath=False):
+    """
+    Will write 1 xyz file from an XYZ_File object.
+
+    Inputs:
+        * XYZ_Data => An XYZ_File object -the output of the 'read_xyz_file' fnc.
+        * filepath => The path to the file to be written to.
+    Outputs:
+        <str> The output string to be written.
+    """
+    fileTxt = str(XYZ_Data)
+    if filepath is not False:
+        with open(filepath, "w") as f:
+            f.write(fileTxt)
+
 
 def string_between(Str, substr1, substr2):
     """
@@ -64,7 +113,6 @@ def string_between(Str, substr1, substr2):
     Outputs:
       <str> The string between 2 substrings within a string.
     """
-    words = line.split()
     Str = Str[Str.find(substr1)+len(substr1):]
     Str = Str[:Str.find(substr2)]
     return Str
@@ -112,14 +160,14 @@ def num_atoms_find(ltxt):
         print("Start of atom lines = %i" % start_atoms)
         raise SystemExit("Can't read this xyz file! I can't find where the atom section starts!")
 
-    for i,line in enumerate(ltxt[start_atoms:],start=start_atoms):
+    for i,line in enumerate(ltxt[start_atoms:]):
         if (is_atom_line(line) == False):
             finish_atoms=i
             break
     else:
-        finish_atoms = len(ltxt)
+        finish_atoms = len(ltxt[start_atoms:])
 
-    return start_atoms, finish_atoms-start_atoms
+    return start_atoms, finish_atoms
 
 
 # Finds the number of title lines and number of atoms with a step
@@ -199,7 +247,7 @@ def get_num_data_cols(ltxt, filename, num_title_lines, lines_in_step):
           splitter = line.split()
           count = 0
           for item in splitter[-1::-1]:
-             if not is_float(item):
+             if not type_check.is_float(item):
                 num_data_cols_all.append(count)
                 break
              count += 1
@@ -225,7 +273,7 @@ def get_xyz_metadata(filename, ltxt=False):
        <dict> A dictionary containing useful parameters such as how many atom lines, how to get the timestep, num of frames.
     """
     if ltxt == False:
-        ltxt = IO.IO.open_read(filename).split('\n')
+        ltxt = gen_io.open_read(filename).split('\n')
     # Check whether to use the very stable but slow parser or quick slightly unstable one
     most_stable = False
     if any('**' in i for i in ltxt[:300]):
@@ -290,7 +338,7 @@ def read_xyz_file(filename, num_data_cols=False,
     # Get bits of metadata
     if num_data_cols is not False:
        num_data_cols = -num_data_cols
-    ltxt = [i for i in IO.open_read(filename).split('\n') if i]
+    ltxt = [i for i in gen_io.open_read(filename).split('\n') if i]
     if metadata is False:
         metadata = get_xyz_metadata(filename, ltxt)
         if num_data_cols is False:
@@ -301,7 +349,7 @@ def read_xyz_file(filename, num_data_cols=False,
     if get_timestep:
        time_ind = metadata['time_ind']
        time_delim = metadata['time_delim']
-    num_steps = len(ltxt) / metadata['lines_in_step']
+    num_steps = metadata['nsteps']
 
     # Ignore any badly written steps at the end
     badEndSteps = 0
@@ -367,11 +415,5 @@ def read_xyz_file(filename, num_data_cols=False,
         cols = step_data[:, :, 0]
     else:
         cols = step_data[:, :, :num_data_cols]
-
-    # If there's only 1 step don't nested as many lists.
-    if len(all_steps) == 1:
-       data = data[0]
-       cols = cols[0]
-       timesteps = timesteps[0]
 
     return XYZ_File(data, cols, timesteps)

@@ -1,0 +1,19 @@
+#####################################
+#                                   #
+# An input file to read an xyz file #
+# and ammend it via some arthimetic #
+# operations.                       #
+#####################################
+
+# Set the variable xyz_filepath to the file we want to read
+xyz_filepath = "run-pos-1-1.xyz"
+conv_fact = 2
+
+# Load the xyz file as save it under the name pos
+load $xyz_filepath xyz as pos
+
+# Add 2.7 to all the data in the xyz file and multiply by 2
+math pos = (pos * $conv_fact) + 2
+
+# write the pos data
+write pos "test.xyz"

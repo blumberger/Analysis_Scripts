@@ -6,6 +6,63 @@ A module containing methods relevant to general input and output operations.
 
 import os
 
+from src.parsing import input_file_types as inp_types
+
+
+class DataFileStorage(object):
+   """
+   A class to act as a template for other classes that load and store data from files to use.
+
+   The class takes the filepath as an input and calls a method named _parse(). Any data stored
+   under the name numeric_data will be manipulated via the operator overload functions.
+   """
+   numeric_data = 0
+   def __init__(self, filepath):
+      self.filepath = filepath
+      self.file_txt = open_read(self.filepath)
+      
+      self._parse()
+
+   # Dummy method to hold the place of an actual parser later
+   def _parse(self):
+       print("You haven't overridden the parse method in your new class")
+   # Overload adding
+   def __add__(self, val):
+       if isinstance(val, (str,)):
+          self.numeric_data += str(val)
+       else:
+          self.numeric_data += float(val)
+       return self
+
+   # Overload multiplying
+   def __mul__(self, val):
+       self.numeric_data *= float(val)
+       return self
+
+   # Overload subtracting
+   def __sub__(self, val):
+       self.numeric_data -= float(val)
+       return self
+
+   # Overload division operator i.e. a / b
+   def __truediv__(self, val):
+       self.numeric_data /= float(val)
+       return self
+
+   # Overload floor division operator i.e. a // b
+   def __floordiv__(self, val):
+       self.numeric_data //= float(val)
+       return self
+
+   # Overload the power operator
+   def __pow__(self, val):
+       self.numeric_data **= float(val)
+       return self
+
+   # str() would return filetxt by default
+   def __str__(self):
+       return self.file_txt
+
 # Reads a file and closes it
 def open_read(filename, throw_error=True):
     """

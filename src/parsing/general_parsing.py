@@ -6,7 +6,7 @@ remove comments from lines in files or to ...
 """
 import re
 
-from src.utils import type_checking as type_check
+from src.system import type_checking as type_check
 
 
 def rm_comment_from_line(line, comment_str='#'):

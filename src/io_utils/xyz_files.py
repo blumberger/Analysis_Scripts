@@ -5,6 +5,9 @@ Created on Wed Mar 27 11:32:22 2019
 
 A module containing methods relevant to xyz files.
 
+The class XYZ_File at the top will store the data read from an xyz file and overload operators
+in order to make the data manipulatable.
+
 To read an xyz file use the function `read_xyz_file(filepath <str>)`
 
 To write an xyz file use the function `write_xyz_file(xyz_data <np.array | list>, filepath <str>)`
@@ -12,16 +15,15 @@ To write an xyz file use the function `write_xyz_file(xyz_data <np.array | list>
 
 import re
 import os
-import difflib as dfl
 from collections import OrderedDict
 import numpy as np
 from scipy.stats import mode
 
 from src.io_utils import general_io as gen_io
-from src.utils import type_checking as type_check
+from src.system import type_checking as type_check
 
 
-class XYZ_File(object):
+class XYZ_File(gen_io.DataFileStorage):
     """
     A container to store xyz data in.
 
@@ -30,53 +32,39 @@ class XYZ_File(object):
     easy manipulation of the data without loosing any metadata.
 
     Inputs/Attributes:
-        * xyz <numpy.array> => The parsed xyz data from an xyz file.
+        * numeric_data <numpy.array> => The parsed xyz data from an xyz file.
         * cols <numpy.array> => The parsed column data from the xyz file.
         * timesteps <numpy.array> => The parsed timesteps from the xyz file.
-
-        # * write_precision <int> => The precision with which to write the data.
     """
     # write_precision = 5
-    def __init__(self, xyz, cols, timesteps):
-        self.xyz = np.array(xyz)
-        self.cols = np.array(cols)
-        self.timesteps = np.array(timesteps)
+    def __init__(self, filepath):
+        super().__init__(filepath)
 
-        self.nstep = len(self.xyz)
-        self.natom = self.xyz.shape[1]
-        self.ncol = self.xyz.shape[2]
+    def _parse(self):
+        """
+        Will call the 'read_xyz_file' function to parse an xyz file.
 
-    # Overload adding
-    def __add__(self, val):
-        self.xyz += val
-        return self
-    # Overload multiplying
-    def __mul__(self, val):
-        self.xyz *= val
-        return self
-    # Overload subtracting
-    def __sub__(self, val):
-        self.xyz -= val
-        return self
-    # Overload division operator i.e. a / b
-    def __truediv__(self, val):
-        self.xyz /= val
-        return self
-    # Overload floor division operator i.e. a // b
-    def __floordiv__(self, val):
-        self.xyz //= val
-        return self
-    # Overload the power operator
-    def __pow__(self, val):
-        self.xyz **= val
-        return self
+        For more info on the specifics of reading the xyz file see 'read_xyz_file'
+        below.
+        """
+        self.numeric_data, self.cols, self.timesteps = read_xyz_file(self.filepath)
+
+        # Make sure the data are in numpy arrays
+        self.cols, self.numeric_data = np.array(self.cols), np.array(self.numeric_data)
+        self.timesteps = np.array(self.timesteps)
+
+        # Get some metadata
+        self.nstep = len(self.numeric_data)
+        self.natom = self.numeric_data.shape[1]
+        self.ncol = self.numeric_data.shape[2]
+
     # Overload the str function (useful for writing files).
     def __str__(self):
         # Create an array of spaces/newlines to add between data columns in str
         space = ["    "] * self.natom
 
         # Convert floats to strings (the curvy brackets are important for performance here)
-        xyz = self.xyz.astype(str)
+        xyz = self.numeric_data.astype(str)
         xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
         cols = np.char.add(self.cols[0], space)
         head_str = '%i\ntime = ' % self.natom
@@ -416,4 +404,4 @@ def read_xyz_file(filename, num_data_cols=False,
     else:
         cols = step_data[:, :, :num_data_cols]
 
-    return XYZ_File(data, cols, timesteps)
+    return data, cols, timesteps

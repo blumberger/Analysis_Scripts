@@ -28,6 +28,7 @@ As Guido von Russof says 'Code it read much more than it is written' so reabilit
  - **Follow PEP8**. If you are writing in python, try and follow PEP8 guidelines as closely as possible. Most IDEs have PEP8 style checking, turn it on and try to follow it. Of course, if you think for a special case PEP8 obfuscates the meaning don't use it, though the default should be PEP8.
  - **Document your code**. It is very helpful to document your code, without the documentation people won't know if your code even exists and they will write their own! I have written a separate section on documentation below.
  - **If your writing in python: Use python3**. Any development on Python2 has stopped and the langauge has become deprecated. It will still work as it should do but won't get better. Python3 also has lots of nice new features.
+ - **Never use the * to import fncs**. The star makes it difficult to know what function comes from where and obfsucates the code.
 
 
 ## Where to put new code?

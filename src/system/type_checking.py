@@ -73,3 +73,24 @@ def is_float(Str):
           if not float(Str).is_integer():
              return True
     return False
+
+def is_int(num, msg=False):
+    """ 
+    Will check whether a parameter is a float or not.
+ 
+    If a msg is supplied a TypeError will be thrown if the float isn't an int.
+ 
+    Inputs:
+        * num <float> => Number to check
+        * msg <str> => The msg to report if it isn't an int
+    Outputs:
+        <bool> 
+    """
+    if not num.is_integer():
+        if msg is not False:
+            raise TypeError(msg)
+        else:
+            return False
+    else:
+        return True
+ 

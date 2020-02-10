@@ -1,5 +1,0 @@
-in_filepath = "~/Downloads/run.inp"
-out_filepath = "test.inp"
-
-load $in_filepath cp2k_inp as inp_file
-write inp_file $out_filepath

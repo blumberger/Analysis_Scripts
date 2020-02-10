@@ -55,8 +55,8 @@ class INP_File(object):
     line_num = 0
     file_ltxt_orig = {}
     variables = []
-    load_fncs = {'inp': CP2K_inp.parse_inp_file, 'xyz': xyz.read_xyz_file}
-    write_fncs = {'inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file}
+    load_fncs = {'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.read_xyz_file}
+    write_fncs = {'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file}
     line_declarations = {'variable': lambda x: '=' in x and not any([j in x for j in ('>', '<', 'math')]),
                          'load': lambda x: len(re.findall("^load", x)) > 0,
                          'write': lambda x: len(re.findall("^write", x)) > 0,
@@ -134,8 +134,10 @@ class INP_File(object):
         if words[3] != 'as':
             self.__print_error(err_msg + "\n\nThe 4th word should be 'as'")
 
-        if not os.path.isfile(words[1]):
-            self.__print_error("Can't find file '%s'" % words[1])
+        try:
+           filepath = gen_io.get_abs_path(words[1])
+        except IOError as e:
+            self.__print_error(str(e))
 
         if words[2] not in self.load_fncs:
             self.__print_error("I don't know how to load files of type '%s'." % words[2])
@@ -328,6 +330,8 @@ class INP_File(object):
         # Read the data
         _, fpath, dtype, _, data_name = words
         fpath = type_check.remove_quotation_marks(fpath)
+        fpath = gen_io.get_abs_path(fpath)
+
         setattr(self, data_name,  (self.load_fncs[dtype](fpath), dtype))
         self.variables.append(data_name)
 
@@ -350,6 +354,7 @@ class INP_File(object):
         # Write the data
         _, dname, fpath = words
         fpath = type_check.remove_quotation_marks(fpath)
+        fpath = os.path.abspath(os.path.expanduser(fpath))
 
         data, dtype = getattr(self, dname)
 

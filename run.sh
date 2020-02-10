@@ -1,27 +1,42 @@
-CONFIG_VAR_FILE="./config/vars"
+CONFIG_DIR="./config"
+CONFIG_VAR_FILE="$CONFIG_DIR/vars"
 
 
 # Try to read the variable config file, this is just a file that stores variables permanently. It will be ignored by git.
 INSTALL_DEPS="false"
-if ! [ -f $CONFIG_VAR_FILE ]
+if ! [ -f "$CONFIG_VAR_FILE" ]
 then
     INSTALL_DEPS="true"
 else
     source $CONFIG_VAR_FILE
 fi
 
+# Override the config file if pipenv isn't installed
+PIPENV_EXISTS=`which pipenv 2> /dev/null`
+if [ "$PIPENV_EXISTS" == "" ]
+then
+   INSTALL_DEPS="true"
+fi
+
 # Install the necessary python libraries and create a virtual enviroment
-if [ $INSTALL_DEPS == "true" ]
+if [ "$INSTALL_DEPS" == "true" ]
 then
     echo "Installing dependencies"
-    PIPENV_EXISTS=`which pipenv`
-    if [ $PIPENV_EXISTS == "" ]
+    if [ "$PIPENV_EXISTS" == "" ]
     then
         python3 -m pip install pipenv --user
     fi
     pipenv install
     echo "Installed dependencies"
 fi
+
+# Create the config directory if it doesn't exist
+if ! [ -d "$CONFIG_DIR" ]
+then
+   mkdir $CONFIG_DIR
+fi
+
+# Let the script know we don't need to install things next time.
 echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE
     
 # Get the input file from the arguments

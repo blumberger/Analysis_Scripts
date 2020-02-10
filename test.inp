@@ -1,0 +1,2775 @@
+&GLOBAL	    
+   PROJECT     hematite    
+   RUN_TYPE    GEO_OPT    
+&END GLOBAL	    
+
+&MOTION	    
+   &GEO_OPT	    
+      OPTIMIZER    BFGS    
+      MAX_ITER     1000    
+   &END GEO_OPT	    
+
+   &PRINT	    
+      &TRAJECTORY	    
+         FORMAT    DCD    
+      &END TRAJECTORY	    
+   &END PRINT	    
+&END MOTION	    
+
+&FORCE_EVAL	    
+   METHOD                      Quickstep    
+   STRESS_TENSOR               ANALYTICAL    
+
+   &DFT	    
+      UKS                         T    
+      CHARGE                      -1    
+      # MULTIPLICITY 2
+      BASIS_SET_FILE_NAME         ../input/BASIS_ADMM    
+      BASIS_SET_FILE_NAME         ../input/BASIS_MOLOPT    
+      POTENTIAL_FILE_NAME         ../input/GTH_POTENTIALS    
+
+      &AUXILIARY_DENSITY_MATRIX_METHOD	    
+         METHOD                      BASIS_PROJECTION    
+         ADMM_PURIFICATION_METHOD    MO_DIAG    
+      &END AUXILIARY_DENSITY_MATRIX_METHOD	    
+
+      &MGRID	    
+         CUTOFF    400    
+      &END MGRID	    
+
+      &QS	    
+         EPS_DEFAULT    1.00E-12    
+      &END QS	    
+
+      &SCF	    
+         SCF_GUESS         ATOMIC    
+         EPS_SCF           1.0E-5    
+         MAX_SCF           40    
+
+         &OT	    
+            PRECONDITIONER    FULL_SINGLE_INVERSE    
+            MINIMIZER         DIIS    
+         &END OT	    
+
+         &OUTER_SCF	    
+            MAX_SCF    60    
+            EPS_SCF    1.0E-5    
+         &END OUTER_SCF	    
+      &END SCF	    
+
+      &XC	    
+         &VDW_POTENTIAL	    
+            POTENTIAL_TYPE          PAIR_POTENTIAL    
+
+            &PAIR_POTENTIAL	    
+               TYPE                    DFTD3    
+               REFERENCE_FUNCTIONAL    PBE0    
+               PARAMETER_FILE_NAME     ../input/dftd3.dat    
+            &END PAIR_POTENTIAL	    
+         &END VDW_POTENTIAL	    
+
+         &XC_FUNCTIONAL	    
+            &PBE	    
+               SCALE_X    0.0    
+               SCALE_C    1.0    
+            &END PBE	    
+
+            &XWPBE	    
+               SCALE_X     -0.12    
+               SCALE_X0    1.0    
+               OMEGA       0.11    
+            &END XWPBE	    
+         &END XC_FUNCTIONAL	    
+
+         &HF	    
+            &SCREENING	    
+               EPS_SCHWARZ            1.0E-4    
+               SCREEN_ON_INITIAL_P    FALSE    
+            &END SCREENING	    
+
+            &INTERACTION_POTENTIAL	    
+               POTENTIAL_TYPE    SHORTRANGE    
+               OMEGA             0.11    
+            &END INTERACTION_POTENTIAL	    
+
+            &MEMORY	    
+               MAX_MEMORY             2400    
+               EPS_STORAGE_SCALING    0.1    
+            &END MEMORY	    
+            FRACTION               0.12    
+         &END HF	    
+      &END XC	    
+
+      &PRINT	    
+         &DERIVATIVES	ON    
+         &END DERIVATIVES	    
+
+         &E_DENSITY_CUBE	ON    
+         &END E_DENSITY_CUBE	    
+      &END PRINT	    
+   &END DFT	    
+
+   &SUBSYS	    
+      &CELL	    
+         ABC                   10.134    10.134    13.082    
+         ALPHA_BETA_GAMMA      90.0    90.0    120.0    
+         PERIODIC              XYZ    
+         MULTIPLE_UNIT_CELL    1    1    1    
+
+         &CELL_REF	    
+            ABC                   10.134    10.134    13.082    
+            ALPHA_BETA_GAMMA      90.0    90.0    120.0    
+            MULTIPLE_UNIT_CELL    1    1    1    
+         &END CELL_REF	    
+      &END CELL	    
+
+      &COORD	    
+         SCALED    F    
+         Oa         6.801130      3.612326      12.466754     
+         Fe1a       0.184084      0.686921      8.908973      
+         Ob         4.475985      2.270078      12.466754     
+         Oc         0.959132      7.880153      1.565130      
+         Fe1b       -2.349416     8.000476      0.762288      
+         Od         6.026031      2.270078      5.925754      
+         Oe         6.234639      5.075072      10.286507     
+         Fe2a       2.717584      8.000476      11.089219     
+         Of         3.701038      3.612326      5.925754      
+         Og         3.492556      3.732780      10.286507     
+         Fe1c       2.717584      8.000476      0.762288      
+         Oh         6.801130      0.686921      3.745507      
+         Oi         7.009536      3.492003      8.106130      
+         Oj         -1.574368     3.492003      1.565130      
+         Ok         1.942536      0.566598      12.466754     
+         Ol         7.009612      0.807376      8.106130      
+         Om         1.167665      2.149623      1.565130      
+         Fe1d       0.184059      6.537774      9.483665      
+         On         -0.591015     2.270078      12.466754     
+         Oo         0.959107      2.029300      10.286507     
+         Op         -0.799370     5.075072      3.745507      
+         Fe1e       -2.349416     8.000476      4.548219      
+         Oq         3.492632      3.492003      1.565130      
+         Fe2b       5.251059      6.537774      2.942665      
+         Or         0.959006      5.195527      1.565130      
+         Os         4.476112      5.195527      8.106130      
+         Ot         8.559582      0.566598      5.925754      
+         Ou         3.492531      6.658229      5.925754      
+         Ov         1.167538      8.000476      5.925754      
+         Ow         0.959082      4.954749      5.925754      
+         Fe1f       5.251059      6.537774      0.187596      
+         Fe1g       0.184084      0.686921      5.123042      
+         Ox         4.267630      8.000476      12.466754     
+         Fe2c       0.184084      0.686921      11.664042     
+         Oy         1.942536      3.492003      8.106130      
+         Oz         -1.365962     3.612326      5.925754      
+         Fe1h       -2.349416     5.075072      5.123042      
+         Oaa        -1.574393     6.417451      10.286507     
+         Fe1i       2.717584      5.075072      5.123042      
+         Oab        1.167639      5.075072      10.286507     
+         Fe1j       2.717584      5.075072      8.908973      
+         Fe2d       7.784559      2.149623      6.728596      
+         Fe2e       -2.349416     8.000476      11.089219     
+         Oac        -4.107944     8.120931      10.286507     
+         Oad        7.009536      0.566598      12.466754     
+         Fe2f       0.184084      3.612326      11.089219     
+         Oae        3.701165      6.537774      1.565130      
+         Fe1k       5.251059      6.537774      9.483665      
+         Fe1l       0.184084      3.612326      4.548219      
+         Oaf        4.267630      5.075072      3.745507      
+         Oag        -3.124439     6.417451      3.745507      
+         Oah        1.942561      6.417451      3.745507      
+         Oai        4.476112      8.120931      3.745507      
+         Oaj        -0.590964     7.880153      8.106130      
+         Oak        3.492607      6.417451      10.286507     
+         Fe2g       0.184059      6.537774      2.942665      
+         Fe2h       5.251084      3.612326      11.089219     
+         Oal        3.701139      0.686921      10.286507     
+         Oam        4.476061      2.029300      3.745507      
+         Oan        -3.332845     6.537774      8.106130      
+         Fe1m       7.784559      2.149623      9.483665      
+         Oao        0.959031      2.270078      5.925754      
+         Oap        3.492506      0.807376      1.565130      
+         Oaq        1.942612      3.732780      3.745507      
+         Oar        3.492582      0.566598      5.925754      
+         Fe2i       0.184084      0.686921      2.367973      
+         Oas        4.476036      4.954749      12.466754     
+         Oat        6.026006      5.195527      1.565130      
+         Fe1n       5.251084      0.686921      5.123042      
+         Fe2j       5.251084      0.686921      11.664042     
+         Oau        -0.590888     8.120931      3.745507      
+         Oav        6.026107      2.029300      10.286507     
+         Fe2k       2.717584      5.075072      2.367973      
+         Oaw        -1.365835     6.537774      1.565130      
+         Fe1o       5.251084      3.612326      0.762288      
+         Oax        -4.107868     7.880153      1.565130      
+         Fe1p       0.184084      3.612326      0.762288      
+         Oay        8.768139      0.686921      10.286507     
+         Fe2l       7.784559      2.149623      2.942665      
+         Fe2m       5.251059      6.537774      6.728596      
+         Fe1q       5.251084      0.686921      8.908973      
+         Oaz        4.476036      7.880153      8.106130      
+         Fe1r       0.184059      6.537774      0.187596      
+         Fe1s       2.717559      2.149623      0.187596      
+         Fe1t       5.251084      3.612326      4.548219      
+         Oba        -0.590939     2.029300      3.745507      
+         Obb        1.734155      6.537774      8.106130      
+         Obc        4.267655      2.149623      8.106130      
+         Fe2n       -2.349416     8.000476      7.303288      
+         Fe2o       2.717584      8.000476      7.303288      
+         Fe1u       2.717584      8.000476      4.548219      
+         Fe2p       2.717584      5.075072      11.664042     
+         Fe1v       7.784559      2.149623      0.187596      
+         Fe1w       -2.349416     5.075072      8.908973      
+         Fe2q       0.184059      6.537774      6.728596      
+         Obd        0.959056      8.120931      10.286507     
+         Fe2r       5.251084      3.612326      7.303288      
+         Obe        7.009612      3.732780      3.745507      
+         Obf        -3.124515     6.658229      12.466754     
+         Obg        1.942612      0.807376      8.106130      
+         Fe2s       5.251084      0.686921      2.367973      
+         Obh        -3.899462     8.000476      5.925754      
+         Obi        -0.590964     4.954749      12.466754     
+         Obj        -1.574469     6.658229      5.925754      
+         Fe2t       0.184084      3.612326      7.303288      
+         Obk        6.234665      2.149623      1.565130      
+         Obl        6.026082      4.954749      5.925754      
+         Obm        1.942485      6.658229      12.466754     
+         Fe1x       2.717559      2.149623      9.483665      
+         Fe2u       -2.349416     5.075072      2.367973      
+         Fe2v       2.717559      2.149623      2.942665      
+         Obn        -0.590888     5.195527      8.106130      
+         Obo        -1.574444     3.732780      10.286507     
+         Obp        1.734130      0.686921      3.745507      
+         Obq        -0.799370     8.000476      12.466754     
+         Obr        8.559506      0.807376      1.565130      
+         Fe2w       -2.349416     5.075072      11.664042     
+         Obs        -0.799345     2.149623      8.106130      
+         Obt        1.734130      3.612326      12.466754     
+         Fe2x       2.717559      2.149623      6.728596      
+      &END COORD	    
+
+      &TOPOLOGY	    
+         COORD_FILE_FORMAT    XYZ    
+         COORD_FILE_NAME      input.xyz    
+      &END TOPOLOGY	    
+
+      &KIND	Fe1a    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1b    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1c    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1d    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1e    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1f    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1g    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1h    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1i    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1j    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1k    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1l    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1m    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1n    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1o    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1p    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1q    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1r    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1s    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1t    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1u    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1v    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1w    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe1x    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2a    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2b    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2c    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2d    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2e    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2f    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2g    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2h    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2i    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2j    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2k    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2l    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2m    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2n    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2o    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2p    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2q    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2r    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2s    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2t    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2u    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2v    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2w    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Fe2x    
+         ELEMENT              Fe    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         AUX_FIT_BASIS_SET    cFIT11    
+         POTENTIAL            GTH-PBE-q16    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +4    -2    
+               L      2    0    
+               N      3    4    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    -6    -2    
+               L      2    0    
+               N      3    4    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oa    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ob    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oc    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Od    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oe    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Of    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Og    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oh    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oi    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oj    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ok    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ol    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Om    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	On    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oo    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Op    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oq    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Or    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Os    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ot    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ou    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ov    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ow    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Ox    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oy    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oz    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oaa    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oab    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oac    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oad    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oae    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oaf    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oag    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oah    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oai    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oaj    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oak    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oal    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oam    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oan    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oao    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oap    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oaq    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oar    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oas    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oat    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oau    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oav    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oaw    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oax    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oay    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oaz    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Oba    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obb    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obc    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obd    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obe    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obf    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obg    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obh    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obi    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obj    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obk    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obl    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obm    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obn    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obo    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obp    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obq    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obr    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obs    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+
+      &KIND	Obt    
+         ELEMENT              O    
+         AUX_FIT_BASIS_SET    cpFIT3    
+         BASIS_SET            DZVP-MOLOPT-SR-GTH    
+         POTENTIAL            GTH-PBE-q6    
+
+         &BS	    
+            &ALPHA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END ALPHA	    
+
+            &BETA	    
+               NEL    +2    
+               L      1    
+               N      2    
+            &END BETA	    
+         &END BS	    
+      &END KIND	    
+   &END SUBSYS	    
+&END FORCE_EVAL	    

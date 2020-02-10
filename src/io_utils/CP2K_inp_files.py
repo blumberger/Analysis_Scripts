@@ -50,7 +50,7 @@ class INP_Line(object):
        self.whitespace, self.is_include = False, False
        self.is_parameter, self.is_section = False, False
        self.is_section_end, self.is_section_start = False, False
-       self.is_set, self.set_txt = False, ""
+       self.is_set, self.set_txt, self.is_coord = False, "", False
 
 
        self.__clean_line()
@@ -87,8 +87,20 @@ class INP_Line(object):
            else:
                print("WARNING: I don't understand the line '%s'" % self.line)
        else:
-           self.is_parameter = True
-           self.__parse_paramter_line()
+           # Check for coord lines
+           regex_check = re.findall("[0-9]+\.[0-9]+", self.edit_line)
+           if len(regex_check) == 3:      
+               non_coord_strs = ('abc ', 'alpha_beta_gamma ',)
+               if any(j in self.edit_line.lower() for j in non_coord_strs):
+                  self.is_parameter = True
+                  self.__parse_paramter_line()
+               else:
+                  self.is_coord = True
+                  self.__parse_coord_line()
+
+           else:
+              self.is_parameter = True
+              self.__parse_paramter_line()
 
 
    def __parse_section_line(self):
@@ -115,8 +127,12 @@ class INP_Line(object):
        """
        words = self.edit_line.split()
 
+       # Get a simple paramter value pair
        if len(words) == 2:  self.parameter, self.value = words
-       elif re.findall("\[[a-zA-Z]+\]", self.edit_line):
+
+       # Try to find any units
+       elif re.findall("\[[a-zA-Z_]+\]", self.edit_line):
+            print(self.edit_line)
             unit_ind = [i for i, word in enumerate(words) if '[' in word and ']' in word]
             if len(unit_ind) == 1:
                 self.unit = words[unit_ind[0]].strip('[]')
@@ -125,6 +141,20 @@ class INP_Line(object):
 
             self.parameter = words[0]
             self.value = '   '.join([words[i] for i in range(1, len(words)) if i not in unit_ind])
+
+       # Simply save other types of parameters (i.e. parameters with list values)
+       else:
+            self.parameter = words[0]
+            self.value = "    ".join(words[1:])
+
+   def __parse_coord_line(self):
+      """
+      Will parse a line containing coordinates in the inp file.
+      """
+      words = self.edit_line.split()
+         
+      self.elm_name = words[0]
+      self.coords = [float(i) for i in words[1:]]
 
    def __str__(self):
        """
@@ -346,6 +376,12 @@ def write_inp(inp_dict, filename=False):
                                             "@SET".ljust(param_len),
                                             line.set_txt)
                 prev_line_type = "set"
+            
+            elif line.is_coord:
+               name = line.elm_name
+               coords = [("%.6f" % i).ljust(10) for i in line.coords]
+               line_txt += "%s%s     %s    %s    %s" % (indent, name.ljust(6),
+                                                        coords[0], coords[1], coords[2])
 
             comment = "# %s" % line.comment if line.comment else ""
             inp_txt += "%s    %s\n" % (line_txt, comment)

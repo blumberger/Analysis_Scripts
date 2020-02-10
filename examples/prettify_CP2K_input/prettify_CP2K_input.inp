@@ -10,7 +10,7 @@
 filepath="run.inp"
 
 # Load the variable $filepath into the object inp_file.
-load $filepath inp as inp_file
+load $filepath cp2k_inp as inp_file
 
 # Write the inp_file object as test.inp
 write inp_file "test.inp"

@@ -11,6 +11,5 @@ pandas = "*"
 matplotlib = "*"
 scipy = "*"
 argparse = "*"
-sympy = "*"
 
 [requires]

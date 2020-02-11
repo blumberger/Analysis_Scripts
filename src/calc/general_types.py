@@ -19,16 +19,22 @@ class Calc_Type(object):
         * calc => To be overridden to calculate the property in question.
     """
     required_metadata = ()
+
+    # Require these 3 objects for the formation of a new variable type
+    name = "General Calc Type"
+    metadata = {}
     data = 0
 
     def __init__(self, Variable):
         """
         Just check the required metadata is there and call the __calc function.
         """
+        # Check we have all the data we need to calculate the property
         self.Var = Variable 
         for key in self.required_metadata:
             if key not in self.Var.metadata:
                raise KeyError(f"Please load the data '{key}' into the variable '{self.Data_File.name}'")
+
 
     def calc(self):
         """

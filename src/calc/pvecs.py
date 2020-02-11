@@ -19,6 +19,11 @@ class PVecs(gen_type.Calc_Type):
     """
     required_metadata = ('num_at_per_mol',)
 
+    # Need these 3 attribute to create a new variable type
+    metadata = {'file_type': 'xyz'}
+    name = "P-Vec Calculator"
+    data = []
+
     def calc(self):
         """
         Will calculate the pvecs from self.Data_File.numeric_data

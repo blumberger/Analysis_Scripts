@@ -12,16 +12,22 @@ argument.
 import re
 import os
 
-from src.parsing import general_parsing as gen_parse
+# Fundamental system functions
 from src.system import type_checking as type_check
 
 # File loading functions
 from src.io_utils import general_io as gen_io
 from src.io_utils import CP2K_inp_files as CP2K_inp
 from src.io_utils import xyz_files as xyz
-from src.parsing import input_file_types as inp_types
+from src.io_utils import json_files as json
 
+# Parsing
+from src.parsing import input_file_types as inp_types
+from src.parsing import general_parsing as gen_parse
+
+# Calculator functions
 from src.calc import pvecs as pvec_lib
+from src.calc import NN
 
 
 def is_var_line(line):
@@ -86,9 +92,11 @@ class INP_File(object):
     file_ltxt_orig = {}
     variables = []
     
-    load_fncs = {'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File}
-    write_fncs = {'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file}
-    calc_fncs = {'pvecs': pvec_lib.PVecs}
+    load_fncs = {'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File,
+                 'json': json.read_json}
+    write_fncs = {'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file,
+                  'json': json.write_json}
+    calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN}
 
     line_declarations = {'variable': is_var_line,
                          'load': lambda x: len(re.findall("^load |^read ", x)) > 0,
@@ -149,7 +157,8 @@ class INP_File(object):
 
             # Error check any calc commands
             elif self.line_declarations['calc'](line):
-               self.__check_calc_command(line)
+               var = self.__check_calc_command(line)
+               if var != "": variables.append(var)
 
             self.line_num += 1
 
@@ -312,6 +321,13 @@ class INP_File(object):
                err_msg += "\n\nPlease set it with the following syntax in the input file:\n\t"
                err_msg += f"{var_name}['{attr}'] = <value>"
                self.__print_error(err_msg)
+
+        # Set the new var attribute to help error checking later.
+        new_var = inp_types.Variable(new_var_name, "")
+        setattr(self, new_var_name, new_var)
+        if new_var_name not in self.variables: self.variables.append(new_var_name)
+
+        return new_var_name
 
 
     #############      Parsing Methods       #############
@@ -534,13 +550,19 @@ class INP_File(object):
         # Clean up the line
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
-
         _, calc_type, _, var_name, _, new_var_name = words
 
+        # Get the variable to calculate the property with
         Var = getattr(self, var_name)
 
-        New_Var = self.calc_fncs[calc_type](Var)
-        New_Var.calc()
+        # Calculate the property
+        Calc_Obj = self.calc_fncs[calc_type](Var)
+        Calc_Obj.calc()
+
+        # Create a new variable type
+        New_Var = inp_types.Variable(Calc_Obj.name, Calc_Obj.data, Calc_Obj.metadata)
+        setattr(self, new_var_name, New_Var)
+        if new_var_name not in self.variables:  self.variables.append(new_var_name)
 
 
 

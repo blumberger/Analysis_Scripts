@@ -4,7 +4,6 @@
 A module to calculate nearest neighbour lists
 """
 import numpy as np
-import json
 
 from src.calc import general_types as gen_type
 
@@ -17,6 +16,8 @@ class NN(gen_type.Calc_Type):
 
     Important Attributes:
         * required_metadata <tuple> => Any keys that are required in the metadata dictionary.
+        * required_calc <tuple> => Any values that need calculating to calculate this value.
+        * data <*> => The data that has been calculated.
     """
     required_metadata = ()
 
@@ -30,9 +31,10 @@ class NN(gen_type.Calc_Type):
         Will calculate the pvecs from self.Data_File.numeric_data
         """
         XYZFile = self.Var.data
-        at_crds = XYZFile.numeric_data
-        natom = XYZFile.natom
-        nstep = XYZFile.nstep
+        cols = XYZFile.cols
+        at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.numeric_data])
+        natom = len(at_crds[0])
+        nstep = len(at_crds)
        
         # Calculate the nearest neighbour lists for each step
         for step in range(nstep):
@@ -62,4 +64,5 @@ class NN(gen_type.Calc_Type):
                 NN_step['atom_indices'][iat] = at_inds
 
             self.data[step] = NN_step
+        return self.data
 

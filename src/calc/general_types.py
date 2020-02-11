@@ -13,12 +13,14 @@ class Calc_Type(object):
 
     Important Attributes:
         * required_metadata <tuple> => Any keys that are required in the metadata dictionary.
+        * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
 
     Public Methods:
         * calc => To be overridden to calculate the property in question.
     """
     required_metadata = ()
+    required_calc = ()
 
     # Require these 3 objects for the formation of a new variable type
     name = "General Calc Type"

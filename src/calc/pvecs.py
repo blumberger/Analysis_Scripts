@@ -6,7 +6,6 @@ A module to calculate pvecs from some xyz coordinates.
 import numpy as np
 
 from src.calc import general_types as gen_type
-from src.calc import NN
 
 class PVecs(gen_type.Calc_Type):
     """
@@ -17,8 +16,11 @@ class PVecs(gen_type.Calc_Type):
 
     Important Attributes:
         * required_metadata <tuple> => Any keys that are required in the metadata dictionary.
+        * required_calc <tuple> => Any values that need calculating to calculate this value.
+        * data <*> => The data that has been calculated.
     """
     required_metadata = ('num_at_per_mol',)
+    required_calc = ('NN', )
 
     # Need these 3 attribute to create a new variable type
     metadata = {'file_type': 'xyz'}
@@ -38,6 +40,6 @@ class PVecs(gen_type.Calc_Type):
         cols = XYZFile.cols
         at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.numeric_data])
 
-        
+        print(self.NN)
 
 

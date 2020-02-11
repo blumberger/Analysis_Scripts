@@ -322,6 +322,15 @@ class INP_File(object):
                err_msg += f"{var_name}['{attr}'] = <value>"
                self.__print_error(err_msg)
 
+        # Check the required_calc data can be calculated
+        required_calc = self.calc_fncs[calc_type].required_calc
+        for calc in required_calc:
+            if calc not in self.calc_fncs:
+               err_msg = f"The attribute '{calc}' is required for the calculation of '{calc_type}'"
+               err_msg += "\n\nThis attribute currently can't be calculated so the calculation of"
+               err_msg += f"{calc_type} can't be performed."
+               self.__print_error(err_msg)
+
         # Set the new var attribute to help error checking later.
         new_var = inp_types.Variable(new_var_name, "")
         setattr(self, new_var_name, new_var)
@@ -555,8 +564,11 @@ class INP_File(object):
         # Get the variable to calculate the property with
         Var = getattr(self, var_name)
 
-        # Calculate the property
+        # Initialise the Calc_Obj
         Calc_Obj = self.calc_fncs[calc_type](Var)
+        # Calculate and prerequisites and save them in the new object
+        for calc in Calc_Obj.required_calc:
+            setattr(Calc_Obj, calc, self.calc_fncs[calc](Var).calc())
         Calc_Obj.calc()
 
         # Create a new variable type

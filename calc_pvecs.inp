@@ -1,8 +1,7 @@
 ##############################################
 #                                            #
-# An input file to calculate the Nearest     #
-# neighbour list from an data from an xyz    #
-# file.
+# An input file to calculate the Pvecs       #
+# from an xyz file.                          #
 ##############################################
 
 # Set the variable xyz_filepath to the file we want to read
@@ -13,10 +12,13 @@ xyz_filepath = "$folder/run-pos-1-1.xyz"
 echo "Loading file: $xyz_filepath"
 load $xyz_filepath xyz as pos
 
+## Add the attribute 'num_ats_per_mol' to the variable pos
+pos['num_at_per_mol'] = 6
+
 # Calculate the nearest neighbour list
-calc NN from pos as NN
+calc pvecs from pos as pvec_data
 
 # Write the data
-write NN "test.json"
+write pvec_data "test.xyz"
 
 

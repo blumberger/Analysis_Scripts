@@ -572,7 +572,7 @@ class INP_File(object):
         Calc_Obj.calc()
 
         # Create a new variable type
-        New_Var = inp_types.Variable(Calc_Obj.name, Calc_Obj.data, Calc_Obj.metadata)
+        New_Var = inp_types.Variable(Calc_Obj.name, Calc_Obj, Calc_Obj.metadata)
         setattr(self, new_var_name, New_Var)
         if new_var_name not in self.variables:  self.variables.append(new_var_name)
 

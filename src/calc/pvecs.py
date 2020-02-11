@@ -6,6 +6,7 @@ A module to calculate pvecs from some xyz coordinates.
 import numpy as np
 
 from src.calc import general_types as gen_type
+from src.calc import NN
 
 class PVecs(gen_type.Calc_Type):
     """
@@ -36,7 +37,7 @@ class PVecs(gen_type.Calc_Type):
         # First remove 'Ne' atoms
         cols = XYZFile.cols
         at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.numeric_data])
-        print(at_crds)
 
+        
 
 

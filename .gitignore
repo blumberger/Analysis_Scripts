@@ -4,3 +4,5 @@
 *.py[a-d]
 
 config/vars
+*.*.sw*
+*/.*.sw*

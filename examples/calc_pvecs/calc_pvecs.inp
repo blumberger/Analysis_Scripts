@@ -12,13 +12,11 @@ xyz_filepath = "$folder/run-pos-1-1.xyz"
 echo "Loading file: $xyz_filepath"
 load $xyz_filepath xyz as pos
 
-## Add the attribute 'num_ats_per_mol' to the variable pos
+# Add the attribute 'num_ats_per_mol' to the variable pos
 pos['num_at_per_mol'] = 6
 
 # Calculate the nearest neighbour list
 calc pvecs from pos as pvec_data
 
 # Write the data
-write pvec_data "test.xyz"
-
-
+write pvec_data "pvecs.xyz"

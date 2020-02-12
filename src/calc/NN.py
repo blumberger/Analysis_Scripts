@@ -64,13 +64,13 @@ class NN(gen_type.Calc_Type):
                 self.__get_nmol()
                 self.__reshape_at_dist()
                 self.__get_nearest_atom_inds_per_mol()
-                self.data[step]['closest_atoms_mol_grouped'] = self.closest_at_per_mol.tolist()
-                self.data[step]['distances_mol_grouped'] = self.all_dist_per_mol.tolist()
+                self.data[step]['closest_atoms_mol_grouped'] = self.closest_at_per_mol
+                self.data[step]['distances_mol_grouped'] = self.all_dist_per_mol
                  
             
-            # Save data in dict (use tolist for writing later)
-            self.data[step]['distances'] = self.all_dist.tolist()
-            self.data[step]['closest_atom_indices'] = self.closest_ats.tolist()
+            # Save data in dict
+            self.data[step]['distances'] = self.all_dist
+            self.data[step]['closest_atom_indices'] = self.closest_ats
             
         return self.data
 
@@ -114,7 +114,7 @@ class NN(gen_type.Calc_Type):
         The data is stored as self.closest_ats
         """
         # Create empty data structure
-        self.closest_ats = np.zeros((self.natom, self.natom-1))
+        self.closest_ats = np.zeros((self.natom, self.natom-1), dtype=int)
 
         # Get and sort distances
         all_at_inds = np.arange(self.natom)
@@ -162,7 +162,7 @@ class NN(gen_type.Calc_Type):
         """
         self.closest_at_per_mol = np.zeros((self.nmol,
                                             self.at_per_mol,
-                                            self.at_per_mol-1))
+                                            self.at_per_mol-1), dtype=int)
 
         # Get and sort distances
         all_at_inds = np.arange(self.at_per_mol)
@@ -173,4 +173,13 @@ class NN(gen_type.Calc_Type):
             
                at_inds = [i[1] for i in sorted(zip(dist, at_inds))]
                self.closest_at_per_mol[imol, iat] = at_inds
- 
+
+    def __str__(self):
+        """
+        Overload the string function
+        """
+        for step in self.data:
+            for key in self.data[step]:
+                self.data[step][key] = self.data[step][key].tolist()
+            
+        return str(self.data)

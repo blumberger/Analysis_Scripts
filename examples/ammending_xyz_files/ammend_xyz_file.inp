@@ -17,4 +17,4 @@ load $xyz_filepath xyz as pos
 math pos = (pos * $conv_fact) + 2
 
 # write the pos data
-write pos "test.xyz"
+write pos "ammended.xyz"

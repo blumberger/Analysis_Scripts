@@ -85,7 +85,6 @@ def write_xyz_file(XYZ_Data, filepath=False):
     Outputs:
         <str> The output string to be written.
     """
-    print(type(XYZ_Data))
     fileTxt = str(XYZ_Data)
     if filepath is not False:
         with open(filepath, "w") as f:

@@ -41,7 +41,7 @@ class PVecs(gen_type.Calc_Type):
         self.cols = XYZFile.cols
         at_crds = np.array([i[self.cols[0] != 'Ne'] for i in XYZFile.numeric_data])
         self.cols = np.array([c[self.cols[0] != 'Ne'] for c in self.cols])
-        natom = len(at_crds[1])
+        self.natom = len(at_crds[1])
         
         # Reshape the at_crds array to get mol_crds array
         mol_crds, ats_per_mol = self.__reshape_at_crds(at_crds)
@@ -95,7 +95,7 @@ class PVecs(gen_type.Calc_Type):
 
     def __reshape_at_crds(self, at_crds):
         """
-        Will use the self.at_per_mol information to reshape the at_crds array from (self.nstep, natom, 3) to (self.nstep, nmol, self.at_per_mol, 3).
+        Will use the self.at_per_mol information to reshape the at_crds array from (nstep, natom, 3) to (nstep, nmol, at_per_mol, 3).
 
         Inputs:
             * at_crds <np.NDArray> => The atomic coordinates
@@ -105,14 +105,14 @@ class PVecs(gen_type.Calc_Type):
         err_msg = "Number of atoms per molecule doesn't neatly divide up the atoms in each xyz step!"
 
         # Define some consts
-        natom = len(at_crds[1])
-        self.nmol = natom / self.at_per_mol
+        self.natom = len(at_crds[1])
+        self.nmol = self.natom / self.at_per_mol
 
         # Error checking for self.nmol
         if type_check.is_int(self.nmol, err_msg):
            self.nmol = int(self.nmol)
 
-        ats_per_mol = np.reshape(np.arange(natom), (self.nmol, self.at_per_mol))
+        ats_per_mol = np.reshape(np.arange(self.natom), (self.nmol, self.at_per_mol))
         mol_crds = np.reshape(at_crds, (self.nstep, self.nmol, self.at_per_mol, 3))
 
         return mol_crds, ats_per_mol
@@ -122,6 +122,14 @@ class PVecs(gen_type.Calc_Type):
         Overload the string function to display the data in an xyz format
         """
         # Get the atom numbers
-        ats = [j for imol in range(self.nmol) for j in self.C_ats + (imol*self.at_per_mol)]
+        mols = [str(imol) + "    " for j in self.C_ats for imol in range(self.nmol)]
+        ats = [str(j) + "     " for imol in range(self.nmol) for j in self.C_ats + (imol*self.at_per_mol)]
+        cols = np.char.add(mols, ats)
 
-        raise SystemExit("BREAK")
+        head_str = f'{len(ats)}\nPvecs. Step:  '
+        self.data = self.data.astype(str)
+        xyz = (['    '.join(line) for line in step_data] for step_data in self.data) 
+        s = (head_str + "%s\n"%step + '\n'.join(np.char.add(cols, step_data)) + "\n"
+             for step, step_data in enumerate(xyz))
+        
+        return ''.join(s)

@@ -1,5 +1,6 @@
 CONFIG_DIR="./config"
 CONFIG_VAR_FILE="$CONFIG_DIR/vars"
+PWD=`pwd`
 
 
 # Try to read the variable config file, this is just a file that stores variables permanently. It will be ignored by git.
@@ -41,24 +42,73 @@ echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE
     
 # Get the input file from the arguments
 INP_FILE=""
-while getopts "i:" arg
+TEST="false"
+HELP="true"
+while getopts "i:th" arg
 do
     case $arg in 
-        i) INP_FILE=$OPTARG;;
+        i) INP_FILE=$OPTARG; HELP="false";;
+        t) TEST="true"; HELP="false";;
+        h) HELP="true";;
     esac
 done
 
-# If we can't find the input file raise an error
-if [ "$INP_FILE" == "" ]
+if [ "$HELP" == "true" ]
 then
-    echo "Please supply an input file to the run.sh as \`./run.sh -i "input.inp"\`"
+    echo " "
+    echo " "
+    echo "/---------- MD Analysis Utility Help ------------------\\"
+    echo "|                                                      |"
+    echo "| To use this utility please supply an input file.     |"
+    echo "|                                                      |"
+    echo "| To find get some inspiration or to check the syntax  |"
+    echo "| of input files check out the examples folder. A full |"
+    echo "| list of input foldernames is below:                  |"
+    echo "|                                                      |"
+    python3 -c "s=\"\"\"$(ls examples/)\"\"\"; l=[f'{j})  {i}'.ljust(47)+'|' for j, i in enumerate(s.split()) if 'data' not in i]; print(\"|\t\" + '\n|\t'.join(l))"
+    echo "|                                                      |"
+    echo "| These input files have been well commented and       |"
+    echo "| all operations are explained.                        |"
+    echo "|                                                      |"
+    echo "|------------------------------------------------------|"
+    echo "|                                                      |"
+    echo "| Running the Code.                                    |"
+    echo "|------------------------------------------------------|"
+    echo "| In order to run the code simply run this run.sh file |"
+    echo "| with bash, specifying where the input file is with   |"
+    echo "| the flag '-i'.                                       |"
+    echo "|                                                      |"
+    echo "| E.g:     './run.sh -i <input_filepath>'              |"
+    echo "|                                                      |"
+    echo "|                                                      |"
+    echo "|------------------------------------------------------|"
+    echo "|                                                      |"
+    echo "| Getting more help.                                   |"
+    echo "|------------------------------------------------------|"
+    echo "| If you would like more info read the README          |"
+    echo "| or ask Matt                                          |"
+    echo "\\------------------------------------------------------/"
     exit 1
 fi
-if ! [ -f $INP_FILE ]
-then
-    echo "ERROR: Can't find file '"$INP_FILE"'"
-    exit 2
-fi
 
-# If everything is ok, pass the input file to the python code
-pipenv run python3 main.py -i $INP_FILE
+
+if [ "$TEST" == "true" ]
+then
+    pipenv run python3 $PWD/src/tests/call_all_examples.py
+else
+
+    # If we can't find the input file raise an error
+    if [ "$INP_FILE" == "" ]
+    then
+        echo "Please supply an input file to the run.sh as \`./run.sh -i "input.inp"\`"
+        exit 1
+    fi
+    if ! [ -f $INP_FILE ]
+    then
+        echo "ERROR: Can't find file '"$INP_FILE"'"
+        exit 2
+    fi
+    
+    # If everything is ok, pass the input file to the python code
+    pipenv run python3 $PWD/main.py -i $INP_FILE
+fi

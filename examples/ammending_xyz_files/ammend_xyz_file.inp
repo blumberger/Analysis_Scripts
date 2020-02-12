@@ -7,7 +7,7 @@
 
 # Set the variable xyz_filepath to the file we want to read
 folder = "./examples/data"
-xyz_filepath = "run-pos-1-1.xyz"
+xyz_filepath = "$folder/run-pos-1-1.xyz"
 conv_fact = 2
 
 # Load the xyz file as save it under the name pos

@@ -7,10 +7,11 @@
 
 
 # Set a filepath variable to point towards the input file
-filepath="run.inp"
+folder = "./examples/data"
+filepath="$folder/run.inp"
 
 # Load the variable $filepath into the object inp_file.
 load $filepath cp2k_inp as inp_file
 
 # Write the inp_file object as test.inp
-write inp_file "test.inp"
+write inp_file "pretty.inp"

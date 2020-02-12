@@ -132,7 +132,6 @@ class INP_Line(object):
 
        # Try to find any units
        elif re.findall("\[[a-zA-Z_]+\]", self.edit_line):
-            print(self.edit_line)
             unit_ind = [i for i, word in enumerate(words) if '[' in word and ']' in word]
             if len(unit_ind) == 1:
                 self.unit = words[unit_ind[0]].strip('[]')
@@ -176,11 +175,25 @@ def find_section_end(parsed_inp_lines, section, curr_line):
     Outputs:
         An integer with the line in the inp file that contains the end section.
     """
-    for line_num, parsed_line in enumerate(parsed_inp_lines[curr_line+1:]):
-        if parsed_line.is_section and parsed_line.is_section_end \
-           and parsed_line.section == section:
+    # First get the start of the section
+    for line_num, line in enumerate(parsed_inp_lines[curr_line:]):
+        if line.is_section and line.is_section_start and line.section == section:
+            curr_line = curr_line + line_num + 1
 
-           return line_num+1+curr_line
+    # Now find the section end
+    # Sect num is used to keep track of how many sections have been started and ended
+    sect_num = -1
+    for line_num, line in enumerate(parsed_inp_lines[curr_line:]):
+        # Start a section +1 and End a section -1
+        if line.is_section and line.is_section_end:
+           sect_num += 1 
+        elif line.is_section and line.is_section_start:
+           sect_num -= 1 
+        
+        # When we have ended as many sections as we have started we have found the end
+        if sect_num == 0:
+            line.section = section
+            return line_num + curr_line
     else:
       raise SystemExit("Can't find the end of the section '%s'" % section)
 

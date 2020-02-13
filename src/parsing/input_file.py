@@ -19,6 +19,7 @@ from src.system import type_checking as type_check
 from src.io_utils import general_io as gen_io
 from src.io_utils import CP2K_inp_files as CP2K_inp
 from src.io_utils import xyz_files as xyz
+from src.io_utils import lammps
 from src.io_utils import json_files as json
 
 # Parsing
@@ -28,6 +29,9 @@ from src.parsing import general_parsing as gen_parse
 # Calculator functions
 from src.calc import pvecs as pvec_lib
 from src.calc import NN
+
+
+CMD_LIST = ('echo', 'write', 'read', 'load', 'calc')
 
 
 def is_var_line(line):
@@ -40,13 +44,48 @@ def is_var_line(line):
       <bool> True if line is a variable line, else False
     """
     if '=' in line:
-      bad_chars = ('=>', '<=', '^math ', '^echo ',)
-      if any([bool(re.findall(char, line)) for char in bad_chars]):
-         return False
-      return True
-    else:
-      return False
+        # Check it isn't some other command
+        for cmd in CMD_LIST:
+            if re.findall(f"^{cmd} ", line):
+                return False
 
+        str_txt, non_str = gen_parse.get_str_between_delims(line, '"')
+        if any(j in non_str for j in '<>-+/*^'):
+            return False
+        return True
+    else:
+        return False
+
+
+def is_math_line(line):
+    """
+    Will check if the given line is a line containing maths or not
+
+    Inputs:
+      * line <str> => A string containing the cleaned line from a input file.
+    Output
+      <bool> True if line is a math line, else False
+    """
+    if '=' in line:
+        # Check it isn't some other command
+        for cmd in CMD_LIST:
+            if re.findall(f"^{cmd} ", line):
+                return False
+
+        str_txt, non_str = gen_parse.get_str_between_delims(line, '"')
+        if any(j in non_str for j in '<>-+/*^'):
+            return True
+    return False
+
+###########################################################################
+# I'm sure this is terrible practice but I couldn't find a way around it.
+###########################################################################
+s = "LINE_DECLARATIONS = {" 
+for cmd in CMD_LIST: 
+    s += f"'{cmd}': lambda line: len(re.findall('^{cmd} ', line)) > 0," 
+s += "}" 
+exec(s)
+###########################################################################
 
 class INP_File(object):
     """
@@ -93,20 +132,20 @@ class INP_File(object):
     variables = []
     
     load_fncs = {'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File,
-                 'json': json.read_json}
+                 'json': json.read_json, 'lammps_log': lammps.Lammps_File,
+                 'txt': gen_io.DataFileStorage}
     write_fncs = {'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file,
                   'json': json.write_json}
     calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN}
 
-    line_declarations = {'variable': is_var_line,
-                         'load': lambda x: len(re.findall("^load |^read ", x)) > 0,
-                         'write': lambda x: len(re.findall("^write ", x)) > 0,
-                         'math': lambda x: len(re.findall("^math ", x)) > 0,
-                         'echo': lambda x: len(re.findall("^echo ", x)) > 0,
-                         'calc': lambda x: len(re.findall("^calc ", x)) > 0,
-                        }
+    line_declarations = LINE_DECLARATIONS
+    line_declarations['variable'] = is_var_line
+    line_declarations['load'] = lambda x: len(re.findall("^load |^read ", x)) > 0
+    line_declarations['math'] = is_math_line
+
     def __init__(self, inp_filepath):
         self.inp_filepath = inp_filepath
+
         # Read the file
         self.file_txt = gen_io.open_read(inp_filepath)
         self.file_ltxt = self.file_txt.split("\n")
@@ -153,12 +192,12 @@ class INP_File(object):
 
             # Error check any echo commands
             elif self.line_declarations['echo'](line):
-               self.__check_echo_command(line)
+                self.__check_echo_command(line)
 
             # Error check any calc commands
             elif self.line_declarations['calc'](line):
-               var = self.__check_calc_command(line)
-               if var != "": variables.append(var)
+                var = self.__check_calc_command(line)
+                if var != "": variables.append(var)
 
             self.line_num += 1
 
@@ -198,7 +237,8 @@ class INP_File(object):
         # Save the variable name for error checking later
         var = inp_types.Variable(words[4], "")
         setattr(self, words[4], var)
-        self.variables.append(words[4])
+        if words[4] not in self.variables:
+            self.variables.append(words[4])
         return words[4]
 
     def __check_write_command(self, line):
@@ -243,7 +283,6 @@ class INP_File(object):
         """
         err_msg = "The syntax for a math command is: math <var> = <arthimetic operation>."
         err_msg += "\nFor example: 'x = x / (1 - x)'\n\n"
-        line = ' '.join(line.split()[1:])
 
         # Check we don't too have many equals signs
         if line.count('=') > 1:
@@ -253,19 +292,23 @@ class INP_File(object):
 
         # Set the variable for error checking later
         new_var, line = line.split("=")
-        self.variables.append(new_var)
+        new_var = new_var.strip()
+        if new_var not in self.variables:
+            self.variables.append(new_var)
         setattr(self, new_var, "")
 
         # Check if all the variables are initialised
         any_vars = re.findall("[a-zA-Z_-]+", line)
+        any_vars = [i for i in any_vars if i not in '-']
         for var in set(any_vars):
             if var not in self.variables:
                 self.__print_error("Can't find variable '%s'" % var)
 
         # Check if there are any unwanted characters
-        bad_chars = "%£\"!&}{[]}:;@'~#<,>.?/¬`|\\"
-        if any(j in line for j in bad_chars):
-            self.__print_err("Illegal characters in mathematical expression.")
+        bad_chars = "%£\"!&}{[]}:;@'^~#<,>.?¬`|"
+        for j in bad_chars:
+            if j in line:
+                self.__print_error(f"Illegal character '{j}' in mathematical expression.")
 
         # Check all brackets are closed
         if line.count("(") != line.count(")"):
@@ -334,7 +377,8 @@ class INP_File(object):
         # Set the new var attribute to help error checking later.
         new_var = inp_types.Variable(new_var_name, "")
         setattr(self, new_var_name, new_var)
-        if new_var_name not in self.variables: self.variables.append(new_var_name)
+        if new_var_name not in self.variables:
+            self.variables.append(new_var_name)
 
         return new_var_name
 
@@ -388,7 +432,8 @@ class INP_File(object):
            # Save the variable
            var = inp_types.Variable(name, var)
            setattr(self, name, var)
-           self.variables.append(name)
+           if name not in self.variables:
+               self.variables.append(name)
            return name, var
 
         # Add the metadata to a variable
@@ -574,7 +619,8 @@ class INP_File(object):
         # Create a new variable type
         New_Var = inp_types.Variable(Calc_Obj.name, Calc_Obj, Calc_Obj.metadata)
         setattr(self, new_var_name, New_Var)
-        if new_var_name not in self.variables:  self.variables.append(new_var_name)
+        if new_var_name not in self.variables:
+            self.variables.append(new_var_name)
 
 
 
@@ -611,7 +657,7 @@ class INP_File(object):
         for check_var in any_vars:
             # Check the variable exists
             if check_var not in self.variables:
-                self.__print_error("Can't find variable '%s'" % var)
+                self.__print_error("Can't find variable '%s'" % check_var)
 
             var = getattr(self, check_var)
             line = line.replace(f"${check_var}", str(var))
@@ -622,8 +668,8 @@ class INP_File(object):
         """
         Will parse individual words from a line.
 
-        Will replace any words in the line with the variable, remove quotation
-        marks from strings and convert the words to the correct type.
+        Will remove quotation marks from strings and convert the words to the correct
+        type.
 
         Inputs:
             * words <list<str>> => A list containing the line split by whitespace

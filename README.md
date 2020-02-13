@@ -1,3 +1,5 @@
+WARNING: There is a bug in this commit in the arithmetic operations.
+
 # MD analysis scripts
 
 ## Mission Statement
@@ -5,7 +7,10 @@ The purpose of this repo is to centralise all the scripts that we use as a group
 
 One of the main reasons the analysis scripts are re-written is (I think) because it is often easier (or less frustrating) to write the script yourself rather than learn how to use the script that's already available. Therefore, for this repo I think we need some rules about submitting that make the code both usable for people in the future and readable for anyone wanting to edit and extend the scripts.
 
-As Guido von Russof says 'Code it read much more than it is written' so reability is important!
+To make the code easy to use for potential users a few things are vital (these are expanded on in the GUIDE_FOR_DEVELOPERS.md file):
+  * A consistent way to interact with the code (input file).
+  * Documentation.
+  * Useful error messages.
 
 
 ## How to run the code.
@@ -18,30 +23,65 @@ As Guido von Russof says 'Code it read much more than it is written' so reabilit
 
   To run your own analyses create your own input file and run that.
 
+## The input file
 
-## The rules
+Every interaction you have with the code (unless you are developing it) will be through the input file. You can call it anything you want with any extension as long as you tell the code where it can be found via `./run.sh -i <input_file>`
 
- - **Use an input file**.  We are all used to using input files to interact with the various programs we use. They make things clearer for the user when it comes to running things and they can be used to standardise input across many different scripts.
- - **Use clear variable names**. Using clear variable names helps a lot when trying to understand what the script is doing. They can often replace comments (which saves time and effort for the developer)! See [PEP8](https://realpython.com/python-pep8/#naming-styles) for more info. P.S. this extends to function names, filenames, class names etc...
- - **Write with modularity in mind**. Are you writing some code that plots data from an xyz file? Then put the xyz file functions in a separate file to the plotting functions. That way people can re-use the xyz functions without having to plot a graph! It also helps to have different files/modules in sensible places! Don't put all your code in 1 file called a module called utils.py when it is very hard to know what is in utils.py. Folders can help subdivide code further too i.e. if you have 3 different modules that load xyz, pdb and .dat files these can go in a folder named 'io' (input-output).
- - **If the code can be reused, write a function**. If someone wants to write an xyz file and the function that writes them is incorporated into another function they have to do some tedious editting. Remember to always give that function a docstring though! They really help.
- - **Follow PEP8**. If you are writing in python, try and follow PEP8 guidelines as closely as possible. Most IDEs have PEP8 style checking, turn it on and try to follow it. Of course, if you think for a special case PEP8 obfuscates the meaning don't use it, though the default should be PEP8.
- - **Document your code**. It is very helpful to document your code, without the documentation people won't know if your code even exists and they will write their own! I have written a separate section on documentation below.
- - **If your writing in python: Use python3**. Any development on Python2 has stopped and the langauge has become deprecated. It will still work as it should do but won't get better. Python3 also has lots of nice new features.
- - **Never use the * to import fncs**. The star makes it difficult to know what function comes from where and obfsucates the code.
+The input file is read and ran line by line (much like normal code). A new line contains a new command, currently there is no facility to merged long lines together.
 
+For example an input file that looked like:
 
-## Where to put new code?
+```
+x = 2
+echo "x = $x"
+x = x+1
+echo "x = $x"
+```
 
-Put it in the src directory in an appropriately named folder. All of the code will be called from the main.py file so make sure it can be imported from this file.
+Would output:
+```
+x = 2
+x = 3
+```
 
+You should try this for yourself to convince yourself.
 
-## How to document your new code?
+### Syntax:
+#### Variable Declarations
+Variables are declared using the follow syntax:
 
-As you add functionality you should test it in your own input file. E.g. if you add some code to load and write .dat files then write an input file that does that to run it. After you are happy your code and the input file commands work comment the input file well and copy it into an appropriate directory in the examples directory.
+```
+<var name> = <value>
+```
 
+Values can be strings, floats or ints. Currently lists are not supported.
 
-## What should go in the repo?
+Variables can be overwritten by re-declaring them.
 
-Any code you think may be helpful, can be ran with an input file and is documented.
+#### Variable modification
+##### Metadata
+Variables can have metadata associated with them and this can be assigned with the following syntax (much like python dictionaries):
 
+```
+<var name>['<metadata_name>'] = <value>
+```
+
+This is used for some calculations that need specific information that isn't read in via a file.
+##### Arithmetic
+If the variables declared or loaded from files can be manipulated mathematically then you can do so using normal mathematical expressions e.g:
+```
+x = 1+2
+echo $x
+x = x *2
+echo $x
+x = 3**2
+echo $x
+x = x/2
+```
+
+#### Loading data
+Data can be loaded from a file via the following syntax:
+```
+load <filepath> <file_type> as <var_name>
+```
+Here filepath points towards the file you would like to load, file_type is the type of file you would like to load (see example for more info) and var_name is the name associated to the data.

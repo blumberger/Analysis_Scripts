@@ -32,6 +32,12 @@ all_example_tests = {
                                              'inp_file': 'prettify_CP2K_input.inp',
                                              'out_file': 'pretty.inp',
                                              },
+
+                      'arithmetic': {
+                                        'test_func': true,
+                                        'inp_file': 'arithmetic.inp',
+                                        'out_file': False,
+                                    }
                     }
 
 all_example_tests = {f'{examples_folder}/{i}': all_example_tests[i] for i in all_example_tests}
@@ -40,7 +46,7 @@ all_errors = []
 # Loop over the example folders and run them all
 for test_fold in all_example_tests:
     print("#################################################")
-    print("  Testing folder '{test_fold.split('/')[-1]}'")
+    print(f"  Testing folder '{test_fold.split('/')[-1]}'")
 
     # Set some initial variables
     test_dict = all_example_tests[test_fold]
@@ -62,13 +68,14 @@ for test_fold in all_example_tests:
     test_func()
 
     # Check the file has been created
-    if not os.path.isfile(out_file):
-        all_errors.append(f"Couldn't find the output file {out_file}")
-        continue 
-    else:
-        os.remove(out_file)
-        print(" ")
-        print(f"  Removed {out_file}")
+    if out_file:
+        if not os.path.isfile(out_file):
+            all_errors.append(f"Couldn't find the output file {out_file}")
+            continue 
+        else:
+            os.remove(out_file)
+            print(" ")
+            print(f"  Removed {out_file}")
         
         
     print("\n\n#################################################\n\n\n\n\n")

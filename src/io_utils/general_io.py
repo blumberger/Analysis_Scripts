@@ -15,6 +15,9 @@ class DataFileStorage(object):
 
    The class takes the filepath as an input and calls a method named _parse(). Any data stored
    under the name numeric_data will be manipulated via the operator overload functions.
+
+   Inputs:
+       * filepath <str> => The path to the file to be loaded.
    """
    numeric_data = 0
    def __init__(self, filepath):
@@ -25,13 +28,14 @@ class DataFileStorage(object):
 
    # Dummy method to hold the place of an actual parser later
    def _parse(self):
-       print("You haven't overridden the parse method in your new class")
+       """
+       Should be overridden in any child classes.
+       """
+       pass
+
    # Overload adding
    def __add__(self, val):
-       if isinstance(val, (str,)):
-          self.numeric_data += str(val)
-       else:
-          self.numeric_data += float(val)
+       self.numeric_data += float(val)
        return self
 
    # Overload multiplying
@@ -123,6 +127,28 @@ def get_filename_from_filepath(filepath):
 
    filename = filepath[filepath.rfind('/')+1:]  # Splice up to the last '/'
    return filename
+
+
+def remove_file_extension(filepath):
+    """
+    Will remove the file extension from a filepath.
+
+    Inputs:
+        * filepath <str> => The filepath which should have the extension removed.
+    Outputs:
+        (<str>, <str>) The filepath with it's extension removed.
+    """
+    if '.' not in filepath:
+        return filepath
+    
+    # The index of the extension
+    ext_ind = filepath.rfind('.')
+
+    # Splice the filepath into extension and filepath
+    new_filepath = filepath[:ext_ind]
+    ext = filepath[ext_ind+1:]
+    return new_filepath, ext
+
 
 def get_abs_path(filepath):
    """

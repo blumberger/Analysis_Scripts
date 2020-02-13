@@ -1,10 +1,10 @@
-#x = 1+2
-#echo $x                  (Should be 3)
-#x = x *2
-#echo $x                  (Should be 6)
-#x = 3**2      
-#echo $x                  (Should be 9)
-x = 9
+x = 1+2
+echo $x                  (Should be 3)
+x = x *2
+echo $x                  (Should be 6)
+x = 3**2      
+echo $x                  (Should be 9)
 x = (3 * (7-6) + $x)
-echo $x                  (Should be 12)
-
+echo $x                 (Should be 12)
+x = (4 * ($x * 10 / (5*2)) / 4) + 3
+echo $x               (Should be 15)

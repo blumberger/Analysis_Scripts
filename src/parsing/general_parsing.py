@@ -29,7 +29,7 @@ def get_str_between_delims(string, delim='"'):
     start_ind += 1
 
     end_ind = get_bracket_close(string[start_ind:], start_delim=delim, end_delim=delim)
-    end_ind += start_ind 
+    end_ind += start_ind
 
     txt_within_delim = string[start_ind: end_ind]
     txt_without_delim = string[:start_ind-1] + string[end_ind+1:]
@@ -63,7 +63,7 @@ def rm_comment_from_line(line, comment_str='#'):
 def get_bracket_close(txt, start_delim='(', end_delim=')'):
     """
     Get the close of the bracket of a delimeter in a string.
-    
+
     This will work for nested and non-nested delimeters e.g. "(1 - (n+1))" or
     "(1 - n)" would return the end index of the string.
 
@@ -178,7 +178,6 @@ def eval_maths(txt, var_dict={}, val=False):
 
     # Parse mathematical objects into a list
     all_exp = parse_math_expressions(txt)
-
     # Use BIDMAS to carry out operations
     evaluated_exp=False
     for operator in '^/*+-':
@@ -190,19 +189,18 @@ def eval_maths(txt, var_dict={}, val=False):
             # Set the values of the variables
             if type(var1) == str: var1 = var_dict[var1]
             if type(var2) == str: var2 = var_dict[var2]
-            print(type(var1), type(var2))
 
             # Decide how to manipilate the objects
-            if operator == '+':    all_exp[op_ind - 1] = var1 + var2
-            elif operator == '*':  all_exp[op_ind - 1] = var1 * var2
-            elif operator == '/':  all_exp[op_ind - 1] = var1 / var2
-            elif operator == '^':  all_exp[op_ind - 1] = var1 ** var2
-            elif operator == '-':  all_exp[op_ind - 1] = var1 - var2
+            if operator == '+':    tmp = var1 + var2
+            elif operator == '*':  tmp = var1 * var2
+            elif operator == '/':  tmp = var1 / var2
+            elif operator == '^':  tmp = var1 ** var2
+            elif operator == '-':  tmp = var1 - var2
 
-            print(all_exp)
-            all_exp = all_exp[:op_ind] + all_exp[op_ind+2:]
-            print(all_exp)
+            all_exp = all_exp[:op_ind-1] + all_exp[op_ind+1:]
+            all_exp[op_ind-1] = tmp
 
     if len(all_exp) > 1: raise SystemExit("Not all arguments parsed in fnc 'eval_maths'")
-
+    if type(all_exp[0]) == str: all_exp[0] = var_dict[all_exp[0]]
+    
     return all_exp[0]

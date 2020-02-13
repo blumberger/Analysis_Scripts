@@ -23,7 +23,7 @@ class Variable(object):
       self.name = var_name
       self.data = var_data
       self.metadata = metadata
-      
+
 
    # Overload the type convertors
    def __str__(self):
@@ -41,7 +41,15 @@ class Variable(object):
        """Ammend data attribute and return self"""
        self.data += val
        return self
+   def __radd__(self, val):
+       """Ammend data attribute and return self"""
+       self.data += val
+       return self
    def __sub__(self, val):
+       """Ammend data attribute and return self"""
+       self.data -= val
+       return self
+   def __rsub__(self, val):
        """Ammend data attribute and return self"""
        self.data -= val
        return self
@@ -49,15 +57,31 @@ class Variable(object):
        """Ammend data attribute and return self"""
        self.data *= val
        return self
+   def __rmul__(self, val):
+       """Ammend data attribute and return self"""
+       self.data *= val
+       return self
    def __truediv__(self, val):
        """Ammend data attribute and return self"""
        self.data /= val
+       return self
+   def __rtruediv__(self, val):
+       """Ammend data attribute and return self"""
+       self.data = val / self.data
        return self
    def __floordiv__(self, val):
        """Ammend data attribute and return self"""
        self.data //= val
        return self
+   def __rfloordiv__(self, val):
+       """Ammend data attribute and return self"""
+       self.data = val // self.data
+       return self
    def __pow__(self, val):
+       """Ammend data attribute and return self"""
+       self.data **= val
+       return self
+   def __rpow__(self, val):
        """Ammend data attribute and return self"""
        self.data **= val
        return self

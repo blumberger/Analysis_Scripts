@@ -1,5 +1,3 @@
-WARNING: There is a bug in this commit in the arithmetic operations.
-
 # MD analysis scripts
 
 ## Mission Statement

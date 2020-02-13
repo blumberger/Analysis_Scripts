@@ -190,7 +190,6 @@ def eval_maths(txt, var_dict={}, val=False):
             # Set the values of the variables
             if type(var1) == str: var1 = var_dict[var1]
             if type(var2) == str: var2 = var_dict[var2]
-            print(type(var1), type(var2))
 
             # Decide how to manipilate the objects
             if operator == '+':    all_exp[op_ind - 1] = var1 + var2
@@ -199,9 +198,7 @@ def eval_maths(txt, var_dict={}, val=False):
             elif operator == '^':  all_exp[op_ind - 1] = var1 ** var2
             elif operator == '-':  all_exp[op_ind - 1] = var1 - var2
 
-            print(all_exp)
             all_exp = all_exp[:op_ind] + all_exp[op_ind+2:]
-            print(all_exp)
 
     if len(all_exp) > 1: raise SystemExit("Not all arguments parsed in fnc 'eval_maths'")
 

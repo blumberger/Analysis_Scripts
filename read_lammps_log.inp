@@ -5,7 +5,7 @@
 # data in a more sensible format #
 ##################################
 
-folder = "examples/data"
+folder = "examples/data/Lammps"
 filepath = "$folder/log.lammps"
 
 read $filepath lammps_log as lammps_data

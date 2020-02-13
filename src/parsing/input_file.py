@@ -131,11 +131,15 @@ class INP_File(object):
     file_ltxt_orig = {}
     variables = []
     
-    load_fncs = {'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File,
-                 'json': json.read_json, 'lammps_log': lammps.Lammps_File,
-                 'txt': gen_io.DataFileStorage}
-    write_fncs = {'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file,
-                  'json': json.write_json}
+    load_fncs = {
+                 'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File,
+                 'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
+                 'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
+                }
+    write_fncs = {
+                  'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file,
+                  'json': json.write_json,
+                 }
     calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN}
 
     line_declarations = LINE_DECLARATIONS
@@ -248,17 +252,27 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        err_msg = "The write command takes the syntax 'write <data_name> <filepath>'"
+        err_msg = "The write command takes the syntax:\n\n\twrite <data_name> <filepath>"
+        err_msg += "\n\nor you could specify the type of file to write via:\n\n\t"
+        err_msg += "write <data_name> <filepath> as <file_type>"
 
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
         words = self.__fix_words(words)
-        if len(words) != 3:
+        if len(words) != 3 and len(words) != 5:
             self.__print_error(err_msg)
 
         # Check the variable to be written actually exists
         if words[1] not in self.variables:
             self.__print_error("I can't find the data named: '%s'" % words[1])
+
+        # Check we know how to write the requested filetype
+        if len(words) == 5:
+           if words[4] not in self.write_fncs:
+               err_msg = "I don't know how to write that type of file.\n\n"
+               err_msg += "Please use one of:\n\t*" 
+               err_msg += "\n\t*".join(list(self.write_fncs.keys()))
+               self.__print_error(err_msg)
 
     def __check_variable_line(self, line):
         """
@@ -565,13 +579,17 @@ class INP_File(object):
         words = self.__fix_words(words)
 
         # Write the data
-        _, dname, fpath = words
+        if len(words) == 3:
+           _, dname, fpath = words
+        elif len(words) == 5:
+           _, dname, fpath, _, ftype = words
         fpath = type_check.remove_quotation_marks(fpath)
         fpath = os.path.abspath(os.path.expanduser(fpath))
 
         # Get the data to be written
         var = getattr(self, dname)
-        ftype = var.metadata['file_type']
+        if len(words) == 3:
+           ftype = var.metadata['file_type']
 
         # Write the data
         self.write_fncs[ftype](var.data, fpath)

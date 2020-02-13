@@ -1,4 +1,7 @@
-WARNING: There is a bug in this commit in the arithmetic operations.
+BUG REPORT:
+   ERROR: There is a bug in this commit in the arithmetic operations.
+   WARNING: Found another bug in the reading of variables -if there is a / in the variable it doesn't read as a string. Things work when in quotation marks though.
+   WARNING: New features not fully tested in this commit
 
 # MD analysis scripts
 

@@ -15,9 +15,8 @@ To write an xyz file use the function `write_xyz_file(xyz_data <np.array | list>
 
 import re
 import os
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 import numpy as np
-from scipy.stats import mode
 
 from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
@@ -32,7 +31,7 @@ class XYZ_File(gen_io.DataFileStorage):
     easy manipulation of the data without loosing any metadata.
 
     Inputs/Attributes:
-        * numeric_data <numpy.array> => The parsed xyz data from an xyz file.
+        * xyz_data <numpy.array> => The parsed xyz data from an xyz file.
         * cols <numpy.array> => The parsed column data from the xyz file.
         * timesteps <numpy.array> => The parsed timesteps from the xyz file.
     """
@@ -47,16 +46,16 @@ class XYZ_File(gen_io.DataFileStorage):
         For more info on the specifics of reading the xyz file see 'read_xyz_file'
         below.
         """
-        self.numeric_data, self.cols, self.timesteps = read_xyz_file(self.filepath)
+        self.xyz_data, self.cols, self.timesteps = read_xyz_file(self.filepath)
 
         # Make sure the data are in numpy arrays
-        self.cols, self.numeric_data = np.array(self.cols), np.array(self.numeric_data)
+        self.cols, self.xyz_data = np.array(self.cols), np.array(self.xyz_data)
         self.timesteps = np.array(self.timesteps)
 
         # Get some metadata
-        self.nstep = len(self.numeric_data)
-        self.natom = self.numeric_data.shape[1]
-        self.ncol = self.numeric_data.shape[2]
+        self.nstep = len(self.xyz_data)
+        self.natom = self.xyz_data.shape[1]
+        self.ncol = self.xyz_data.shape[2]
 
     # Overload the str function (useful for writing files).
     def __str__(self):
@@ -64,7 +63,7 @@ class XYZ_File(gen_io.DataFileStorage):
         space = ["    "] * self.natom
 
         # Convert floats to strings (the curvy brackets are important for performance here)
-        xyz = self.numeric_data.astype(str)
+        xyz = self.xyz_data.astype(str)
         xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
         cols = np.char.add(self.cols[0], space)
         head_str = '%i\ntime = ' % self.natom
@@ -85,7 +84,21 @@ def write_xyz_file(XYZ_Data, filepath=False):
     Outputs:
         <str> The output string to be written.
     """
-    fileTxt = str(XYZ_Data)
+    # Create an array of spaces/newlines to add between data columns in str
+    natom = len(XYZ_Data.cols[0])
+    space = ["    "] * natom
+    print(XYZ_Data.cols)
+
+    # Convert floats to strings (the curvy brackets are important for performance here)
+    xyz = XYZ_Data.xyz_data.astype(str)
+    print(xyz.shape, XYZ_Data.timesteps.shape)
+    xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+    cols = np.char.add(XYZ_Data.cols[0], space)
+    head_str = f'{natom}\ntime = '
+    s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+         for step_data, t in zip(xyz, XYZ_Data.timesteps))
+
+    fileTxt = ''.join(s)
     if filepath is not False:
         with open(filepath, "w") as f:
             f.write(fileTxt)
@@ -240,7 +253,7 @@ def get_num_data_cols(ltxt, filename, num_title_lines, lines_in_step):
                 break
              count += 1
 
-    num_data_cols = mode(num_data_cols_all)[0][0]
+    num_data_cols = max(set(num_data_cols_all), key=num_data_cols_all.count)
     return num_data_cols
 
 

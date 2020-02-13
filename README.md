@@ -1,3 +1,7 @@
+BUG REPORT:
+   WARNING: Found another bug in the reading of variables -if there is a / in the variable it doesn't read as a string. Things work when in quotation marks though.
+   WARNING: New features not fully tested in this commit
+
 # MD analysis scripts
 
 ## Mission Statement

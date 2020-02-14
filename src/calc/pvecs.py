@@ -30,16 +30,16 @@ class PVecs(gen_type.Calc_Type):
 
     def calc(self):
         """
-        Will calculate the pvecs from self.Data_File.numeric_data
+        Will calculate the pvecs from self.xyz_data_File.xyz_data
         """
         XYZFile = self.Var.data
-        at_crds = XYZFile.numeric_data
+        at_crds = XYZFile.xyz_data
         self.nstep = XYZFile.nstep
         self.at_per_mol = self.Var.metadata['num_at_per_mol']
         
         # First remove 'Ne' atoms
         self.cols = XYZFile.cols
-        at_crds = np.array([i[self.cols[0] != 'Ne'] for i in XYZFile.numeric_data])
+        at_crds = np.array([i[self.cols[0] != 'Ne'] for i in XYZFile.xyz_data])
         self.cols = np.array([c[self.cols[0] != 'Ne'] for c in self.cols])
         self.natom = len(at_crds[1])
         
@@ -47,7 +47,7 @@ class PVecs(gen_type.Calc_Type):
         mol_crds, ats_per_mol = self.__reshape_at_crds(at_crds)
         self.__get_pvec_ats()
 
-        self.data = np.zeros((self.nstep,
+        self.xyz_data = np.zeros((self.nstep,
                                self.nmol * len(self.pvec_ats[0]),
                                3))
         for step in range(self.nstep):
@@ -61,7 +61,7 @@ class PVecs(gen_type.Calc_Type):
                    pvec = np.cross(disp1, disp2)
                    pvec /= np.linalg.norm(pvec)
 
-                   self.data[step, at_count] = pvec
+                   self.xyz_data[step, at_count] = pvec
                    at_count += 1
 
     def __get_pvec_ats(self):
@@ -127,9 +127,28 @@ class PVecs(gen_type.Calc_Type):
         cols = np.char.add(mols, ats)
 
         head_str = f'{len(ats)}\nPvecs. Step:  '
-        self.data = self.data.astype(str)
-        xyz = (['    '.join(line) for line in step_data] for step_data in self.data) 
+        self.xyz_data = self.xyz_data.astype(str)
+        xyz = (['    '.join(line) for line in step_data] for step_data in self.xyz_data) 
         s = (head_str + "%s\n"%step + '\n'.join(np.char.add(cols, step_data)) + "\n"
              for step, step_data in enumerate(xyz))
         
         return ''.join(s)
+
+    def xyz_str(self):
+        """
+        Will create a string that contains an xyz file.
+        """
+        # Get the atom numbers
+        mols = [str(imol) + "    " for j in self.C_ats for imol in range(self.nmol)]
+        ats = [str(j) + "     " for imol in range(self.nmol) for j in self.C_ats + (imol*self.at_per_mol)]
+        cols = np.char.add(mols, ats)
+
+        head_str = f'{len(ats)}\nPvecs. Step:  '
+        self.xyz_data = self.xyz_data.astype(str)
+        xyz = (['    '.join(line) for line in step_data] for step_data in self.xyz_data) 
+        s = (head_str + "%s\n"%step + '\n'.join(np.char.add(cols, step_data)) + "\n"
+             for step, step_data in enumerate(xyz))
+        
+        return ''.join(s)
+
+

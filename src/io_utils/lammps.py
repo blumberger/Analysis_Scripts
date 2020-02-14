@@ -166,34 +166,6 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
         headers = ("id", "at_type", "at1", "at2", "at3", "at4")
         self.data['dihedrals'] = self.__parse_numeric_section__(self.dihedrals_sect, headers)
-        
-        # Set the xyz data variables to 
-        self.__set_xyz_data__()
-
-    def __set_xyz_data__(self):
-        """
-        Will set the xyz_data variable and cols and timesteps for the write_xyz function to use later.
-
-        This doesn't affect the data it is only used for writing.
-        """
-        with open("src/data/period_table.json", 'r') as f:
-            pt = json.load(f)
-        at_cvt = {int(pt[i]['atomic_weight']): pt[i]['abbreviation'] for i in pt
-                  if pt[i]['atomic_weight'] is not None}
-
-        # Save the xyz data to allow the write_xyz function to find it and write it
-        self.xyz_data = [self.data['atoms'][['x', 'y', 'z']].to_numpy()]
-        self.xyz_data = np.array(self.xyz_data)
-      
-        self.cols = self.data['atoms']['at_type']
-        
-        for i in self.cols.unique():
-            mass = self.metadata['masses'][str(i)]
-            mass = int(mass)
-            self.cols[self.cols == i] = at_cvt[mass]
-        self.cols = np.array([self.cols], dtype=str)
-
-        self.timesteps = np.array([0.0] * len(self.cols))
 
     def __divide_sections__(self):
         """
@@ -347,4 +319,51 @@ class Lammps_Data_File(gen_io.DataFileStorage):
            raise SystemExit(f"Found too many inds found that fit the pattern in {fnc}")
  
         return inds
+
+    def __set_xyz_data__(self):
+        """
+        Will set the xyz_data variable and cols and timesteps for the write_xyz function to use later.
+
+        This doesn't affect the data it is only used for writing.
+        """
+        with open("src/data/period_table.json", 'r') as f:
+            pt = json.load(f)
+        at_cvt = {int(pt[i]['atomic_weight']): pt[i]['abbreviation'] for i in pt
+                  if pt[i]['atomic_weight'] is not None}
+
+        # Save the xyz data to allow the write_xyz function to find it and write it
+        self.xyz_data = [self.data['atoms'][['x', 'y', 'z']].to_numpy()]
+        self.xyz_data = np.array(self.xyz_data)
+      
+        self.cols = self.data['atoms']['at_type']
+        
+        for i in self.cols.unique():
+            mass = self.metadata['masses'][str(i)]
+            mass = int(mass)
+            self.cols[self.cols == i] = at_cvt[mass]
+        self.cols = np.array([self.cols], dtype=str)
+
+        self.timesteps = np.array([0.0] * len(self.cols))
+
+    def xyz_str(self):
+        """
+        Will create the string that contains the xyz file.
+        """
+        # Set the xyz data variables to 
+        self.__set_xyz_data__()
+    
+        # Create an array of spaces/newlines to add between data columns in str
+        space = ["    "] * self.natom
+
+        # Convert floats to strings (the curvy brackets are important for performance here)
+        xyz = self.xyz_data.astype(str)
+        xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+        cols = np.char.add(self.cols[0], space)
+        head_str = '%i\ntime = ' % self.natom
+        s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+             for step_data, t in zip(xyz, self.timesteps))
+
+        # Create the str
+        return ''.join(s)
+
 

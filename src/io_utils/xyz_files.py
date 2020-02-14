@@ -73,6 +73,24 @@ class XYZ_File(gen_io.DataFileStorage):
         # Create the str
         return ''.join(s)
 
+    def xyz_str(self):
+        """
+        Will create the string that contains an xyz file.
+        """
+        # Create an array of spaces/newlines to add between data columns in str
+        space = ["    "] * self.natom
+
+        # Convert floats to strings (the curvy brackets are important for performance here)
+        xyz = self.xyz_data.astype(str)
+        xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+        cols = np.char.add(self.cols[0], space)
+        head_str = '%i\ntime = ' % self.natom
+        s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+             for step_data, t in zip(xyz, self.timesteps))
+
+        # Create the str
+        return ''.join(s)
+
 
 def write_xyz_file(XYZ_Data, filepath=False):
     """
@@ -84,21 +102,7 @@ def write_xyz_file(XYZ_Data, filepath=False):
     Outputs:
         <str> The output string to be written.
     """
-    # Create an array of spaces/newlines to add between data columns in str
-    natom = len(XYZ_Data.cols[0])
-    space = ["    "] * natom
-    print(XYZ_Data.cols)
-
-    # Convert floats to strings (the curvy brackets are important for performance here)
-    xyz = XYZ_Data.xyz_data.astype(str)
-    print(xyz.shape, XYZ_Data.timesteps.shape)
-    xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
-    cols = np.char.add(XYZ_Data.cols[0], space)
-    head_str = f'{natom}\ntime = '
-    s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
-         for step_data, t in zip(xyz, XYZ_Data.timesteps))
-
-    fileTxt = ''.join(s)
+    fileTxt = XYZ_Data.xyz_str()
     if filepath is not False:
         with open(filepath, "w") as f:
             f.write(fileTxt)

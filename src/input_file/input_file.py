@@ -7,6 +7,24 @@ this code what to do with it.
 The class 'INP_File' will handle the parsing of the input file, line by line. To
 use it call a new instance of it passing the filepath of the input file as an
 argument.
+
+IMPORTANT VARIABLES:
+    * INP_File    ->    The class that does all the parsing of the input file.
+
+    * CMD_LIST    ->    This lets the input file know what commands are available 
+                        in the input file. It is a tuple near the top of this file.
+
+    * write_fncs  ->    This is a dictionary that contains a link to all the functions
+                        used to write data. The keys give all the file types in the 
+                        input file that can be written.
+
+    * read_fncs   ->    This is a dictionary that contains a link to all the functions
+                        used to read/load data. The keys give all the file types in the 
+                        input file that can be read.
+
+    * calc_fncs   ->    This is a dictionary that contains a link to all the functions
+                        used to calculate data. The keys give all the values that can
+                        be specified in the input file to be calculated.
 """
 
 import re
@@ -23,12 +41,15 @@ from src.io_utils import lammps
 from src.io_utils import json_files as json
 
 # Parsing
-from src.parsing import input_file_types as inp_types
 from src.parsing import general_parsing as gen_parse
+from src.parsing import parse_maths
 
 # Calculator functions
 from src.calc import pvecs as pvec_lib
 from src.calc import NN
+
+# Input file functions
+from src.input_file import input_file_types as inp_types
 
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc')
@@ -80,10 +101,10 @@ def is_math_line(line):
 ###########################################################################
 # I'm sure this is terrible practice but I couldn't find a way around it.
 ###########################################################################
-s = "LINE_DECLARATIONS = {" 
-for cmd in CMD_LIST: 
-    s += f"'{cmd}': lambda line: len(re.findall('^{cmd} ', line)) > 0," 
-s += "}" 
+s = "LINE_DECLARATIONS = {"
+for cmd in CMD_LIST:
+    s += f"'{cmd}': lambda line: len(re.findall('^{cmd} ', line)) > 0,"
+s += "}"
 exec(s)
 ###########################################################################
 
@@ -130,7 +151,7 @@ class INP_File(object):
     line_num = 0
     file_ltxt_orig = {}
     variables = []
-    
+
     load_fncs = {
                  'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File,
                  'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
@@ -236,7 +257,10 @@ class INP_File(object):
             self.__print_error(str(e))
 
         if words[2] not in self.load_fncs:
-            self.__print_error("I don't know how to load files of type '%s'." % words[2])
+            err_msg = "I don't know how to load files of type '{words[2]}'."
+            err_msg += "\n\nFor a full list of file types that can be loaded see below:\n\t* "
+            err_msg += "\n\t* ".join(list(self.load_fncs.keys()))
+            self.__print_error(err_msg)
 
         # Save the variable name for error checking later
         var = inp_types.Variable(words[4], "")
@@ -270,7 +294,7 @@ class INP_File(object):
         if len(words) == 5:
            if words[4] not in self.write_fncs:
                err_msg = "I don't know how to write that type of file.\n\n"
-               err_msg += "Please use one of:\n\t*" 
+               err_msg += "Please use one of:\n\t*"
                err_msg += "\n\t*".join(list(self.write_fncs.keys()))
                self.__print_error(err_msg)
 
@@ -364,12 +388,12 @@ class INP_File(object):
         # Check the variable to be written actually exists
         if var_name not in self.variables:
             self.__print_error(f"I can't find the data named: '{var_name}'")
-        
+
         # Check we have a function to calculate the variable
         if calc_type not in self.calc_fncs:
             self.__print_error(f"I cannot yet calculate '{calc_type}'. Please choose from" +
                                '\n\t* ' + '\n\t* '.join(list(self.calc_fncs.keys())))
-        
+
         # Check the required metadata has been set
         required_metadata = self.calc_fncs[calc_type].required_metadata
         for attr in required_metadata:
@@ -459,7 +483,7 @@ class INP_File(object):
             change_var = getattr(self, name)
             change_var.metadata[metadata_name] = var
             return name, var
- 
+
 
     def __parse_metadata_indexer(self, line):
         """
@@ -480,7 +504,7 @@ class INP_File(object):
         line, any_vars = self.__find_vars_in_line(line)
         words = [i for i in line.split('=') if i]
         words = self.__fix_words(words)
-        
+
         # Parse the variable
         name = words[0]
         value = '='.join([str(i) for i in words[1:]])
@@ -498,7 +522,7 @@ class INP_File(object):
         elif len(poss_metadata) == 1:
            metadata = type_check.remove_quotation_marks(poss_metadata[0].strip('[]'))
            return name, metadata, value
-           
+
         # Trying to index metadata currently isn't supported
         else:
             err_msg = "The correct syntax for attributing data to variables is:\n\t`<var_name>['<metadata_name>'] = <value>`"
@@ -528,7 +552,7 @@ class INP_File(object):
             variables[var_name] = var
 
         # Actually do the maths
-        new_var = gen_parse.eval_maths(maths, variables)
+        new_var = parse_maths.eval_maths(maths, variables)
 
         # Store the result of the maths
         setattr(self, new_var_name, new_var)

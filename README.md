@@ -1,6 +1,9 @@
-BUG REPORT:
+**BUG REPORT:**
+
    WARNING: Found another bug in the reading of variables -if there is a / in the variable it doesn't read as a string. Things work when in quotation marks though.
-   WARNING: New features not fully tested in this commit
+
+   WARNING: Pvecs calculator not fully tested
+    
 
 # MD analysis scripts
 
@@ -31,8 +34,13 @@ Every interaction you have with the code (unless you are developing it) will be 
 
 The input file is read and ran line by line (much like normal code). A new line contains a new command, currently there is no facility to merged long lines together.
 
-For example an input file that looked like:
+Examples of input file are given in the examples folder. To run any one of them run the command:
+```
+./run.sh -i <example input filepath>
+```
 
+### A quick example:
+An input file that did some basic arithmetic might look like the one below:
 ```
 x = 2
 echo "x = $x"
@@ -40,50 +48,102 @@ x = x+1
 echo "x = $x"
 ```
 
-Would output:
+This would output:
 ```
 x = 2
 x = 3
 ```
-
-You should try this for yourself to convince yourself.
+You can try this for yourself by creating an input file with the above text and run it by using the run.sh bash script.
 
 ### Syntax:
 #### Variable Declarations
 Variables are declared using the follow syntax:
 
 ```
-<var name> = <value>
+<variable name> = <value>
 ```
 
 Values can be strings, floats or ints. Currently lists are not supported.
 
 Variables can be overwritten by re-declaring them.
 
+Examples can be found in most of the example input files in the examples folder.
+
 #### Variable modification
 ##### Metadata
 Variables can have metadata associated with them and this can be assigned with the following syntax (much like python dictionaries):
 
 ```
-<var name>['<metadata_name>'] = <value>
+<variable name>['<metadata_name>'] = <value>
 ```
 
 This is used for some calculations that need specific information that isn't read in via a file.
+
+An example of metadata being used can be found in the calc_pvecs example input file.
+
 ##### Arithmetic
 If the variables declared or loaded from files can be manipulated mathematically then you can do so using normal mathematical expressions e.g:
 ```
 x = 1+2
-echo $x
-x = x *2
-echo $x
-x = 3**2
-echo $x
-x = x/2
-```
+echo $x                  (Should be 3)
 
-#### Loading data
+x = x * 2
+echo $x                  (Should be 6)
+
+x = 3**2                     
+echo $x                  (Should be 9)
+
+x = (3 * (7-6) + $x)
+echo $x                  (Should be 12)
+
+x = (4 * ($x * 10 / (5*2)) / 4) + 3
+echo $x                  (Should be 15)
+```
+This input file can be found in the examples folder under the name arithmetic.
+
+#### Reading file data
 Data can be loaded from a file via the following syntax:
 ```
-load <filepath> <file_type> as <var_name>
+load <filepath> <file_type> as <variable name>
+
+            or
+
+read <filepath> <file_type> as <variable name>
 ```
-Here filepath points towards the file you would like to load, file_type is the type of file you would like to load (see example for more info) and var_name is the name associated to the data.
+Here the filepath points towards the file you would like to load, file_type is the type of file you would like to load (see example for more info) and variable name is the name associated to the data.
+
+Many of the example input files load data, have a look at them to see more examples of the syntax.
+
+#### Writing file data
+Data can be written to a file via the following syntax:
+```
+write <variable name> <filepath>
+
+            or
+
+write <variable name> <filepath> as <file type>
+```
+In the above variable name refers to the name assigned to the data to be written. Filepath is the path pointing to the file to be written and file type is the type of the file to be written.
+
+If the first syntax is chosen the data will be written in its default file type.
+
+Many of the example input files write data, have a look at them to see more examples of the syntax.
+
+#### Calculating values
+To calculate properties of the data the following syntax can be used.
+```
+calc <value> from <variable name> as <new variable name>
+```
+In the above line a value is being calculated from some data that has name 'variable name' and then this is saved as 'new variable name'. This new variable can overwrite the old variable.
+
+An example of calculating something from some data is given in the calc_density folder.
+
+#### Print to console
+To print something to the console use the following syntax:
+```
+echo <string>
+```
+You can print variables in this by calling them, as in bash, with a dollar sign like:
+```
+echo "Value of variable: $variable"
+```

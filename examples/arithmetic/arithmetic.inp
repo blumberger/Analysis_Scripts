@@ -1,10 +1,19 @@
+# Set x to the value of 1 + 2
 x = 1+2
 echo $x                  (Should be 3)
-x = x *2
+
+# Set x to the value of double itself
+x = x * 2
 echo $x                  (Should be 6)
+
+# Set x to the value of 3 squared
 x = 3**2      
 echo $x                  (Should be 9)
+
+# Set x using mathematical functions
 x = (3 * (7-6) + $x)
 echo $x                 (Should be 12)
+
+# Set x using a deeper nesting of brackets
 x = (4 * ($x * 10 / (5*2)) / 4) + 3
 echo $x               (Should be 15)

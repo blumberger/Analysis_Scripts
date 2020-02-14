@@ -1,7 +1,8 @@
 import os
 import argparse
 
-from src.parsing import input_file as inp_file_utils
+from src.input_file import input_file as inp_file_utils
+
 #from IPython import embed
 #c = get_config()
 #c.InteractiveShellEmbed.colors = "Linux"

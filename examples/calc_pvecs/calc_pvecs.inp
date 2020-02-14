@@ -2,6 +2,10 @@
 #                                            #
 # An input file to calculate the Pvecs       #
 # from an xyz file.                          #
+#                                            #
+# WARNING: The calculation of the pvecs has  #
+#          not been tested yet so don't use  #
+#          this in any production runs.      #
 ##############################################
 
 # Set the variable xyz_filepath to the file we want to read

@@ -42,7 +42,7 @@ class NN(gen_type.Calc_Type):
         """
         XYZFile = self.Var.data
         cols = XYZFile.cols
-        at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.numeric_data])
+        at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.xyz_data])
         self.natom = len(at_crds[0])
         self.nstep = len(at_crds)
        

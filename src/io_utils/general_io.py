@@ -90,6 +90,36 @@ class DataFileStorage(object):
        return self.file_txt
 
 
+class File_Writing(object):
+     """
+     A parent class for other file writing classes.
+
+     The general procedure for writing a file is first create the file text
+     (saved as self.file_txt) and then write it as a file to the filepath given
+     as an argument.
+
+     The function __create_file_str__ must be set and must return the file text.
+
+     Inputs:
+        * Data_Class <class> => The class containing all the data to be written
+        * filepath <str>     => The path to the file to be written.
+     """
+     def __init__(self, Data_Class, filepath):
+         self.filepath = filepath
+         self.Data = Data_Class
+
+         self.file_txt = self.__create_file_str__()
+
+         with open(filepath, 'w') as f:
+             f.write(self.file_txt)
+
+     def __create_file_str__(self):
+         """
+         To be overwritten to create the file string to be written
+         """
+         pass
+
+
 # Reads a file and closes it
 def open_read(filename, throw_error=True):
     """

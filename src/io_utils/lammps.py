@@ -47,13 +47,13 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             # Create file-like object from a string
             fp = StringIO(self.csv_lines[key])
             self.data.append(pd.read_csv(fp, delim_whitespace=True))
-            
+
 
     def __get_csv_lines__(self, same_line_tolerance=100):
         """
         Will determine which lines contain data in a csv format.
 
-        This will loop over all lines deciding which ones are csv lines and find the start and the end 
+        This will loop over all lines deciding which ones are csv lines and find the start and the end
         of csv blocks.
 
         Inputs:
@@ -110,7 +110,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         # Get the lines of the csvs
         self.csv_lines = {i: '\n'.join(self.ltxt[start: end])
                           for i, (start, end) in enumerate(zip(self.csv_starts, self.csv_ends))}
-        
+
 
 def write_lammps_log_CSVs(Lammps_Log_File, filepath):
     """
@@ -145,11 +145,11 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         Will loop over all steps and parse the csv from the lammps log file.
         """
         self.ltxt = [i for i in self.file_txt.split("\n") if i]
-        
+
         ftxt = self.file_txt.lower()
 
         # Should check the order of the sections here!
-        
+
         # Get the sections in the file
         self.__divide_sections__()
         self.__parse_params_sect__()
@@ -228,7 +228,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
             elif len(words) == 4:
                 self.metadata[words[2].strip()] = type_check.eval_type(words[0])
                 self.metadata[words[3].strip()] = type_check.eval_type(words[1])
-               
+
     def __parse_masses_sect__(self):
         """
         Will parse the masses and store values in metadata
@@ -254,7 +254,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     def __check_len_sect__(self, sect, div):
         """
         A quick function to check for errors in the input file section declarations
- 
+
         Inputs:
           * sect <str> => The section to report as missing
           * div <list<str>> => The split of the filetxt for the section above
@@ -263,10 +263,10 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         err_msg += "\n\n"
         err_msg += f"Mulitple declarations of the word {sect}. "
         err_msg += f"Only 1 is allowed."
- 
+
         if len(div) != 2:
             raise SystemExit(err_msg)
- 
+
     def __get_numeric_section__(self, sects, num_cols):
         """
         Will parse a numeric section from txt based on how many columns of data it has
@@ -276,7 +276,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
            * num_cols <int> => The number of columns the section is allowed
         Outputs:
            <str> The section txt and the non-section txt
-        """ 
+        """
         check = [i for i in sects[0].split("\n") if i]
         inds = self.__search_in_list_of_str__(check,
                                               lambda s: len(s.split()) == num_cols)
@@ -298,7 +298,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     def __search_in_list_of_str__(self, str_list, fnc, max_inds=False):
         """
         Will apply a function to a list of strings to search for a given pattern.
-        
+
         The index where the pattern occurs is returned.
         The pattern is specified by the fnc
 
@@ -314,13 +314,13 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         for i, string in enumerate(str_list):
             if fnc(string):
                 inds.append(i)
- 
+
         if max_inds is not False and len(inds) > max_inds:
            raise SystemExit(f"Found too many inds found that fit the pattern in {fnc}")
- 
+
         return inds
 
-    def __set_xyz_data__(self):
+    def _set_xyz_data_(self):
         """
         Will set the xyz_data variable and cols and timesteps for the write_xyz function to use later.
 
@@ -334,9 +334,9 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         # Save the xyz data to allow the write_xyz function to find it and write it
         self.xyz_data = [self.data['atoms'][['x', 'y', 'z']].to_numpy()]
         self.xyz_data = np.array(self.xyz_data)
-      
+
         self.cols = self.data['atoms']['at_type']
-        
+
         for i in self.cols.unique():
             mass = self.metadata['masses'][str(i)]
             mass = int(mass)
@@ -344,26 +344,3 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         self.cols = np.array([self.cols], dtype=str)
 
         self.timesteps = np.array([0.0] * len(self.cols))
-
-    def xyz_str(self):
-        """
-        Will create the string that contains the xyz file.
-        """
-        # Set the xyz data variables to 
-        self.__set_xyz_data__()
-    
-        # Create an array of spaces/newlines to add between data columns in str
-        space = ["    "] * self.natom
-
-        # Convert floats to strings (the curvy brackets are important for performance here)
-        xyz = self.xyz_data.astype(str)
-        xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
-        cols = np.char.add(self.cols[0], space)
-        head_str = '%i\ntime = ' % self.natom
-        s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
-             for step_data, t in zip(xyz, self.timesteps))
-
-        # Create the str
-        return ''.join(s)
-
-

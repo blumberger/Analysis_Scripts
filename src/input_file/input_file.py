@@ -11,15 +11,15 @@ argument.
 IMPORTANT VARIABLES:
     * INP_File    ->    The class that does all the parsing of the input file.
 
-    * CMD_LIST    ->    This lets the input file know what commands are available 
+    * CMD_LIST    ->    This lets the input file know what commands are available
                         in the input file. It is a tuple near the top of this file.
 
     * write_fncs  ->    This is a dictionary that contains a link to all the functions
-                        used to write data. The keys give all the file types in the 
+                        used to write data. The keys give all the file types in the
                         input file that can be written.
 
     * read_fncs   ->    This is a dictionary that contains a link to all the functions
-                        used to read/load data. The keys give all the file types in the 
+                        used to read/load data. The keys give all the file types in the
                         input file that can be read.
 
     * calc_fncs   ->    This is a dictionary that contains a link to all the functions
@@ -137,9 +137,12 @@ class INP_File(object):
 
         * load_fncs <dict>       =>  Functions/classes to load certain types of
                                      files. Key = type, value = class/function.
+                                     These should take 1 argument, the filepath.
 
         * write_fncs <dict>      =>  Functions/classes to write certain types of
                                      files. Key = type, value = class/function.
+                                     All functions/class should take 2 arguments
+                                     the data, then the filepath.
 
         * calc_fncs <dict>       =>  Functions/classes to calculate certain properties
                                      Key = type, value = class/function.
@@ -158,7 +161,7 @@ class INP_File(object):
                  'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
                 }
     write_fncs = {
-                  'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.write_xyz_file,
+                  'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.Write_XYZ_File,
                   'json': json.write_json,
                  }
     calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN}

@@ -57,7 +57,7 @@ class XYZ_File(gen_io.DataFileStorage):
         self.natom = self.xyz_data.shape[1]
         self.ncol = self.xyz_data.shape[2]
 
-    # Overload the str function (useful for writing files).
+    # Overload the str function (useful for displaying data).
     def __str__(self):
         # Create an array of spaces/newlines to add between data columns in str
         space = ["    "] * self.natom
@@ -73,39 +73,45 @@ class XYZ_File(gen_io.DataFileStorage):
         # Create the str
         return ''.join(s)
 
-    def xyz_str(self):
-        """
-        Will create the string that contains an xyz file.
-        """
-        # Create an array of spaces/newlines to add between data columns in str
-        space = ["    "] * self.natom
 
-        # Convert floats to strings (the curvy brackets are important for performance here)
-        xyz = self.xyz_data.astype(str)
-        xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
-        cols = np.char.add(self.cols[0], space)
-        head_str = '%i\ntime = ' % self.natom
-        s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
-             for step_data, t in zip(xyz, self.timesteps))
+class Write_XYZ_File(gen_io.File_Writing):
+      """
+      Will handle the writing of xyz files.
 
-        # Create the str
-        return ''.join(s)
+      The parent class gen_io.File_Writing will handle the actual writing and
+      this just creates an xyz file string.
 
+     Inputs:
+        * Data_Class <class> => The class containing all the data to be written
+        * filepath <str>     => The path to the file to be written.
+      """
+      def __init__(self, Data_Class, filepath):
+          # If we can set the xyz variables in the data class then set them
+          if '_set_xyz_data_' in dir(Data_Class):
+              Data_Class._set_xyz_data_()
 
-def write_xyz_file(XYZ_Data, filepath=False):
-    """
-    Will write 1 xyz file from an XYZ_File object.
+          # Run standard file writing procedure
+          super().__init__(Data_Class, filepath)
 
-    Inputs:
-        * XYZ_Data => An XYZ_File object -the output of the 'read_xyz_file' fnc.
-        * filepath => The path to the file to be written to.
-    Outputs:
-        <str> The output string to be written.
-    """
-    fileTxt = XYZ_Data.xyz_str()
-    if filepath is not False:
-        with open(filepath, "w") as f:
-            f.write(fileTxt)
+      def __create_file_str__(self):
+          """
+          Will create the string that contains an xyz file, this is save as self.file_txt.
+          """
+          xyz_data, cols, timesteps = self.Data.xyz_data, self.Data.cols, self.Data.timesteps
+          # Create an array of spaces/newlines to add between data columns in str
+          natom = len(cols[0])
+          space = ["    "] * natom
+
+          # Convert floats to strings (the curvy brackets are important for performance here)
+          xyz = xyz_data.astype(str)
+          xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+          cols = np.char.add(cols[0], space)
+          head_str = '%i\ntime = ' % natom
+          s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+               for step_data, t in zip(xyz, timesteps))
+
+          # Create the str
+          return ''.join(s)
 
 
 def string_between(Str, substr1, substr2):

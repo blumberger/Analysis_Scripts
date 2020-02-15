@@ -10,6 +10,14 @@ true = lambda : True
 
 # Set up the test folders
 examples_folder = './examples'
+
+
+# Ammend this dictionary to add new tests:
+#    Keys  = foldername within examples dir
+#    Value = dict with keys:
+#        test_func = a function to call to test (use true func if you can't think of one!)
+#        inp_file  = the filename of the input file to run
+#        out_file  = the filename of the output file that is created (use False if there isn't one)
 all_example_tests = {
                      'ammending_xyz_files': {'test_func': true,
                                              'inp_file': 'ammend_xyz_file.inp',
@@ -18,25 +26,30 @@ all_example_tests = {
 
                      'calc_pvecs': {
                                     'test_func': true,
-                                    'inp_file': 'calc_pvecs.inp',
-                                    'out_file': 'pvecs.xyz',
+                                    'inp_file' : 'calc_pvecs.inp',
+                                    'out_file' : 'pvecs.xyz',
                                    },
 
-                     'Nearest_Neighbour': {
-                                            'test_func': true,
-                                            'inp_file': 'calc_NN.inp',
-                                            'out_file': 'test.json',
-                                          },
+                     'Nearest_Neighbour':   {
+                                              'test_func': true,
+                                              'inp_file' : 'calc_NN.inp',
+                                              'out_file' : 'test.json',
+                                            },
                      'prettify_CP2K_input': {
                                              'test_func': true,
-                                             'inp_file': 'prettify_CP2K_input.inp',
-                                             'out_file': 'pretty.inp',
+                                             'inp_file' : 'prettify_CP2K_input.inp',
+                                             'out_file' : 'pretty.inp',
                                              },
 
                       'arithmetic': {
                                         'test_func': true,
-                                        'inp_file': 'arithmetic.inp',
-                                        'out_file': False,
+                                        'inp_file' : 'arithmetic.inp',
+                                        'out_file' : False,
+                                    },
+                      'metadata':   {
+                                        'test_func': true,
+                                        'inp_file' : 'metadata_setting.inp',
+                                        'out_file' : False,
                                     }
                     }
 

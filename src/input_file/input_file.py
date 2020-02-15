@@ -473,6 +473,7 @@ class INP_File(object):
         """
         self.E_str = "__parse_lines"
         for line in self.file_ltxt:
+            if line == "echo": print("")
             # Parse any variables
             if self.line_declarations['variable'](line):
                 self.__parse_variable_line__(line)
@@ -791,8 +792,7 @@ class INP_File(object):
             * line <str> => A string containing the cleaned line from a input file.
         """
         self.E_str = "__parse_echo_cmd__"
-        echo_cmd = line.replace("echo ", "").strip()
-
+        echo_cmd = re.sub("^echo ", "", line).strip()
 
         # Get any metdata mentioned
         md_var_names, md_names, md_line = self.__parse_metadata_line__(echo_cmd,

@@ -1,9 +1,6 @@
 **BUG REPORT:**
 
-   WARNING: Found another bug in the reading of variables -if there is a / in the variable it doesn't read as a string. Things work when in quotation marks though.
-
-   WARNING: Pvecs calculator not fully tested
-    
+   WARNING: Pvecs calculator not fully tested 
 
 # MD analysis scripts
 

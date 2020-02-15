@@ -1,11 +1,20 @@
-##################################
-#                                #
-# An input file that will read a #
-# Lammps log file and write the  #
-# data in a more sensible format #
-##################################
+##########################################
+#                                        #
+# An input file that will read a  Lammps #
+# log file and calculate the density     #
+# from it. This is then written as a npy #
+# data file.                             #
+##########################################
 
 folder = "examples/data/Lammps"
 filepath = "$folder/log.lammps"
 
 read $filepath lammps_log as lammps_data
+
+mass_C_atom = 1.9944235e-26  # In kg
+mass_H_atom = 1.6735575e-27  # In kg
+lammps_data['tot_mass'] = (mass_C_atom * 22) + (mass_H_atom * 14)
+
+echo "Total Mass = $lammps_data['tot_mass']"
+
+calc density from lammps_data as density

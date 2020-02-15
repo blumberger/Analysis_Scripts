@@ -10,6 +10,9 @@ import re
 from src.system import type_checking as type_check
 from src.parsing import general_parsing as gen_parse
 
+math_chars = '-+=()/^*'
+operator_chars = '^/*+-'  # need to be ordered to satisfy BIDMAS
+
 def parse_math_expressions(txt):
     """
     Will parse mathematical expressions into a list with each element being a
@@ -20,9 +23,16 @@ def parse_math_expressions(txt):
     Outputs:
         <list<str>> Each element is a separate mathematical object.
     """
+    txt = txt.strip()
     all_exp = []  # stores all math expressions
     build_up_str = ''  # Accumulates to get variable names etc..
     i = 0  # Character counter
+
+    # Replace the scientific notation strings (e.g. 1e-6 etc...)
+    floats = re.findall('[0-9.]*[0-9]+ *e *-[0-9]+', txt)
+    for i, f in enumerate(floats):
+        txt = txt.replace(f, f"FLOAT_{i}")
+
     while i < len(txt):
         char = txt[i]
 
@@ -40,7 +50,7 @@ def parse_math_expressions(txt):
             i += 2
             continue
 
-        elif char in '^/*+-':
+        elif char in math_chars:
             if build_up_str:  all_exp.append(build_up_str)
             all_exp.append(char)
             build_up_str = ""
@@ -50,19 +60,43 @@ def parse_math_expressions(txt):
         build_up_str += char
         i += 1
 
+
     if build_up_str: all_exp.append(build_up_str)
 
-    # Check the expression, we need alternate operators and variables.
-    if all_exp[0] in '^/*+-':
-        raise SystemExit("Invalid mathematical expression, '%s'" % txt)
-    for i in range(len(all_exp)-1):
-        prev = all_exp[i] in '^/*+-'
-        next = all_exp[i + 1] in '^/*+-'
-        if next == prev:
-            raise SystemExit("Invalid mathematical expression, '%s'" % txt)
+    # Error checking
+    check_math_exp(all_exp)
+
+    # Add those floats back in
+    for i in range(len(floats)):
+        ind = all_exp.index(f"FLOAT_{i}")
+        all_exp[ind] = floats[i]
 
     return [type_check.eval_type(i) for i in all_exp]
 
+def check_math_exp(all_exp):
+    """
+    Will perform some error checking on a parsed mathematical expression.
+
+    These are:
+        1) Check the first character is not a mathematical operator (*, +, -, ...)
+        2) Check that mathematical operators and variables alternate
+
+    Inputs:
+        * all_exp <list<str>> => A parsed list of mathetmatical objects.
+    """
+    test_exp = all_exp[:]
+    for i in range(test_exp.count("(")):
+        test_exp.remove('(')
+        test_exp.remove(')')
+
+    if test_exp[0] in math_chars and test_exp[0] not in '()':
+        raise SystemExit("Invalid mathematical expression, '%s'" % txt)
+
+    for i in range(len(test_exp)-1):
+        prev = test_exp[i] in math_chars
+        next = test_exp[i + 1] in math_chars
+        if next == prev:
+            raise SystemExit("Invalid mathematical expression, '%s'" % txt)
 
 def eval_maths(txt, var_dict={}, val=False):
     """
@@ -101,7 +135,7 @@ def eval_maths(txt, var_dict={}, val=False):
     all_exp = parse_math_expressions(txt)
     # Use BIDMAS to carry out operations
     evaluated_exp=False
-    for operator in '^/*+-':
+    for operator in operator_chars:
         for op_count in range(all_exp.count(operator)):
             # Get the objects to work with
             op_ind = all_exp.index(operator)

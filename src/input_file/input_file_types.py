@@ -36,6 +36,12 @@ class Variable(object):
         """return int(data)"""
         return int(self.data)
 
+    # Overload the indexing Functions
+    def __getitem__(self, key):
+        return getattr(self, key)
+    def __setitem__(self, key, value):
+        self.key = value
+
     # Overload mathematical operators
     def __add__(self, val):
         """Ammend data attribute and return self"""

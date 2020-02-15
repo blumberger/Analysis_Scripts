@@ -47,6 +47,7 @@ from src.parsing import parse_maths
 # Calculator functions
 from src.calc import pvecs as pvec_lib
 from src.calc import NN
+from src.calc import density as dens
 
 # Input file functions
 from src.input_file import input_file_types as inp_types
@@ -154,6 +155,7 @@ class INP_File(object):
     line_num = 0
     file_ltxt_orig = {}
     variables = []
+    E_str = ""   # A variable to count the errors
 
     load_fncs = {
                  'cp2k_inp': CP2K_inp.parse_inp_file, 'xyz': xyz.XYZ_File,
@@ -164,7 +166,7 @@ class INP_File(object):
                   'cp2k_inp': CP2K_inp.write_inp, 'xyz': xyz.Write_XYZ_File,
                   'json': json.write_json,
                  }
-    calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN}
+    calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density}
 
     line_declarations = LINE_DECLARATIONS
     line_declarations['variable'] = is_var_line
@@ -172,6 +174,7 @@ class INP_File(object):
     line_declarations['math'] = is_math_line
 
     def __init__(self, inp_filepath):
+        self.E_str = "__init__"
         self.inp_filepath = inp_filepath
 
         # Read the file
@@ -196,12 +199,13 @@ class INP_File(object):
         """
         Will check the lines in the input file for any errors.
         """
+        self.E_str = "__check_all_lines"
         variables = []
         for line in self.file_ltxt:
             # Error check any variables
             if self.line_declarations['variable'](line):
                 self.__check_variable_line(line)
-                name, _ = self.__parse_variable_line(line)
+                name, _ = self.__parse_variable_line__(line)
                 variables.append(name)
 
             # Error check any file loading commands
@@ -215,12 +219,12 @@ class INP_File(object):
 
             # Error check any file loading commands
             elif self.line_declarations['math'](line):
-                var = self.__check_math_line(line)
-                if var != "": variables.append(var)
+                var = self.__check_math_line__(line)
+                variables.append(var)
 
             # Error check any echo commands
             elif self.line_declarations['echo'](line):
-                self.__check_echo_command(line)
+                self.__check_echo_command__(line)
 
             # Error check any calc commands
             elif self.line_declarations['calc'](line):
@@ -242,28 +246,27 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__check_load_command"
         err_msg = "The load command takes the syntax 'load <file> <file_type> as <name>'"
 
         line, any_vars = self.__find_vars_in_line(line)
+
         words = line.split()
-        words = self.__fix_words(words)
-
+        words = self.__fix_words__(words)
         if len(words) != 5:
-            self.__print_error(err_msg, self.line_num)
-
-        if words[3] != 'as':
-            self.__print_error(err_msg + "\n\nThe 4th word should be 'as'")
+            self.__print_error(err_msg, self.line_num, self.E_str)
 
         try:
-           filepath = gen_io.get_abs_path(words[1])
+            words[1] = type_check.remove_quotation_marks(words[1])
+            filepath = gen_io.get_abs_path(words[1])
         except IOError as e:
-            self.__print_error(str(e))
+            self.__print_error(str(e), self.E_str)
 
         if words[2] not in self.load_fncs:
             err_msg = "I don't know how to load files of type '{words[2]}'."
             err_msg += "\n\nFor a full list of file types that can be loaded see below:\n\t* "
             err_msg += "\n\t* ".join(list(self.load_fncs.keys()))
-            self.__print_error(err_msg)
+            self.__print_error(err_msg, self.E_str)
 
         # Save the variable name for error checking later
         var = inp_types.Variable(words[4], "")
@@ -279,19 +282,21 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__check_write_command"
         err_msg = "The write command takes the syntax:\n\n\twrite <data_name> <filepath>"
         err_msg += "\n\nor you could specify the type of file to write via:\n\n\t"
         err_msg += "write <data_name> <filepath> as <file_type>"
 
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
-        words = self.__fix_words(words)
+        words = self.__fix_words__(words)
         if len(words) != 3 and len(words) != 5:
-            self.__print_error(err_msg)
+            self.__print_error(err_msg, self.E_str)
 
         # Check the variable to be written actually exists
         if words[1] not in self.variables:
-            self.__print_error("I can't find the data named: '%s'" % words[1])
+            self.__print_error(f"I can't find the data named: '{words[1]}'",
+                               self.E_str)
 
         # Check we know how to write the requested filetype
         if len(words) == 5:
@@ -299,7 +304,7 @@ class INP_File(object):
                err_msg = "I don't know how to write that type of file.\n\n"
                err_msg += "Please use one of:\n\t*"
                err_msg += "\n\t*".join(list(self.write_fncs.keys()))
-               self.__print_error(err_msg)
+               self.__print_error(err_msg, self.E_str)
 
     def __check_variable_line(self, line):
         """
@@ -308,66 +313,98 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__check_variable_line"
         line, any_vars = self.__find_vars_in_line(line)
         words = [i for i in line.split('=') if i]
-        words = self.__fix_words(words)
+        words = self.__fix_words__(words)
 
         if len(words) < 2:
-            self.__print_error("The syntax for declaring variables is <name> = <value>")
+            self.__print_error("The syntax for declaring variables is: "
+                               + "'<name> = <value>'", self.E_str)
 
-    def __check_math_line(self, line):
+    def __check_math_line__(self, line):
         """
         Will check a math line for any errors
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__check_math_line__"
         err_msg = "The syntax for a math command is: math <var> = <arthimetic operation>."
         err_msg += "\nFor example: 'x = x / (1 - x)'\n\n"
 
         # Check we don't too have many equals signs
         if line.count('=') > 1:
-            self.__print_error("Too many '=' found!\n\n" + err_msg)
+            self.__print_error("Too many '=' found!\n\n" + err_msg, self.E_str)
         elif line.count('=') == 0:
-            self.__print_error("I can't find a '=' on the math line!\n\n" + err_msg)
+            self.__print_error(f"I can't find a '=' on the math line!{err_msg}",
+                                self.E_str)
 
         # Set the variable for error checking later
-        new_var, line = line.split("=")
-        new_var = new_var.strip()
-        if new_var not in self.variables:
-            self.variables.append(new_var)
-        setattr(self, new_var, "")
+        new_var_name, metadata_name = self.__get_variable_name__(line)
 
-        # Check if all the variables are initialised
-        any_vars = re.findall("[a-zA-Z_-]+", line)
-        any_vars = [i for i in any_vars if i not in '-']
-        for var in set(any_vars):
-            if var not in self.variables:
-                self.__print_error("Can't find variable '%s'" % var)
+        # Split the line by =
+        words = line.split('=')
+        _, maths = words
+        md_var_names, md_names, new_line = self.__parse_metadata_line__(maths,
+                                                                        "get")
+
+        # Check metadata and their variables have been declared
+        metadata = {}
+        for v_name, m_name in zip(md_var_names, md_names):
+            if v_name not in self.variables:
+                self.__print_error(f"Undeclared variable '{var}'", self.E_str)
+            Var = getattr(self, v_name)
+            if m_name not in Var.metadata:
+                e_msg = f"Undeclared metadata '{m_name}' in variable '{v_name}''"
+                self.__print_error(e_msg, self.E_str)
+            metadata[m_name] = ""
+
+        # Check if there are any undeclared variables
+        line, any_vars = self.__find_vars_in_line(new_line)
 
         # Check if there are any unwanted characters
-        bad_chars = "%£\"!&}{[]}:;@'^~#<,>.?¬`|"
+        bad_chars = "%£\"!&}{[]}:;@'^~#<,>?¬`|"
         for j in bad_chars:
-            if j in line:
-                self.__print_error(f"Illegal character '{j}' in mathematical expression.")
+            if j in new_line:
+                self.__print_error(f"Illegal character '{j}' in math",
+                                   self.E_str)
 
         # Check all brackets are closed
-        if line.count("(") != line.count(")"):
+        if new_line.count("(") != line.count(")"):
             err_msg = "You've not closed one of the brackets you opened.\n"
             err_msg += "Num of '(' = %i\n" % line.count("(")
             err_msg += "Num of ')' = %i\n" % line.count(")")
-            self.__print_error(err_msg)
+            self.__print_error(err_msg, self.E_str)
 
-        return new_var
+        Var = inp_types.Variable("", "", {metadata_name: ""})
+        setattr(self, new_var_name, Var)
+        if new_var_name not in self.variables:
+            self.variables.append(new_var_name)
 
-    def __check_echo_command(self, line):
+        return new_var_name
+
+    def __check_echo_command__(self, line):
         """
         Will check an echo command line for any errors.
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__check_echo_command__"
+
+        # Check for any undeclared variables
         self.__find_vars_in_line(line)
+
+        # Check for any undeclared metadata
+        line = re.sub("^echo ", "", line)
+        md_var_names, md_names, _ = self.__parse_metadata_line__(line, 'get')
+        for v_name, m_name in zip(md_var_names, md_names):
+            if v_name not in self.variables:
+                self.__print_error(f"Undeclared variable '{v_name}'", self.E_str)
+            Var = getattr(self, v_name)
+            if m_name not in Var.metadata:
+                self.__print_error(f"Undeclared metadata '{m_name}'", self.E_str)
 
     def __check_calc_command(self, line):
         """
@@ -376,44 +413,48 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        err_msg = "The calc command takes the syntax 'calc <property to calc> from <variable name> as <new variable name>'"
+        self.E_str = "__check_calc_command"
+        err_msg =  "The calc command takes the syntax 'calc <property to calc>"
+        err_msg += " from <variable name> as <new variable name>'"
 
         # Clean up the line
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
-        words = self.__fix_words(words)
+        words = self.__fix_words__(words)
 
         if len(words) != 6:
-            self.__print_error(err_msg)
+            self.__print_error(err_msg, self.E_str)
 
         _, calc_type, _, var_name, _, new_var_name = words
 
         # Check the variable to be written actually exists
         if var_name not in self.variables:
-            self.__print_error(f"I can't find the data named: '{var_name}'")
+            self.__print_error(f"I can't find the data named: '{var_name}'",
+                                self.E_str)
 
         # Check we have a function to calculate the variable
         if calc_type not in self.calc_fncs:
-            self.__print_error(f"I cannot yet calculate '{calc_type}'. Please choose from" +
-                               '\n\t* ' + '\n\t* '.join(list(self.calc_fncs.keys())))
+            self.__print_error(f"Can't calculate '{calc_type}' yet choose from"
+                                + '\n\t* '
+                                + '\n\t* '.join(list(self.calc_fncs.keys())),
+                                self.E_str)
 
         # Check the required metadata has been set
         required_metadata = self.calc_fncs[calc_type].required_metadata
         for attr in required_metadata:
             if attr not in getattr(self, var_name).metadata:
-               err_msg = f"The attribute '{attr}' is required for the calculation of '{calc_type}'"
-               err_msg += "\n\nPlease set it with the following syntax in the input file:\n\t"
-               err_msg += f"{var_name}['{attr}'] = <value>"
-               self.__print_error(err_msg)
+                err_msg = f"'{attr}' required for calculation of '{calc_type}'"
+                err_msg += "\n\nPlease set it with the following syntax:\n\t"
+                err_msg += f"{var_name}['{attr}'] = <value>"
+                self.__print_error(err_msg, self.E_str)
 
         # Check the required_calc data can be calculated
         required_calc = self.calc_fncs[calc_type].required_calc
         for calc in required_calc:
             if calc not in self.calc_fncs:
-               err_msg = f"The attribute '{calc}' is required for the calculation of '{calc_type}'"
-               err_msg += "\n\nThis attribute currently can't be calculated so the calculation of"
-               err_msg += f"{calc_type} can't be performed."
-               self.__print_error(err_msg)
+                err_msg = f"Calculation of '{calc}' required for calculation of "
+                err_msg += f"'{calc_type}'. This currently can't be calculated."
+                self.__print_error(err_msg, self.E_str)
 
         # Set the new var attribute to help error checking later.
         new_var = inp_types.Variable(new_var_name, "")
@@ -430,108 +471,215 @@ class INP_File(object):
         """
         Will loop over all lines and produce
         """
+        self.E_str = "__parse_lines"
         for line in self.file_ltxt:
             # Parse any variables
             if self.line_declarations['variable'](line):
-                self.__parse_variable_line(line)
+                self.__parse_variable_line__(line)
 
             # Parse any file loading commands
             elif self.line_declarations['load'](line):
-                self.__parse_load_cmd(line)
+                self.__parse_load_cmd__(line)
 
             # Parse any file loading commands
             elif self.line_declarations['write'](line):
-                self.__parse_write_cmd(line)
+                self.__parse_write_cmd__(line)
 
             # Parse any math commands
             elif self.line_declarations['math'](line):
-                self.__parse_math_cmd(line)
+                self.__parse_math_cmd__(line)
 
             # Parse any echo commands
             elif self.line_declarations['echo'](line):
-                self.__parse_echo_cmd(line)
+                self.__parse_echo_cmd__(line)
 
             # Parse any echo commands
             elif self.line_declarations['calc'](line):
-                self.__parse_calc_cmd(line)
+                self.__parse_calc_cmd__(line)
 
             self.line_num += 1
 
-    def __parse_variable_line(self, line):
+    def __parse_variable_line__(self, line):
         """
-        Will parse a line that sets a variable and save teh name variable pair in self.variables.
+        Will parse a line that sets a variable and save the name in self.variables.
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         Outputs:
             (<str>, <str|int|float>) The name, variable.
         """
-        name, metadata_name, var = self.__parse_metadata_indexer(line)
+        self.E_str = "__parse_variable_line__"
+        corr_syn = "<name> = <value>      OR      <name>['<metadata'] = <value>"
 
-        # If there isn't any metadata then create a variable
-        if metadata_name is False:
-           # Save the variable
-           var = inp_types.Variable(name, var)
-           setattr(self, name, var)
-           if name not in self.variables:
-               self.variables.append(name)
-           return name, var
+        # Get the variable name
+        var_name, metadata_name = self.__get_variable_name__(line)
 
-        # Add the metadata to a variable
+        # Get the value
+        words = line.split('=')
+        value = self.__parse_variable_value__('='.join(words[1:]))
+
+        # If we are setting some metadata
+        if metadata_name is not False:
+            Var = getattr(self, var_name)
+            Var.metadata[metadata_name] = value
+
+        # Just setting a normal variable
         else:
-            name = name[:name.find('[')]
-            if name not in self.variables:
-                self.__print_error("Can't find variable '%s'" % var)
+            Var = inp_types.Variable(var_name, value)
+            setattr(self, var_name, Var)
+            if var_name not in self.variables: self.variables.append(var_name)
 
-            change_var = getattr(self, name)
-            change_var.metadata[metadata_name] = var
-            return name, var
+        return var_name, Var
 
-
-    def __parse_metadata_indexer(self, line):
+    def __get_variable_name__(self, line):
         """
-        Will parse any metadata names from a variable declaration.
+        Will get a variable name from a line in the input file.
 
-        The metadata in the input file for variables is set by using the syntax:
-          `<var_name>['<metadata_name>'] = <value>`
-
-        This function will get the var_name, metadata_name and metadata if there is the
-        syntax for metadata setting.
+        This will also return a metadata name too.
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         Outputs:
-            (<str>, <str>, <*>) var_name, metadata_name, metadata
+            <*> The value of a variable`
         """
-        # Clean the line up a bit
-        line, any_vars = self.__find_vars_in_line(line)
-        words = [i for i in line.split('=') if i]
-        words = self.__fix_words(words)
+        self.E_str = "__get_variable_name__"
+        corr_syn = "<variable> = <value>   OR   <variable[<metadata>] = <value>"
+        words = line.split('=')
+        md_var_names, md_names, _ = self.__parse_metadata_line__(words[0],
+                                                                get_set="set")
+        # Some error checking
+        if len(md_var_names) > 1:
+            err_msg = "Syntax Error: Can only declare 1 variable per line\n\n"
+            self.__print_error(err_msg+corr_syn, self.E_str)
+            if md_var_names[0] not in self.variables:
+                v_name = md_var_names[0]
+                self.__print_error(f"Undeclared variable {v_name}", self.E_str)
 
-        # Parse the variable
-        name = words[0]
-        value = '='.join([str(i) for i in words[1:]])
-        value = type_check.eval_type(value)
-        if type(value) == str: value = type_check.remove_quotation_marks(value)
+        # If we are setting some metadata
+        metadata_name = False
+        name = words[0].strip()
+        if len(md_var_names) == 1:
+            name = md_var_names[0].strip()
+            metadata_name = md_names[0]
 
-        # Check we aren't indexing a current variable
-        poss_metadata = re.findall("\['[A-Za-z_-]+'\]|\[\"[A-Za-z_-]+\"\]", name)
+        return name, metadata_name
 
-        # Return the name and value -there is no metadata.
-        if len(poss_metadata) == 0:
-           return name, False, value
+    def __parse_variable_value__(self, line):
+        """
+        Will parse the part of the line that is the variable value.
 
-        # Get the metadata name
-        elif len(poss_metadata) == 1:
-           metadata = type_check.remove_quotation_marks(poss_metadata[0].strip('[]'))
-           return name, metadata, value
+        That is the <value> bit after the equals sign i.e. <var_name> = <value>.
 
-        # Trying to index metadata currently isn't supported
+        Inputs:
+            * line <str> => A string containing the value from the line (anything after the =)
+        Outputs:
+            <*> The value of a variable
+        """
+        self.E_str = "__parse_variable_value__"
+        tmp = self.__parse_metadata_line__(line, 'get')
+        md_var_names, md_names, md_line = tmp
+
+        # Error Checking
+        for v_name, m_name in zip(md_var_names, md_names):
+            if v_name not in self.variables:
+                self.__print_error(f"Undeclared variable '{v_name}'", self.E_str)
+            Var = getattr(self, v_name)
+            if m_name not in Var.metadata:
+                self.__print_error(f"Undeclared metadata '{m_name}'",
+                                   self.E_str)
+
+        # If there is no metadata just set the value
+        if len(md_var_names) == 0:
+            value = type_check.eval_type(line)
+            if type(value) == str:
+                value = type_check.remove_quotation_marks(value)
+                value, _ = self.__find_vars_in_line(value)
+
         else:
-            err_msg = "The correct syntax for attributing data to variables is:\n\t`<var_name>['<metadata_name>'] = <value>`"
-            self.__print_error(f"Trying to ascribe metadata to metadata currently isn't supported\n\n{err_msg}")
+            # Replace all metadata instances with their values
+            for var_i, (v_name, m_name) in enumerate(zip(md_var_names,
+                                                         md_names)):
+                Var = getattr(self, v_name)
+                metadata = Var.metadata[m_name]
+                md_line = md_line.replace(f"METADATA_{var_i}", str(metadata))
+            value = md_line
 
-    def __parse_math_cmd(self, line):
+        return type_check.eval_type(value)
+
+    def __parse_metadata_line__(self, line, get_set=False):
+        """
+        Will parse a line that contains some metadata.
+
+        This function will return all the variable names that include some
+        metadata syntax, the metadata names and the line with the metadata
+        replaced by indices.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input
+                            file.
+        Outputs:
+            (<list<str>>, <list<str>>, <str>) var_names, metadata_names, new_line
+        """
+        self.E_str = "__parse_metadata_line__"
+        metadata_regex = "\$[A-Za-z_-]+\['[A-Za-z_-]+'\]|"
+        metadata_regex += "\$[A-Za-z_-]+\[\"[A-Za-z_-]+\"\]"
+        corr_syn = "<var_name>['<metadata_name>']"
+
+        # First get the all the parts of the line that contain metadata references
+        value = False
+        str_part, non_str = gen_parse.get_str_between_delims(line, '"')
+        metadata_parts = re.findall(metadata_regex, line)
+        # Also parse without the dollar sign
+        for i in re.findall(metadata_regex.replace("\$", ""), line):
+            metadata_parts.append(i)
+
+        # Now get the metadata name and variable name for each reference
+        new_line = line
+        all_var_names, all_metadata_names = [], []
+        for var_i, var in enumerate(metadata_parts):
+            new_line = new_line.replace(var, f"METADATA_{var_i}")
+
+            # First get the variable name
+            var = var.strip(' $')
+            words = var.split('[')
+            if len(words) != 2:
+                self.__print_error(f"Syntax Error: Correct metadata syntax self.E_strs {corr_syn}", 19)
+            var_name = words[0]
+
+            # Is the metadata setting data or getting it?
+            if get_set is not False:
+                get_set = "get"
+                if var_name in non_str.split('=')[0]:
+                    get_set = "set"
+
+            # Next get the metadata name
+            metadata_name, _ = gen_parse.get_str_between_delims(words[1], "'")
+            if not metadata_name:
+                metadata_name, _ = gen_parse.get_str_between_delims(words[1], '"')
+            if not metadata_name:
+                self.__print_error(f"Correct syntax for metadata is: {corr_syn}",
+                                   self.E_str)
+
+            # Now get the metadata value
+            if var_name not in self.variables:
+                self.__print_error(f"Undeclared variable '{var_name}'",
+                                   self.E_str)
+            Var = getattr(self, var_name)
+
+            err = metadata_name not in Var.metadata and get_set is not False
+            err *= get_set == "get"
+            if  err:
+                err_msg = f"Can't find metadata '{metadata_name}' in variable '{var_name}'"
+                err_msg += "\n\n"
+                err_msg += f"{var_name} metadata: {Var.metadata}"
+                self.__print_error(err_msg, self.E_str)
+
+            all_var_names.append(var_name)
+            all_metadata_names.append(metadata_name)
+
+        return all_var_names, all_metadata_names, new_line
+
+    def __parse_math_cmd__(self, line):
         """
         Will parse maths from a variable line.
 
@@ -540,29 +688,41 @@ class INP_File(object):
         Outputs:
             <numeric> The output from the math operations
         """
-        line = line.replace("math", "").strip()
+        self.E_str = "__parse_math_cmd__"
+        line = line.strip()
+
+        new_var_name, metadata_name = self.__get_variable_name__(line)
 
         # Split the line by =
         words = line.split('=')
-        new_var_name, maths = words
-        new_var_name = new_var_name.strip()
+        _, maths = words
         maths = maths.replace("$", "")
+        md_var_names, md_names, new_line = self.__parse_metadata_line__(maths, "get")
 
         # Create a dictionary of variables to give to the eval_maths func
         variables = {}
         for var_name in self.variables:
-            var = getattr(self, var_name)
-            variables[var_name] = var
+            Var = getattr(self, var_name)
+            variables[var_name] = Var
+
+        # Add required metadata
+        for i, (var_name, md_name) in enumerate(zip(md_var_names, md_names)):
+            Var = getattr(self, var_name)
+            variables[f"METADATA_{i}"] = Var.metadata[md_name]
 
         # Actually do the maths
-        new_var = parse_maths.eval_maths(maths, variables)
+        new_var = parse_maths.eval_maths(new_line, variables)
 
         # Store the result of the maths
-        setattr(self, new_var_name, new_var)
-        if new_var_name not in self.variables:
-           self.variables.append(new_var_name)
+        if metadata_name:
+            Var = getattr(self, new_var_name)
+            Var.metadata[metadata_name] = new_var
+        else:
+            setattr(self, new_var_name, new_var)
+            if new_var_name not in self.variables:
+               self.variables.append(new_var_name)
 
-    def __parse_load_cmd(self, line):
+    def __parse_load_cmd__(self, line):
         """
         Will parse a load file command.
 
@@ -574,10 +734,11 @@ class INP_File(object):
         Outputs:
             None
         """
+        self.E_str = "__parse_load_cmd__"
         # Split the line by whitespace and get the values of any variables
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
-        words = self.__fix_words(words)
+        words = self.__fix_words__(words)
 
         # Read the data
         _, fpath, dtype, _, data_name = words
@@ -590,7 +751,7 @@ class INP_File(object):
         if data_name not in self.variables:
            self.variables.append(data_name)
 
-    def __parse_write_cmd(self, line):
+    def __parse_write_cmd__(self, line):
         """
         Will parse a load file command.
 
@@ -600,10 +761,11 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__parse_write_cmd__"
         # Split the line by whitespace and get the values of any variables
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
-        words = self.__fix_words(words)
+        words = self.__fix_words__(words)
 
         # Write the data
         if len(words) == 3:
@@ -621,14 +783,25 @@ class INP_File(object):
         # Write the data
         self.write_fncs[ftype](var.data, fpath)
 
-    def __parse_echo_cmd(self, line):
+    def __parse_echo_cmd__(self, line):
         """
         Will parse an echo command.
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__parse_echo_cmd__"
         echo_cmd = line.replace("echo ", "").strip()
+
+
+        # Get any metdata mentioned
+        md_var_names, md_names, md_line = self.__parse_metadata_line__(echo_cmd,
+                                                                       'get')
+        for var_i, (v_name, m_name) in enumerate(zip(md_var_names, md_names)):
+            Var = getattr(self, v_name)
+            metadata = Var.metadata[m_name]
+            md_line = md_line.replace(f"METADATA_{var_i}", str(metadata))
+        echo_cmd = md_line
 
         # Get any variables mentioned
         any_vars = re.findall("\$[A-Za-z_-]+", echo_cmd)
@@ -639,13 +812,14 @@ class INP_File(object):
         # Print the statement
         print(type_check.remove_quotation_marks(echo_cmd))
 
-    def __parse_calc_cmd(self, line):
+    def __parse_calc_cmd__(self, line):
         """
         Will parse and run the a calc command
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
+        self.E_str = "__parse_calc_cmd__"
         # Clean up the line
         line, any_vars = self.__find_vars_in_line(line)
         words = line.split()
@@ -675,6 +849,7 @@ class INP_File(object):
         """
         Will loop over the lines and remove comments and whitespace etc...
         """
+        self.E_str = "__clean_inp"
         del_lines = []
         # Check for unnecessary lines in the file.
         for line_num, line in enumerate(self.file_ltxt):
@@ -691,25 +866,29 @@ class INP_File(object):
 
     def __find_vars_in_line(self, line):
         """
-        Will find the variables that have been used in a line of text
+        Will find the variables that have been used in a line of text.
+
+        If any variables found aren't declared an error will be thrown
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         Outputs:
             * (<str>, <list<*>>) The editted line with variables replaced and the variables
         """
+        self.E_str = "__find_vars_in_line"
         any_vars = [i[1:] for i in re.findall("\$[A-Za-z_-]+", line)]
         for check_var in any_vars:
             # Check the variable exists
             if check_var not in self.variables:
-                self.__print_error("Can't find variable '%s'" % check_var)
+                self.__print_error(f"Can't find variable '{check_var}'",
+                                   self.E_str)
 
             var = getattr(self, check_var)
             line = line.replace(f"${check_var}", str(var))
 
         return line, any_vars
 
-    def __fix_words(self, words):
+    def __fix_words__(self, words):
         """
         Will parse individual words from a line.
 
@@ -721,6 +900,7 @@ class INP_File(object):
         Outputs:
             <list<str|int|float>> The words list but with variables replaced.
         """
+        self.E_str = "__fix_words__"
         new_words = []
         for word in words:
             # Get word type and remove quotation marks from strings
@@ -740,13 +920,17 @@ class INP_File(object):
 
     ############# Error Handling ####################################################
 
-    def __print_error(self, msg, line_num=False, errorFunc=SystemExit):
+    def __print_error(self, msg, err_str=False, line_num=False,
+                      errorFunc=SystemExit):
         """
         Will print an error message in a consistent format.
 
         Inputs:
             * msg <str> => The error message to be displayed.
-            * line_num <int> OPTIONAL => If set: the index of the line. Else it is self.line_num
+            * line_num <int> OPTIONAL => If set: the index of the line. Else it
+                                         is self.line_num
+            * err_str <str> OPTIONAL => A string to identify which error
+                                        message is complaining.
         """
         if line_num is False: line_num = self.line_num
         bad_line_ind = self.line_nums[line_num]
@@ -755,6 +939,9 @@ class INP_File(object):
         err_msg += "Error in input_file '%s'\n\n---\n" % self.inp_filename
         err_msg += msg.strip("\n")
         err_msg += "\n---\n\nline number: %i\n" % self.line_nums[line_num]
-        err_msg += "line: '%s'" % self.file_ltxt_orig[bad_line_ind]
+        err_msg += f"line: '{self.file_ltxt_orig[bad_line_ind]}'"
+        if err_str is not False:
+            err_msg += "\n"
+            err_msg += f"err id: {err_str}"
         err_msg += "\n#################################\n\n"
         raise errorFunc(err_msg)

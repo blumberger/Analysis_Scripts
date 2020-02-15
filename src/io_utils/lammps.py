@@ -7,6 +7,7 @@ A module to store objects that perform I/O tasks on lammps files.
 import pandas as pd
 import numpy as np
 from io import StringIO
+from collections import Counter
 import re
 import json
 
@@ -34,20 +35,6 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         self.ltxt = self.file_txt.split("\n")
         self.__get_csv_lines__(50)
         self.__read_csv_lines__()
-
-
-    def __read_csv_lines__(self):
-        """
-        Will read the csv lines (according to '__get_csv_lines__()') into DataFrames.
-
-        The 2 lists: self.csv_starts and self.csv_ends tell the code where the DataFrame
-        starts and ends.
-        """
-        for ifp, key in enumerate(self.csv_lines):
-            # Create file-like object from a string
-            fp = StringIO(self.csv_lines[key])
-            self.data.append(pd.read_csv(fp, delim_whitespace=True))
-
 
     def __get_csv_lines__(self, same_line_tolerance=100):
         """
@@ -110,6 +97,21 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         # Get the lines of the csvs
         self.csv_lines = {i: '\n'.join(self.ltxt[start: end])
                           for i, (start, end) in enumerate(zip(self.csv_starts, self.csv_ends))}
+
+    def __read_csv_lines__(self):
+        """
+        Will read the csv lines (according to '__get_csv_lines__()') into DataFrames.
+
+        The 2 lists: self.csv_starts and self.csv_ends tell the code where the DataFrame
+        starts and ends.
+        """
+        for ifp, key in enumerate(self.csv_lines):
+            # Create file-like object from a string
+            fp = StringIO(self.csv_lines[key])
+            self.data.append(pd.read_csv(fp, delim_whitespace=True))
+
+    def __repr__(self):
+        return "Lammps Log File Class"
 
 
 def write_lammps_log_CSVs(Lammps_Log_File, filepath):

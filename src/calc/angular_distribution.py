@@ -8,9 +8,9 @@ import numpy as np
 from src.calc import general_types as gen_type
 from src.system import type_checking as type_check
 
-class NN(gen_type.Calc_Type):
+class Angular_Dist(gen_type.Calc_Type):
     """
-    Will calculate the Nearest neighbour list from the data contained within a data file.
+    Will calculate the angular distributions of the molecules in a system.
 
     Inputs:
         * Variable <Variable> => An instance of the Variable class
@@ -20,13 +20,12 @@ class NN(gen_type.Calc_Type):
         * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
     """
-    required_metadata = ()
-    required_data_names = ('xyz', )
+    required_metadata = ('long_axis_atoms', 'short_axis_atoms')
 
     # Need these 3 attributes to create a new variable type
     data = {}
     metadata = {'file_type': 'json'}
-    name = "Nearest Neighbour Lists"
+    name = "Angular Distributions"
 
     def calc(self):
         """

@@ -21,6 +21,7 @@ class Calc_Type(object):
     """
     required_metadata = ()
     required_calc = ()
+    required_data_names = ()
 
     # Require these 3 objects for the formation of a new variable type
     name = "General Calc Type"
@@ -29,13 +30,23 @@ class Calc_Type(object):
 
     def __init__(self, Variable):
         """
-        Just check the required metadata is there and call the __calc function.
+        Just check the required metadata is there and call the calc function.
         """
         # Check we have all the data we need to calculate the property
         self.Var = Variable
         for key in self.required_metadata:
             if key not in self.Var.metadata:
                raise KeyError(f"Please load the data '{key}' into the variable '{self.Var.name}'")
+
+        for name in self.required_data_names:
+            all_attrs = dir(self.Var.data)
+            if name not in all_attrs and f"{name}_data" not in all_attrs:
+                var_name = self.Var.name
+                raise AttributeError("\n\n"
+                                     + f"I can't calculate {self.name} from the"
+                                     + f" variable '{var_name}'."
+                                     + "\n\nYou need to give me a"
+                                     + f" variable with some '{name}' data in.")
 
 
     def calc(self):

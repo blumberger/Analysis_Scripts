@@ -22,11 +22,12 @@ class Density(gen_type.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     required_metadata = ('molecular_mass', "atoms_per_molecule", "number_atoms")
+    required_data_names = ('csv', )
 
     # Need these 3 attributes to create a new variable type
-    df_data = {}
+    csv_data = {}
     metadata = {'file_type': 'csv'}
-    name = "Nearest Neighbour Calculator"
+    name = "Densities"
 
     def calc(self):
         """
@@ -41,7 +42,7 @@ class Density(gen_type.Calc_Type):
         the second key being either 'distances' or 'atom_indices' the third key
         will be the atom index.
         """
-        data = self.Var.data.data
+        data = self.Var.data.csv_data
         did_dens_calc = False
         data_count = 0
 
@@ -50,13 +51,13 @@ class Density(gen_type.Calc_Type):
         if type(data) == list:
             for df in data:
                 if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
-                    self.df_data[data_count] = self.__calc_dens__(df)
+                    self.csv_data[data_count] = self.__calc_dens__(df)
                     did_dens_calc = True
                     data_count += 1
 
         elif type(data) == pd.DataFrame:
             if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
-                self.df_data[data_count] = self.__calc_dens__(data)
+                self.csv_data[data_count] = self.__calc_dens__(data)
                 did_dens_calc = True
 
         if did_dens_calc is False:
@@ -103,8 +104,8 @@ class Density(gen_type.Calc_Type):
         Overload the string function
         """
         s = ""
-        for key in self.df_data:
+        for key in self.csv_data:
             s += f"Dataframe {key}:"
-            s += "\n\n" + str(self.df_data[key])
+            s += "\n\n" + str(self.csv_data[key])
 
-        return str(self.df_data)
+        return str(self.csv_data)

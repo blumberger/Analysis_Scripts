@@ -22,7 +22,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
     A class that will loop over all lines and parse the CSVs from the
     lammps log file.
     """
-    data = []
+    csv_data = []
     metadata = {'file_type': 'log_csv', 'number_atoms': 0,
                 'total_run_time': 0, 'run_times': []}
 
@@ -110,7 +110,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         for ifp, key in enumerate(self.csv_lines):
             # Create file-like object from a string
             fp = StringIO(self.csv_lines[key])
-            self.data.append(pd.read_csv(fp, delim_whitespace=True))
+            self.csv_data.append(pd.read_csv(fp, delim_whitespace=True))
 
     def __get_metadata__(self):
         """
@@ -166,7 +166,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     A class that will loop over all lines and parse the CSVs from the
     lammps log file.
     """
-    data = {}
+    csv_data = {}
     metadata = {'file_type': 'log_csv'}
     sects = ('masses', 'atoms', 'bonds', 'angles', 'dihedrals',)
 
@@ -189,16 +189,16 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         self.__parse_masses_sect__()
 
         headers = ("id", "mol_id", "at_type", "x", "y", "z", "ix", "iy", "iz",)
-        self.data['atoms'] = self.__parse_numeric_section__(self.atoms_sect, headers)
+        self.csv_data['atoms'] = self.__parse_numeric_section__(self.atoms_sect, headers)
 
         headers = ("id", "at_type", "at1", "at2")
-        self.data['bonds'] = self.__parse_numeric_section__(self.bonds_sect, headers)
+        self.csv_data['bonds'] = self.__parse_numeric_section__(self.bonds_sect, headers)
 
         headers = ("id", "at_type", "at1", "at2", "at3")
-        self.data['angles'] = self.__parse_numeric_section__(self.angles_sect, headers)
+        self.csv_data['angles'] = self.__parse_numeric_section__(self.angles_sect, headers)
 
         headers = ("id", "at_type", "at1", "at2", "at3", "at4")
-        self.data['dihedrals'] = self.__parse_numeric_section__(self.dihedrals_sect, headers)
+        self.csv_data['dihedrals'] = self.__parse_numeric_section__(self.dihedrals_sect, headers)
 
     def __divide_sections__(self):
         """
@@ -365,10 +365,10 @@ class Lammps_Data_File(gen_io.DataFileStorage):
                   if pt[i]['atomic_weight'] is not None}
 
         # Save the xyz data to allow the write_xyz function to find it and write it
-        self.xyz_data = [self.data['atoms'][['x', 'y', 'z']].to_numpy()]
+        self.xyz_data = [self.csv_data['atoms'][['x', 'y', 'z']].to_numpy()]
         self.xyz_data = np.array(self.xyz_data)
 
-        self.cols = self.data['atoms']['at_type']
+        self.cols = self.csv_data['atoms']['at_type']
 
         for i in self.cols.unique():
             mass = self.metadata['masses'][str(i)]

@@ -22,10 +22,11 @@ class PVecs(gen_type.Calc_Type):
     """
     required_metadata = ('num_at_per_mol',)
     required_calc = ('NN', )
+    required_data_names = ('xyz', )
 
     # Need these 3 attribute to create a new variable type
     metadata = {'file_type': 'xyz'}
-    name = "P-Vec Calculator"
+    name = "P-Vecs"
     data = []
 
     def calc(self):

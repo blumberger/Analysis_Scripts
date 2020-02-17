@@ -21,10 +21,10 @@ class Write_CSV(object):
     """
     def __init__(self, Data_Class, filepath):
         filepath, _ = gen_io.remove_file_extension(filepath)
-        if type(Data_Class.df_data) == dict:
-            for key in Data_Class.df_data:
+        if type(Data_Class.csv_data) == dict:
+            for key in Data_Class.csv_data:
                 new_filepath = f"{filepath}_{key}.csv"
-                if type(Data_Class.df_data[key]) == pd.DataFrame:
-                    Data_Class.df_data[key].to_csv(new_filepath, index=False)
+                if type(Data_Class.csv_data[key]) == pd.DataFrame:
+                    Data_Class.csv_data[key].to_csv(new_filepath, index=False)
                 else:
                     print(f"Can't save data {key}")

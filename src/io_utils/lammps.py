@@ -29,16 +29,16 @@ class Lammps_Log_File(gen_io.DataFileStorage):
     def __init__(self, filepath):
         super().__init__(filepath)
 
-    def _parse(self):
+    def parse(self):
         """
         Will loop over all steps and parse the csv from the lammps log file.
         """
         self.ltxt = self.file_txt.split("\n")
-        self.__get_csv_lines__(50)
-        self.__read_csv_lines__()
-        self.__get_metadata__()
+        self.get_csv_lines(50)
+        self.read_csv_lines()
+        self.get_metadata()
 
-    def __get_csv_lines__(self, same_line_tolerance=100):
+    def get_csv_lines(self, same_line_tolerance=100):
         """
         Will determine which lines contain data in a csv format.
 
@@ -100,9 +100,9 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         self.csv_lines = {i: '\n'.join(self.ltxt[start: end])
                           for i, (start, end) in enumerate(zip(self.csv_starts, self.csv_ends))}
 
-    def __read_csv_lines__(self):
+    def read_csv_lines(self):
         """
-        Will read the csv lines (according to '__get_csv_lines__()') into DataFrames.
+        Will read the csv lines (according to 'get_csv_lines()') into DataFrames.
 
         The 2 lists: self.csv_starts and self.csv_ends tell the code where the DataFrame
         starts and ends.
@@ -112,7 +112,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             fp = StringIO(self.csv_lines[key])
             self.csv_data.append(pd.read_csv(fp, delim_whitespace=True))
 
-    def __get_metadata__(self):
+    def get_metadata(self):
         """
         Will get extra metadata from a log file such as number of atoms etc...
 
@@ -141,7 +141,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
                 self.metadata['total_run_time'] = sum(self.metadata['run_times'])
 
 
-    def __repr__(self):
+    def repr(self):
         return "Lammps Log File Class"
 
 
@@ -173,7 +173,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     def __init__(self, filepath):
         super().__init__(filepath)
 
-    def _parse(self):
+    def parse(self):
         """
         Will loop over all steps and parse the csv from the lammps log file.
         """
@@ -184,23 +184,23 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         # Should check the order of the sections here!
 
         # Get the sections in the file
-        self.__divide_sections__()
-        self.__parse_params_sect__()
-        self.__parse_masses_sect__()
+        self.divide_sections()
+        self.parse_params_sect()
+        self.parse_masses_sect()
 
         headers = ("id", "mol_id", "at_type", "x", "y", "z", "ix", "iy", "iz",)
-        self.csv_data['atoms'] = self.__parse_numeric_section__(self.atoms_sect, headers)
+        self.csv_data['atoms'] = self.parse_numeric_section(self.atoms_sect, headers)
 
         headers = ("id", "at_type", "at1", "at2")
-        self.csv_data['bonds'] = self.__parse_numeric_section__(self.bonds_sect, headers)
+        self.csv_data['bonds'] = self.parse_numeric_section(self.bonds_sect, headers)
 
         headers = ("id", "at_type", "at1", "at2", "at3")
-        self.csv_data['angles'] = self.__parse_numeric_section__(self.angles_sect, headers)
+        self.csv_data['angles'] = self.parse_numeric_section(self.angles_sect, headers)
 
         headers = ("id", "at_type", "at1", "at2", "at3", "at4")
-        self.csv_data['dihedrals'] = self.__parse_numeric_section__(self.dihedrals_sect, headers)
+        self.csv_data['dihedrals'] = self.parse_numeric_section(self.dihedrals_sect, headers)
 
-    def __divide_sections__(self):
+    def divide_sections(self):
         """
         Will divide the file up into sections -i.e. Atoms, Bonds, Masses etc...
 
@@ -216,35 +216,35 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
         # Get first section
         divide = ftxt.lower().split('masses')
-        self.__check_len_sect__('masses', divide)    # error checking
-        ind = self.__search_in_list_of_str__(divide, lambda s: "xlo xhi" in s, 1)[0]
+        self.check_len_sect('masses', divide)    # error checking
+        ind = self.search_in_list_of_str(divide, lambda s: "xlo xhi" in s, 1)[0]
         self.params_sect = divide[ind]
 
         # Get masses section
         divide = divide[1-ind]
         divide = divide.split('atoms')
-        self.__check_len_sect__('Masses', divide)     # error checking
+        self.check_len_sect('Masses', divide)     # error checking
         # Find the section with 2 columns
-        self.masses_sect, divide = self.__get_numeric_section__(divide, 2)
+        self.masses_sect, divide = self.get_numeric_section(divide, 2)
 
         # Get atoms section
         divide = divide.split("bonds")
-        self.__check_len_sect__('Atoms', divide)
-        self.atoms_sect, divide = self.__get_numeric_section__(divide, 9)
+        self.check_len_sect('Atoms', divide)
+        self.atoms_sect, divide = self.get_numeric_section(divide, 9)
 
         # Get bonds section
         divide = divide.split("angles")
-        self.__check_len_sect__('Bonds', divide)
-        self.bonds_sect, divide = self.__get_numeric_section__(divide, 4)
+        self.check_len_sect('Bonds', divide)
+        self.bonds_sect, divide = self.get_numeric_section(divide, 4)
 
         # Get angles and dihedral section
         divide = divide.split("dihedrals")
-        self.__check_len_sect__('Angles', divide)
-        self.angles_sect, self.dihedrals_sect = self.__get_numeric_section__(divide, 5)
+        self.check_len_sect('Angles', divide)
+        self.angles_sect, self.dihedrals_sect = self.get_numeric_section(divide, 5)
 
         self.dihedrals_sect = self.dihedrals_sect.replace("dihedrals", "")
 
-    def __parse_params_sect__(self):
+    def parse_params_sect(self):
         """
         Will parse the parameters section and store the values in metadata
         """
@@ -262,7 +262,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
                 self.metadata[words[2].strip()] = type_check.eval_type(words[0])
                 self.metadata[words[3].strip()] = type_check.eval_type(words[1])
 
-    def __parse_masses_sect__(self):
+    def parse_masses_sect(self):
         """
         Will parse the masses and store values in metadata
         """
@@ -276,7 +276,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
         self.metadata['masses'] = masses
 
-    def __parse_numeric_section__(self, sect_txt, headers):
+    def parse_numeric_section(self, sect_txt, headers):
         """
         Will parse a numeric data section and store values in the data dict
         """
@@ -284,7 +284,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         return pd.read_csv(fp, delim_whitespace=True, names=headers)
 
 
-    def __check_len_sect__(self, sect, div):
+    def check_len_sect(self, sect, div):
         """
         A quick function to check for errors in the input file section declarations
 
@@ -300,7 +300,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         if len(div) != 2:
             raise SystemExit(err_msg)
 
-    def __get_numeric_section__(self, sects, num_cols):
+    def get_numeric_section(self, sects, num_cols):
         """
         Will parse a numeric section from txt based on how many columns of data it has
 
@@ -311,13 +311,13 @@ class Lammps_Data_File(gen_io.DataFileStorage):
            <str> The section txt and the non-section txt
         """
         check = [i for i in sects[0].split("\n") if i]
-        inds = self.__search_in_list_of_str__(check,
+        inds = self.search_in_list_of_str(check,
                                               lambda s: len(s.split()) == num_cols)
         if len(inds) > 0:
            ind = 0
         else:
            check = [i for i in sects[1].split("\n") if i]
-           inds = self.__search_in_list_of_str__(check,
+           inds = self.search_in_list_of_str(check,
                                                  lambda s: len(s.split()) == num_cols)
            if len(inds) > 0:
                ind = 1
@@ -328,7 +328,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
 
 
-    def __search_in_list_of_str__(self, str_list, fnc, max_inds=False):
+    def search_in_list_of_str(self, str_list, fnc, max_inds=False):
         """
         Will apply a function to a list of strings to search for a given pattern.
 

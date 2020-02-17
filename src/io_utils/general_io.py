@@ -11,7 +11,7 @@ class DataFileStorage(object):
    """
    A class to act as a template for other classes that load and store data from files to use.
 
-   The class takes the filepath as an input and calls a method named _parse(). Any data stored
+   The class takes the filepath as an input and calls a method named parse(). Any data stored
    under the name numeric_data will be manipulated via the operator overload functions.
 
    Inputs:
@@ -25,14 +25,14 @@ class DataFileStorage(object):
       self.filepath = filepath
       self.file_txt = open_read(self.filepath)
 
-      self._parse()
+      self.parse()
       for var in dir(self):
           if var in self._poss_num_types_:
               self.numeric_data_types.append(var)
 
 
    # Dummy method to hold the place of an actual parser later
-   def _parse(self):
+   def parse(self):
        """
        Should be overridden in any child classes.
        """
@@ -99,7 +99,7 @@ class Write_File(object):
      (saved as self.file_txt) and then write it as a file to the filepath given
      as an argument.
 
-     The function __create_file_str__ must be set and must return the file text.
+     The function create_file_str must be set and must return the file text.
 
      This class can also be used to write general files
 
@@ -114,7 +114,7 @@ class Write_File(object):
          self.extension = ext
 
          # Get the str to write to a file
-         self.file_txt = self.__create_file_str__()
+         self.file_txt = self.create_file_str()
 
          # Correct the extension
          if self.extension:
@@ -125,7 +125,7 @@ class Write_File(object):
          with open(filepath, 'w') as f:
              f.write(self.file_txt)
 
-     def __create_file_str__(self):
+     def create_file_str(self):
          """
          To be overwritten by children to create the str to be written to a file.
 

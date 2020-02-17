@@ -40,7 +40,7 @@ class XYZ_File(gen_io.DataFileStorage):
     def __init__(self, filepath):
         super().__init__(filepath)
 
-    def _parse(self):
+    def parse(self):
         """
         Will call the 'read_xyz_file' function to parse an xyz file.
 
@@ -98,7 +98,7 @@ class Write_XYZ_File(gen_io.Write_File):
           # Run standard file writing procedure
           super().__init__(Data_Class, filepath)
 
-      def __create_file_str__(self):
+      def create_file_str(self):
           """
           Will create the string that contains an xyz file, this is save as self.file_txt.
           """

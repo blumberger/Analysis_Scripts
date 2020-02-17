@@ -28,7 +28,7 @@ class Read_INP(gen_io.DataFileStorage):
         * filepath <str> => The path to the file to be loaded.
     """
     metadata = {'file_type': 'CP2K_inp'}
-    def _parse(self):
+    def parse(self):
         self.all_data = parse_inp_file(self.filepath)
 
     def __str__(self):
@@ -89,10 +89,10 @@ class INP_Line(object):
        self.is_set, self.set_txt, self.is_coord = False, "", False
 
 
-       self.__clean_line()
-       self.__parse_line()
+       self.clean_line()
+       self.parse_line()
 
-   def __clean_line(self):
+   def clean_line(self):
        """
        Will remove spaces and parse any comments saving the cleaned line into the
        attribute self.edit_line.
@@ -102,7 +102,7 @@ class INP_Line(object):
        self.comment = self.comment.strip()
        self.edit_line = self.edit_line.strip()
 
-   def __parse_line(self):
+   def parse_line(self):
        """
        Will choose which line parsing function to use in order to parse the inp line.
        """
@@ -111,7 +111,7 @@ class INP_Line(object):
           return
        if '&' == self.edit_line[0]:
            self.is_section = True
-           self.__parse_section_line()
+           self.parse_section_line()
        elif '@' == self.edit_line[0]:
            words = self.edit_line.split()
            if 'include' in words[0].lower():
@@ -129,17 +129,17 @@ class INP_Line(object):
                non_coord_strs = ('abc ', 'alpha_beta_gamma ',)
                if any(j in self.edit_line.lower() for j in non_coord_strs):
                   self.is_parameter = True
-                  self.__parse_paramter_line()
+                  self.parse_paramter_line()
                else:
                   self.is_coord = True
-                  self.__parse_coord_line()
+                  self.parse_coord_line()
 
            else:
               self.is_parameter = True
-              self.__parse_paramter_line()
+              self.parse_paramter_line()
 
 
-   def __parse_section_line(self):
+   def parse_section_line(self):
        """
        Will parse any line starting with the "&" as a section line.
        """
@@ -156,7 +156,7 @@ class INP_Line(object):
           self.section = words[0]
           self.extra_parameters = words[1:]
 
-   def __parse_paramter_line(self):
+   def parse_paramter_line(self):
        """
        Will parse a parameter line into the variables, self.parameter, self.value
        and self.units.
@@ -182,7 +182,7 @@ class INP_Line(object):
             self.parameter = words[0]
             self.value = "    ".join(words[1:])
 
-   def __parse_coord_line(self):
+   def parse_coord_line(self):
       """
       Will parse a line containing coordinates in the inp file.
       """

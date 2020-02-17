@@ -1,6 +1,6 @@
 **BUG REPORT:**
 
-   WARNING: Pvecs calculator not fully tested 
+   WARNING: Pvecs calculator not fully tested
 
 # MD analysis scripts
 
@@ -110,6 +110,18 @@ read <filepath> <file_type> as <variable name>
 Here the filepath points towards the file you would like to load, file_type is the type of file you would like to load (see example for more info) and variable name is the name associated to the data.
 
 Many of the example input files load data, have a look at them to see more examples of the syntax.
+
+### Setting more complex metadata
+More complex metadata can be set with json files in the src/data/<set_type> folder. For example, if the molecular system you would like to analyse is pentacene you can set pentacene metadata to any data you have just loaded.
+
+This can be achieved with the following syntax:
+```
+set <set_type> <variable_name> to <set_data>
+```
+
+In the pentacene example above the syntax: `set system data to pentacene` would allow the variable `data` to access pentacene metadata such as number of atoms per molecule, molecular mass, atom types etc...
+
+To add new metadata files save them to `src/data/<set_type>/<set_data>.json`. For the pentacene example above we can save a file named `pentacene.json` in the folder `src/data/systems`. Use a json format for the data, have a look at the pentacene file to check how this should look.
 
 #### Writing file data
 Data can be written to a file via the following syntax:

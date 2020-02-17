@@ -50,15 +50,12 @@ from src.calc import pvecs as pvec_lib
 from src.calc import NN
 from src.calc import density as dens
 
-# Setting functions
-from src.set import system as set_sys
-
 # Input file functions
 from src.input_file import input_file_types as inp_types
 
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set')
-
+SET_FOLDERPATH = "src/data/set"
 
 def is_var_line(line):
     """
@@ -152,9 +149,6 @@ class INP_File(object):
         * calc_fncs <dict>       =>  Functions/classes to calculate certain properties
                                      Key = type, value = class/function.
 
-        * set_fncs <dict>        =>  Functions/classes to set certain properties
-                                     in Variables. Key = type, value = class/func
-
         * variables <list<str>>  =>  A list of all variable names from the file
         * line_nums <list<int>>  =>  A list of the line numbers for each element
                                      in the file_ltxt.
@@ -173,7 +167,6 @@ class INP_File(object):
                   'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
                   'json': json.write_json, 'csv': csv_files.Write_CSV,
                  }
-    set_fncs = {'system': set_sys.set_system}
     calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density}
 
     line_declarations = LINE_DECLARATIONS
@@ -491,26 +484,12 @@ class INP_File(object):
             self.__print_error__("Too many words found!\n\n" + err_msg)
 
         # Check undeclared variables
-        _, set_type, var_name, _, set_name = words
+        _, set_folder, var_name, _, set_name = words
         if var_name not in self.variables:
             self.__print_error__(f"Undeclared variable {var_name}")
 
-        # Check the set type
-        if set_type not in self.set_fncs:
-            self.__print_error__(f"Currently can't set '{set_type}'."
-                                 + " Please choose from:\n\t* "
-                                 + "\n\t* ".join(list(self.set_fncs.keys())))
-
         # Run set command for error checking variables later
-        Var = getattr(self, var_name)
-        _, exit_code = self.set_fncs[set_type](Var, set_name)
-
-        if exit_code == 1:
-            self.__print_error__(f"Don't recognise system '{set_name}'."
-                                 + " Please choose from:\n\t* "
-                                 + "\n\t* ".join(set_sys.SYSTEMS_FILES_)
-                                 + "\nOr you could create your own in the folder"
-                                 + f": {set_sys.SYSTEMS_FOLDER}.")
+        self.__parse_set_cmd__(line)
 
     #############      Parsing Methods       #############
 
@@ -898,12 +877,46 @@ class INP_File(object):
 
     def __parse_set_cmd__(self, line):
         """
-        Will parse and run the a set command
+        Will set system data to the metadata in a Variable.
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
         self.E_str = "__parse_set_cmd__"
+
+        # Get parameters and fix them slightly
+        _, set_foldername, var_name, _, set_name = line.split()
+        set_name = set_name.replace(" ", "_").lower()
+        set_name = f"{set_name}.json"
+
+        # Check folder exists and get its path
+        set_folder = os.path.join(SET_FOLDERPATH, set_foldername)
+        set_filepath = os.path.join(set_folder, set_name)
+        if not os.path.isdir(set_folder):
+            set_folders = os.listdir(SET_FOLDERPATH)
+            self.__print_error__(f"Currently can't set '{set_foldername}'."
+                                 + " Please choose from:\n\t* "
+                                 + "\n\t* ".join(set_folders)
+                                 + "\n\n" + "Or create a file at {set_filepath}"
+                                 )
+
+        # Check the filepath
+        if not os.path.isfile(set_filepath):
+            set_files = os.listdir(set_folder)
+            self.__print_error__(f"I don't recognise set file '{set_name}'."
+                                 + " Please choose from:\n\t* "
+                                 + "\n\t* ".join(set_files)
+                                 + "\nOr you could create your own in the folder"
+                                 + f": {set_folder}.")
+
+        # Read the data
+        set_data = json.read_json(set_filepath)
+
+        # Get the variable and add metadata
+        Var = getattr(self, var_name)
+        for key in set_data:
+            Var.metadata[key] = set_data[key]
+
 
     ##### Inp Cleaning methods #################################
 

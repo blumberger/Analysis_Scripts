@@ -54,7 +54,7 @@ all_example_tests = {
                       'calc_density':       {
                                              'test_func': true,
                                              'inp_file' : 'calc_densities.inp',
-                                             'out_file' : 'density.csv',
+                                             'out_file' : 'density_0.csv',
                                             },
                     }
 

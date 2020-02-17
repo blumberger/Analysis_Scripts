@@ -23,7 +23,8 @@ class Lammps_Log_File(gen_io.DataFileStorage):
     lammps log file.
     """
     data = []
-    metadata = {'file_type': 'log_csv'}
+    metadata = {'file_type': 'log_csv', 'number_atoms': 0,
+                'total_run_time': 0, 'run_times': []}
 
     def __init__(self, filepath):
         super().__init__(filepath)
@@ -35,6 +36,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         self.ltxt = self.file_txt.split("\n")
         self.__get_csv_lines__(50)
         self.__read_csv_lines__()
+        self.__get_metadata__()
 
     def __get_csv_lines__(self, same_line_tolerance=100):
         """
@@ -109,6 +111,35 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             # Create file-like object from a string
             fp = StringIO(self.csv_lines[key])
             self.data.append(pd.read_csv(fp, delim_whitespace=True))
+
+    def __get_metadata__(self):
+        """
+        Will get extra metadata from a log file such as number of atoms etc...
+
+        Will use regex to seach for key phrases to get metadata.
+        """
+        # First get the non-csv text
+        if len(self.csv_starts) == 0:
+            f_txt = self.file_txt
+
+        else:
+            f_txt = '\n'.join(self.ltxt[:self.csv_starts[0]])
+            for i in range(len(self.csv_starts) - 1):
+                start = self.csv_starts[i+1]
+                end = self.csv_ends[i]
+                f_txt += '\n'.join(self.ltxt[end:start])
+            f_txt += '\n'.join(self.ltxt[self.csv_ends[-1]:])
+
+        # Search the non-csv text for the strings
+        natom = re.findall("with [0-9]+ atoms", f_txt)
+        if len(natom) > 0:
+                self.metadata['number_atoms'] = int(natom[0][5:-5])
+
+        run_times = re.findall("run [0-9]+", f_txt)
+        if len(run_times):
+                self.metadata['run_times'] = [int(i[4:]) for i in run_times]
+                self.metadata['total_run_time'] = sum(self.metadata['run_times'])
+
 
     def __repr__(self):
         return "Lammps Log File Class"

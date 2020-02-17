@@ -20,6 +20,7 @@ class DataFileStorage(object):
    numeric_data = 0
    _poss_num_types_ = ('numeric_data', 'xyz_data')
    numeric_data_types = []
+   metadata = {'file_type': 'txt'}
    def __init__(self, filepath):
       self.filepath = filepath
       self.file_txt = open_read(self.filepath)
@@ -90,7 +91,7 @@ class DataFileStorage(object):
        return self.file_txt
 
 
-class File_Writing(object):
+class Write_File(object):
      """
      A parent class for other file writing classes.
 
@@ -100,24 +101,37 @@ class File_Writing(object):
 
      The function __create_file_str__ must be set and must return the file text.
 
+     This class can also be used to write general files
+
      Inputs:
         * Data_Class <class> => The class containing all the data to be written
         * filepath <str>     => The path to the file to be written.
+        * extension <str> OPTIONAL   => The file extension. Default is False.
      """
-     def __init__(self, Data_Class, filepath):
+     def __init__(self, Data_Class, filepath, ext=False):
          self.filepath = filepath
          self.Data = Data_Class
+         self.extension = ext
 
+         # Get the str to write to a file
          self.file_txt = self.__create_file_str__()
 
+         # Correct the extension
+         if self.extension:
+             filepath, _ = remove_file_extension(filepath)
+             filepath = f"{filepath}.{ext}"
+
+         # Write the file with the correct extension
          with open(filepath, 'w') as f:
              f.write(self.file_txt)
 
      def __create_file_str__(self):
          """
-         To be overwritten to create the file string to be written
+         To be overwritten by children to create the str to be written to a file.
+
+         By default we write the str(self.Data)
          """
-         pass
+         return str(self.Data)
 
 
 # Reads a file and closes it

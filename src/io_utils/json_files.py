@@ -8,7 +8,7 @@ import json
 def write_json(data, filepath):
     """
     Will write the nearest neighbour list as a json file.
-    
+
     Inputs:
         * data <dict> => A dict object to write to file.
         * filepath <str> => The filepath to save the data to.
@@ -23,10 +23,11 @@ def write_json(data, filepath):
 def read_json(filepath):
     """
     Will write the nearest neighbour list as a json file.
-    
+
     Inputs:
         * filepath <str> => The filepath to save the data to.
     """
     with open(filepath, 'r') as f:
-   	    data = json.read_json(f) 
+   	    data = json.load(f)
+
     return data

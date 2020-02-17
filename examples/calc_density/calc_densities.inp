@@ -1,0 +1,22 @@
+##########################################
+#                                        #
+# An input file that will read a  Lammps #
+# log file and calculate the density     #
+# from it. This is then written as a npy #
+# data file.                             #
+##########################################
+
+# Set the folder and filepath variables
+folder = "examples/data/Lammps"
+filepath = "$folder/log.lammps"
+
+# Read a lammps log file and use a pentacene system
+read $filepath lammps_log as lammps_data
+set system lammps_data to pentacene
+
+# Calculate the density and print it
+calc density from lammps_data as density
+echo $density
+
+# Write the density file as density.csv
+write density density.csv

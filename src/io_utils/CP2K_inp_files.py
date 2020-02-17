@@ -5,7 +5,7 @@ Created on Tue Oct  9 11:00:42 2018
 
 A module to parse and edit and save inp files used with CP2K.
 
-To load inp files use the function `parsed_inp_files(filepath <str>)`.
+To load inp files use the function `parse_inp_file(filepath <str>)`.
 
 To write them with correct indents etc use the function `write_inp(parsed_inp <dict>, filepath)`
 """
@@ -15,6 +15,42 @@ from collections import OrderedDict
 import copy
 
 from src.parsing import general_parsing as gen_parse
+from src.io_utils import general_io as gen_io
+
+class Read_INP(gen_io.DataFileStorage):
+    """
+    A class to store loaded INP file data.
+
+    This class is just a wrapper for the parse_inp_file function to allow it to
+    be used as a file loading class.
+
+    Inputs:
+        * filepath <str> => The path to the file to be loaded.
+    """
+    metadata = {'file_type': 'CP2K_inp'}
+    def _parse(self):
+        self.all_data = parse_inp_file(self.filepath)
+
+    def __str__(self):
+        """
+        Overload the str magic function.
+        """
+        return write_inp(self.all_data)
+
+
+class Write_INP(gen_io.Write_File):
+    """
+    Inherit from gen_io.Write_File to write CP2K input file.
+
+    This is basically the same as the gen_io.Write_File class see that for more
+    details.
+
+     Inputs:
+        * Data_Class <class> => The class containing all the data to be written
+        * filepath <str>     => The path to the file to be written.
+    """
+    def __init__(self, Data_Class, filepath):
+        super().__init__(Data_Class, filepath, "inp")
 
 
 class INP_Line(object):
@@ -89,7 +125,7 @@ class INP_Line(object):
        else:
            # Check for coord lines
            regex_check = re.findall("[0-9]+\.[0-9]+", self.edit_line)
-           if len(regex_check) == 3:      
+           if len(regex_check) == 3:
                non_coord_strs = ('abc ', 'alpha_beta_gamma ',)
                if any(j in self.edit_line.lower() for j in non_coord_strs):
                   self.is_parameter = True
@@ -151,7 +187,7 @@ class INP_Line(object):
       Will parse a line containing coordinates in the inp file.
       """
       words = self.edit_line.split()
-         
+
       self.elm_name = words[0]
       self.coords = [float(i) for i in words[1:]]
 
@@ -186,16 +222,16 @@ def find_section_end(parsed_inp_lines, section, curr_line):
     for line_num, line in enumerate(parsed_inp_lines[curr_line:]):
         # Start a section +1 and End a section -1
         if line.is_section and line.is_section_end:
-           sect_num += 1 
+           sect_num += 1
         elif line.is_section and line.is_section_start:
-           sect_num -= 1 
-        
+           sect_num -= 1
+
         # When we have ended as many sections as we have started we have found the end
         if sect_num == 0:
             line.section = section
             return line_num + curr_line
     else:
-      raise SystemExit("Can't find the end of the section '%s'" % section)
+      raise SystemError("Can't find the end of the section '%s'" % section)
 
 
 def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=False):
@@ -297,7 +333,7 @@ def get_max_parameter_len_in_section(lines, curr_line_ind):
     """
     # Check if we have the correct input type
     if not lines[curr_line_ind].is_section:
-        raise SystemExit("The input line to 'get_max_parameter_len_in_section' should be a section line!")
+        raise SystemError("The input line to 'get_max_parameter_len_in_section' should be a section line!")
 
     # Get the section name
     curr_section = lines[curr_line_ind].section.upper()
@@ -329,7 +365,7 @@ def write_inp(inp_dict, filename=False):
         msg = "Argument 'inp_dict' must be a dictionary as outputted by the function"
         msg += " 'parse_inp_file'.\n\n"
         msg += "Error: Wrong input to fucntion 'write_inp'. Bad 'inp_dict' argument."
-        raise SystemExit(msg)
+        raise SystemError(msg)
 
     inp_txt = ""
     indent_level = 0
@@ -389,7 +425,7 @@ def write_inp(inp_dict, filename=False):
                                             "@SET".ljust(param_len),
                                             line.set_txt)
                 prev_line_type = "set"
-            
+
             elif line.is_coord:
                name = line.elm_name
                coords = [("%.6f" % i).ljust(10) for i in line.coords]

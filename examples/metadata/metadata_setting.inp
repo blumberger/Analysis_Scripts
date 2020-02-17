@@ -5,15 +5,22 @@
 # manipulating metadata in      #
 # variables.                    #
 #################################
+
+# Create a variable called x
 x = 1
+
+# Set the attribute (metadata) 'bob' equal to "BOB" in variable x
 x['bob'] = "BOB"
 
-x['fatima'] = "Fatima likes $x['bob']"
+# Set attribute 'fatima' to string 'Fatima likes BOB'
+x['fatima'] = Fatima likes $x['bob']
+
+# Print some things out
 echo 
-echo $x['fatima']
-echo "(The above should say Fatima likes BOB)"
+echo "$x['fatima']         (This should be 'Fatima likes BOB')"
 echo 
 
+# Set an attribute 'one' and do some arithmetic, then print the result
 x['one'] = 1
 x['two'] = x['one'] + 1
 echo "$x['two']        (This should be 2)"

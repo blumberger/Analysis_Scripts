@@ -4,6 +4,7 @@
 A module to calculate nearest neighbour lists
 """
 import numpy as np
+import pandas as pd
 
 from src.calc import general_types as gen_type
 from src.system import type_checking as type_check
@@ -20,11 +21,11 @@ class Density(gen_type.Calc_Type):
         * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
     """
-    required_metadata = ()
+    required_metadata = ('molecular_mass', "atoms_per_molecule", "number_atoms")
 
     # Need these 3 attributes to create a new variable type
-    data = {}
-    metadata = {'file_type': 'json'}
+    df_data = {}
+    metadata = {'file_type': 'csv'}
     name = "Nearest Neighbour Calculator"
 
     def calc(self):
@@ -44,34 +45,66 @@ class Density(gen_type.Calc_Type):
         did_dens_calc = False
         data_count = 0
 
+        self.__get_tot_mass__()
+
         if type(data) == list:
             for df in data:
                 if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
-                    self.data[data_count] = self.__calc_dens__(df)
+                    self.df_data[data_count] = self.__calc_dens__(df)
                     did_dens_calc = True
                     data_count += 1
 
         elif type(data) == pd.DataFrame:
             if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
-                self.data[data_count] = self.__calc_dens__(data)
+                self.df_data[data_count] = self.__calc_dens__(data)
                 did_dens_calc = True
 
         if did_dens_calc is False:
             raise SystemExit("Can't find the required DataFrame headers to calculate the density")
 
+    def __get_tot_mass__(self):
+        """
+        Will get the total mass of the system in kg.
+
+        First we find the number of molecules then the total mass.
+        """
+        # Get num mol
+        err_msg = "Number of atoms in the file doesn't neatly divide by the atoms per molecule."
+        nmol = self.Var.metadata['number_atoms'] / self.Var.metadata['atoms_per_molecule']
+        if type_check.is_int(nmol, err_msg):
+            nmol = int(nmol)
+
+        self.tot_mass = nmol * self.Var.metadata['molecular_mass']
+
     def __calc_dens__(self, df):
         """
         Will calculate the density from a single dataframe
+
+        We assume the mass is in kg and the volume is in A^3
+
+        This will calculate densities in g/cm^3
         """
-        vol = df['Volume']
-        print(vol)
+        new_df = pd.DataFrame({})
+        # Convert to grams
+        tot_mass = self.tot_mass * 1e3
+        if 'Volume' in df.columns:
+            vol = df['Volume'] * 1e-24
+        else:
+            vol = df['Lx'] * df['Ly'] * df['Lz'] * 1e-24
+
+        if 'Step' in df:  new_df['Step'] = df['Step']
+        new_df['Volumes'] = vol
+        new_df['Density'] = tot_mass / vol
+
+        return new_df
 
     def __str__(self):
         """
         Overload the string function
         """
-        for step in self.data:
-            for key in self.data[step]:
-                self.data[step][key] = self.data[step][key].tolist()
+        s = ""
+        for key in self.df_data:
+            s += f"Dataframe {key}:"
+            s += "\n\n" + str(self.df_data[key])
 
-        return str(self.data)
+        return str(self.df_data)

@@ -35,6 +35,7 @@ class XYZ_File(gen_io.DataFileStorage):
         * cols <numpy.array> => The parsed column data from the xyz file.
         * timesteps <numpy.array> => The parsed timesteps from the xyz file.
     """
+    metadata = {'file_type': 'xyz'}
     # write_precision = 5
     def __init__(self, filepath):
         super().__init__(filepath)
@@ -57,6 +58,10 @@ class XYZ_File(gen_io.DataFileStorage):
         self.natom = self.xyz_data.shape[1]
         self.ncol = self.xyz_data.shape[2]
 
+        # Set the metadata
+        self.metadata['number_steps'] = self.nstep
+        self.metadata['number_atoms'] = self.natom
+
     # Overload the str function (useful for displaying data).
     def __str__(self):
         # Create an array of spaces/newlines to add between data columns in str
@@ -74,11 +79,11 @@ class XYZ_File(gen_io.DataFileStorage):
         return ''.join(s)
 
 
-class Write_XYZ_File(gen_io.File_Writing):
+class Write_XYZ_File(gen_io.Write_File):
       """
       Will handle the writing of xyz files.
 
-      The parent class gen_io.File_Writing will handle the actual writing and
+      The parent class gen_io.Write_File will handle the actual writing and
       this just creates an xyz file string.
 
      Inputs:

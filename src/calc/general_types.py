@@ -32,10 +32,10 @@ class Calc_Type(object):
         Just check the required metadata is there and call the __calc function.
         """
         # Check we have all the data we need to calculate the property
-        self.Var = Variable 
+        self.Var = Variable
         for key in self.required_metadata:
             if key not in self.Var.metadata:
-               raise KeyError(f"Please load the data '{key}' into the variable '{self.Data_File.name}'")
+               raise KeyError(f"Please load the data '{key}' into the variable '{self.Var.name}'")
 
 
     def calc(self):
@@ -59,11 +59,11 @@ class Calc_Type(object):
     # Overload mathematical operators
     def __add__(self, val):
         """Ammend data attribute and return self"""
-        self.data += val 
+        self.data += val
         return self
     def __sub__(self, val):
         """Ammend data attribute and return self"""
-        self.data -= val 
+        self.data -= val
         return self
     def __mul__(self, val):
         """Ammend data attribute and return self"""
@@ -81,4 +81,3 @@ class Calc_Type(object):
         """Ammend data attribute and return self"""
         self.data **= val
         return self
-

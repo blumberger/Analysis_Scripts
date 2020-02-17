@@ -50,7 +50,12 @@ all_example_tests = {
                                         'test_func': true,
                                         'inp_file' : 'metadata_setting.inp',
                                         'out_file' : False,
-                                    }
+                                    },
+                      'calc_density':       {
+                                             'test_func': true,
+                                             'inp_file' : 'calc_densities.inp',
+                                             'out_file' : 'density.csv',
+                                            },
                     }
 
 all_example_tests = {f'{examples_folder}/{i}': all_example_tests[i] for i in all_example_tests}

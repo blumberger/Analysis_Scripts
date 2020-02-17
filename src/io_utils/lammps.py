@@ -33,7 +33,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         """
         Will loop over all steps and parse the csv from the lammps log file.
         """
-        self.ltxt = self.file_txt.split("\n")
+        self._ltxt = self.file_txt.split("\n")
         self.get_csv_lines(50)
         self.read_csv_lines()
         self.get_metadata()
@@ -53,10 +53,10 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         # Init some vars
         split_num, split_same = 0, 0
         is_csv_line = False, True
-        self.csv_starts, self.csv_ends = [], []
+        self._csv_starts, self._csv_ends = [], []
 
         # Find where there are csv lines
-        for line_num, line in enumerate(self.ltxt):
+        for line_num, line in enumerate(self._ltxt):
 
             # Check if the previous line has the same format as the current
             new_split_num = len(line.split())
@@ -70,46 +70,46 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             if split_same > same_line_tolerance:
                 # If the value of is_csv_line is False the previous line mustn't of been a csv line
                 if is_csv_line is False:
-                    self.csv_starts.append(line_num - 1 - same_line_tolerance)
+                    self._csv_starts.append(line_num - 1 - same_line_tolerance)
 
                 is_csv_line = True
 
             else:
                 if is_csv_line is True:
-                    self.csv_ends.append(line_num)
+                    self._csv_ends.append(line_num)
 
                 is_csv_line = False
 
             split_num = new_split_num
 
-        self.csv_line_nums = np.arange(len(self.ltxt))
+        # self.csv_line_nums = np.arange(len(self._ltxt))
 
         # Some error checking
-        if len(self.csv_starts) != len(self.csv_ends):
-            if len(self.csv_starts) == len(self.csv_ends) - 1:
-                self.csv_ends.append(len(ltxt))
+        if len(self._csv_starts) != len(self._csv_ends):
+            if len(self._csv_starts) == len(self._csv_ends) - 1:
+                self._csv_ends.append(len(ltxt))
             else:
-                err_msg = f"Number of csv block starts = {len(self.csv_starts)}"
+                err_msg = f"Number of csv block starts = {len(self._csv_starts)}"
                 err_msg += "\n"
-                err_msg += f"Number of csv block ends = {len(self.csv_ends)}"
+                err_msg += f"Number of csv block ends = {len(self._csv_ends)}"
                 err_msg += "\n"
                 err_msg += f"Can't find the end of the csv block in the file {self.filepath}"
                 raise EOFError(err_msg)
 
         # Get the lines of the csvs
-        self.csv_lines = {i: '\n'.join(self.ltxt[start: end])
-                          for i, (start, end) in enumerate(zip(self.csv_starts, self.csv_ends))}
+        self._csv_lines = {i: '\n'.join(self._ltxt[start: end])
+                          for i, (start, end) in enumerate(zip(self._csv_starts, self._csv_ends))}
 
     def read_csv_lines(self):
         """
         Will read the csv lines (according to 'get_csv_lines()') into DataFrames.
 
-        The 2 lists: self.csv_starts and self.csv_ends tell the code where the DataFrame
+        The 2 lists: self._csv_starts and self._csv_ends tell the code where the DataFrame
         starts and ends.
         """
-        for ifp, key in enumerate(self.csv_lines):
+        for ifp, key in enumerate(self._csv_lines):
             # Create file-like object from a string
-            fp = StringIO(self.csv_lines[key])
+            fp = StringIO(self._csv_lines[key])
             self.csv_data.append(pd.read_csv(fp, delim_whitespace=True))
 
     def get_metadata(self):
@@ -119,16 +119,16 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         Will use regex to seach for key phrases to get metadata.
         """
         # First get the non-csv text
-        if len(self.csv_starts) == 0:
+        if len(self._csv_starts) == 0:
             f_txt = self.file_txt
 
         else:
-            f_txt = '\n'.join(self.ltxt[:self.csv_starts[0]])
-            for i in range(len(self.csv_starts) - 1):
-                start = self.csv_starts[i+1]
-                end = self.csv_ends[i]
-                f_txt += '\n'.join(self.ltxt[end:start])
-            f_txt += '\n'.join(self.ltxt[self.csv_ends[-1]:])
+            f_txt = '\n'.join(self._ltxt[:self._csv_starts[0]])
+            for i in range(len(self._csv_starts) - 1):
+                start = self._csv_starts[i+1]
+                end = self._csv_ends[i]
+                f_txt += '\n'.join(self._ltxt[end:start])
+            f_txt += '\n'.join(self._ltxt[self._csv_ends[-1]:])
 
         # Search the non-csv text for the strings
         natom = re.findall("with [0-9]+ atoms", f_txt)
@@ -177,7 +177,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         """
         Will loop over all steps and parse the csv from the lammps log file.
         """
-        self.ltxt = [i for i in self.file_txt.split("\n") if i]
+        self._ltxt = [i for i in self.file_txt.split("\n") if i]
 
         ftxt = self.file_txt.lower()
 
@@ -212,7 +212,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         Section 6 gives dihedral info
         """
         # ftxt is the filetxt without whitespace
-        ftxt = "\n".join(self.ltxt).lower()
+        ftxt = "\n".join(self._ltxt).lower()
 
         # Get first section
         divide = ftxt.lower().split('masses')

@@ -44,11 +44,12 @@ echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE
 INP_FILE=""
 TEST="false"
 HELP="true"
-while getopts "i:th" arg
+while getopts "i:thu" arg
 do
     case $arg in 
         i) INP_FILE=$OPTARG; HELP="false";;
         t) TEST="true"; HELP="false";;
+        u) HELP="false"; pipenv install;;
         h) HELP="true";;
     esac
 done
@@ -83,6 +84,14 @@ then
     echo "|                                                      |"
     echo "|------------------------------------------------------|"
     echo "|                                                      |"
+    echo "| Flags                                                |"
+    echo "|------------------------------------------------------|"
+    echo "| -t  -> Test the code                                 |"
+    echo "| -i  -> Specify input file filepath                   |"
+    echo "| -u  -> Update dependencies                           |"
+    echo "|                                                      |"
+    echo "|------------------------------------------------------|"
+    echo "|                                                      |"
     echo "| Getting more help.                                   |"
     echo "|------------------------------------------------------|"
     echo "| If you would like more info read the README          |"
@@ -95,20 +104,20 @@ fi
 if [ "$TEST" == "true" ]
 then
     pipenv run python3 $PWD/src/tests/call_all_examples.py
-else
-
-    # If we can't find the input file raise an error
-    if [ "$INP_FILE" == "" ]
-    then
-        echo "Please supply an input file to the run.sh as \`./run.sh -i "input.inp"\`"
-        exit 1
-    fi
-    if ! [ -f $INP_FILE ]
-    then
-        echo "ERROR: Can't find file '"$INP_FILE"'"
-        exit 2
-    fi
-    
-    # If everything is ok, pass the input file to the python code
-    pipenv run python3 $PWD/main.py -i $INP_FILE
+    exit 0
 fi
+
+
+# If we can't find the input file raise an error
+if [ "$INP_FILE" == "" ]
+then
+    exit 0
+fi
+if ! [ -f "$INP_FILE" ]
+then
+    echo "ERROR: Can't find file '"$INP_FILE"'"
+    exit 2
+fi
+
+# If everything is ok, pass the input file to the python code
+pipenv run python3 $PWD/main.py -i $INP_FILE

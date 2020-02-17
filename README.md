@@ -123,6 +123,8 @@ In the pentacene example above the syntax: `set system data to pentacene` would 
 
 To add new metadata files save them to `src/data/<set_type>/<set_data>.json`. For the pentacene example above we can save a file named `pentacene.json` in the folder `src/data/systems`. Use a json format for the data, have a look at the pentacene file to check how this should look.
 
+An example is given in the `examples/calc_density` folder.
+
 #### Writing file data
 Data can be written to a file via the following syntax:
 ```
@@ -156,3 +158,13 @@ You can print variables in this by calling them, as in bash, with a dollar sign 
 ```
 echo "Value of variable: $variable"
 ```
+
+#### Interacting with data with IPython
+You can interact with the data you've created through the IPython shell if you use the command:
+```
+shell
+```
+Here any variables you declare in the input file (including loaded data) will be saved with a global scope and you can access them as you normally would. The shell
+will open with the code's current state and after closing it will remember the altered state and run the rest of the input script with this.
+
+An example is given in the `examples/ipython_shell` directory.

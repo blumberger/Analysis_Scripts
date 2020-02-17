@@ -19,7 +19,7 @@ class DataFileStorage(object):
    """
    numeric_data = 0
    _poss_num_types_ = ('numeric_data', 'xyz_data')
-   numeric_data_types = []
+   _numeric_data_types = []
    metadata = {'file_type': 'txt'}
    def __init__(self, filepath):
       self.filepath = filepath
@@ -28,7 +28,7 @@ class DataFileStorage(object):
       self.parse()
       for var in dir(self):
           if var in self._poss_num_types_:
-              self.numeric_data_types.append(var)
+              self._numeric_data_types.append(var)
 
 
    # Dummy method to hold the place of an actual parser later
@@ -40,7 +40,7 @@ class DataFileStorage(object):
 
    # Overload adding
    def __add__(self, val):
-       for i in self.numeric_data_types:
+       for i in self._numeric_data_types:
            att = getattr(self, i)
            att += float(val)
            setattr(self, i, att)
@@ -48,7 +48,7 @@ class DataFileStorage(object):
 
    # Overload multiplying
    def __mul__(self, val):
-       for i in self.numeric_data_types:
+       for i in self._numeric_data_types:
            att = getattr(self, i)
            att *= float(val)
            setattr(self, i, att)
@@ -56,7 +56,7 @@ class DataFileStorage(object):
 
    # Overload subtracting
    def __sub__(self, val):
-       for i in self.numeric_data_types:
+       for i in self._numeric_data_types:
            att = getattr(self, i)
            att -= float(val)
            setattr(self, i, att)
@@ -64,7 +64,7 @@ class DataFileStorage(object):
 
    # Overload division operator i.e. a / b
    def __truediv__(self, val):
-       for i in self.numeric_data_types:
+       for i in self._numeric_data_types:
            att = getattr(self, i)
            att /= float(val)
            setattr(self, i, att)
@@ -72,7 +72,7 @@ class DataFileStorage(object):
 
    # Overload floor division operator i.e. a // b
    def __floordiv__(self, val):
-       for i in self.numeric_data_types:
+       for i in self._numeric_data_types:
            att = getattr(self, i)
            att //= float(val)
            setattr(self, i, att)
@@ -80,7 +80,7 @@ class DataFileStorage(object):
 
    # Overload the power operator
    def __pow__(self, val):
-       for i in self.numeric_data_types:
+       for i in self._numeric_data_types:
            att = getattr(self, i)
            att **= float(val)
            setattr(self, i, att)

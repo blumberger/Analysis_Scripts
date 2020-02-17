@@ -42,7 +42,7 @@ To add your input file that runs the changes you've made to, append an entry to 
 Put it in the src directory in an appropriately named folder. All of the code will be called from the main.py file so make sure it can be imported from this file.
 
 ## How to document your new code?
-As you add functionality you should test it in your own input file. E.g. if you add some code to load and write .dat files then write an input file that does that to run t. After you are happy your code and the input file commands work comment the input file well and copy it into an appropriate directory in the examples directory.
+As you add functionality you should test it in your own input file. E.g. if you add some code to load an xyz file, adjust it's values, and write it again then write this in an input file and put it in the examples directory. You should also remember to update the test code to include this input file so its functionality can be tested automatically.
 
 ## What should go in the repo?
 Any code you think may be helpful, can be ran with an input file and is documented.

@@ -12,5 +12,6 @@ matplotlib = "*"
 scipy = "*"
 argparse = "*"
 ipython = "*"
+pyqt5 = "*"
 
 [requires]

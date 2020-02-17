@@ -3,10 +3,6 @@ import argparse
 
 from src.input_file import input_file as inp_file_utils
 
-#from IPython import embed
-#c = get_config()
-#c.InteractiveShellEmbed.colors = "Linux"
-
 # Parse the arguments to get the input file.
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", help="An input file that tells me what to do")
@@ -19,5 +15,3 @@ if args.i is None:
 input_filepath = os.path.join(os.getcwd(), args.i)
 
 INP_File = inp_file_utils.INP_File(input_filepath)
-
-#embed(config=c)

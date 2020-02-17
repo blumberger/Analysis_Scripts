@@ -56,6 +56,14 @@ all_example_tests = {
                                              'inp_file' : 'calc_densities.inp',
                                              'out_file' : 'density_0.csv',
                                             },
+
+
+                      # Keep this one last
+                      'ipython_shell':      {
+                                             'test_func': true,
+                                             'inp_file' : 'IPython_shell.inp',
+                                             'out_file' : False,
+                                            },
                     }
 
 all_example_tests = {f'{examples_folder}/{i}': all_example_tests[i] for i in all_example_tests}

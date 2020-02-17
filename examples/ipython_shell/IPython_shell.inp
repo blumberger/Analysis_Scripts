@@ -1,0 +1,15 @@
+#################################
+#                               #
+# Will load some files and open #
+# an IPython shell so the user  #
+# can manipulate the data in    #
+# them.
+#################################
+folder = "examples/data"
+xyz_filepath = "$folder/run-pos-1-1.xyz"
+lammps_filepath = "$folder/Lammps/log.lammps"
+
+load $xyz_filepath xyz as xyz_data
+load $lammps_filepath lammps_log as log_data
+
+shell 

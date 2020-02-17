@@ -29,6 +29,7 @@ IMPORTANT VARIABLES:
 
 import re
 import os
+from IPython import embed
 
 # Fundamental system functions
 from src.system import type_checking as type_check
@@ -53,9 +54,10 @@ from src.calc import density as dens
 # Input file functions
 from src.input_file import input_file_types as inp_types
 
-
-CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set')
+CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell')
 SET_FOLDERPATH = "src/data/set"
+
+
 
 def is_var_line(line):
     """
@@ -173,6 +175,7 @@ class INP_File(object):
     line_declarations['variable'] = is_var_line
     line_declarations['load'] = lambda x: len(re.findall("^load |^read ", x)) > 0
     line_declarations['math'] = is_math_line
+    line_declarations['shell'] = lambda x: x.strip().lower() == "shell"
 
     def __init__(self, inp_filepath):
         self.E_str = "init"
@@ -527,6 +530,14 @@ class INP_File(object):
             # Parse any echo commands
             elif self.line_declarations['set'](line):
                 self.parse_set_cmd(line)
+
+            # Parse any echo commands
+            elif self.line_declarations['shell'](line):
+                self.parse_shell_cmd()
+
+            # Print a warning about unknown line
+            else:
+                self.print_warning("I don't understand a line!")
 
             self.line_num += 1
 
@@ -917,6 +928,55 @@ class INP_File(object):
         for key in set_data:
             Var.metadata[key] = set_data[key]
 
+    def parse_shell_cmd(self):
+        """
+        Will run the IPython shell.
+        """
+        self.E_str = "parse_set_cmd"
+
+        # Print the welcome message
+        print("\n" + "-"*76 + "\n\n\n")
+        print("\nWelcome to the IPython Shell.\n")
+        print("\nFrom here you will be able to manipulate the variables you"
+              + " have declared in your input file. In order to do this it may"
+              + " help to know a bit about them first!")
+        print("\nEach variable is saved as a 'Variable' type (defined in "
+              + " src/input_file/input_file_types.py) and has 3 important "
+              + "properties. The data, name and metadata.")
+        print("\nThe data attribute:")
+        print("The data attribute (accessed via <var>.data) stored the value"
+              + " of the data. E.g. for an xyz file it stores the XYZ_File"
+              + " object. For the number 2 this would be 2.")
+        print("\nThe name attribute:")
+        print("The name will give the variable's name (accessed via <var>.name)")
+        print("\nThe metadata attribute:")
+        print("The metadata attribute (accessed via <var>.metadata) stores the"
+              + " metadata for a variable (i.e. <var>['metadata']).")
+        print("\n\n\nVariables loaded:")
+        for var in self.variables:
+            Var = getattr(self, var)
+            attrs = [i for i in dir(Var.data) if '_' != i[0] and not callable(getattr(Var.data, i))]
+            n_attr = 3
+            print("-"*(len(var) + 5))
+            print(f"| {var}: |")
+            print("-"*(len(var) + 5))
+            if attrs:
+                print("Attributes:\n")
+                for i in range((len(attrs) // n_attr) + 1):
+                    print('\t'.join([i.ljust(20) for i in attrs[i*n_attr: (i+1)*n_attr]]))
+                print("-" * 76)
+
+        # print("\n" + "-"*76 + "\n\n\n")
+
+
+        # Declare all the variables in the global scope so the user can use them
+        for var_name in self.variables:
+            globals()[var_name] = getattr(self, var_name)
+
+        # Open the IPython shell
+        embed(colors="Linux")
+
+
 
     ##### Inp Cleaning methods #################################
 
@@ -994,8 +1054,7 @@ class INP_File(object):
 
     ############# Error Handling ####################################################
 
-    def print_error(self, msg, line_num=False,
-                      errorFunc=SystemExit):
+    def print_error(self, msg, line_num=False, errorFunc=SystemExit):
         """
         Will print an error message in a consistent format.
 
@@ -1018,3 +1077,25 @@ class INP_File(object):
         err_msg += f"err id: {self.E_str}"
         err_msg += "\n#################################\n\n"
         raise errorFunc(err_msg)
+
+
+    def print_warning(self, msg, line_num=False):
+        """
+        Will print an warning message in a consistent format.
+
+        Inputs:
+            * msg <str> => The error message to be displayed.
+            * line_num <int> OPTIONAL => If set: the index of the line. Else it
+                                         is self.line_num
+        """
+        msg = msg.strip('\n')
+        if line_num is False: line_num = self.line_num
+        bad_line_ind = self.line_nums[line_num]
+
+        warn_msg = "\n_____\nWarning: "
+        warn_msg += f"{msg}"
+        warn_msg += "\nfile: %s" % self.inp_filename
+        warn_msg += "\nline number: %i\n" % self.line_nums[line_num]
+        warn_msg += f"line: '{self.file_ltxt_orig[bad_line_ind]}'"
+        warn_msg += "\n-----\n\n"
+        print(warn_msg)

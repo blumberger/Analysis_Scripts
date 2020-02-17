@@ -5,7 +5,11 @@ A module to calculate nearest neighbour lists
 """
 import numpy as np
 
+# Import calculating functions
 from src.calc import general_types as gen_type
+from src.calc import geometry as geom
+
+# import type checking functions
 from src.system import type_checking as type_check
 
 class Angular_Dist(gen_type.Calc_Type):
@@ -20,7 +24,8 @@ class Angular_Dist(gen_type.Calc_Type):
         * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
     """
-    required_metadata = ('long_axis_atoms', 'short_axis_atoms')
+    required_metadata = ('long_axis_atoms', 'short_axis_atoms',
+                         'atoms_per_molecule', )
 
     # Need these 3 attributes to create a new variable type
     data = {}

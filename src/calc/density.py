@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from src.calc import general_types as gen_type
+from src.calc import molecule_utils as mol_utils
 from src.system import type_checking as type_check
 
 class Density(gen_type.Calc_Type):
@@ -70,11 +71,8 @@ class Density(gen_type.Calc_Type):
         First we find the number of molecules then the total mass.
         """
         # Get num mol
-        err_msg = "Number of atoms in the file doesn't neatly divide by the atoms per molecule."
-        nmol = self.Var.metadata['number_atoms'] / self.Var.metadata['atoms_per_molecule']
-        if type_check.is_int(nmol, err_msg):
-            nmol = int(nmol)
-
+        nmol = mol_utils.get_nmol(self.Var.metadata['number_atoms'],
+                                  self.Var.metadata['atoms_per_molecule'])
         self.tot_mass = nmol * self.Var.metadata['molecular_mass']
 
     def __calc_dens__(self, df):

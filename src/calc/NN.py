@@ -6,6 +6,8 @@ A module to calculate nearest neighbour lists
 import numpy as np
 
 from src.calc import general_types as gen_type
+from src.calc import molecule_utils as mol_utils
+
 from src.system import type_checking as type_check
 
 class NN(gen_type.Calc_Type):
@@ -55,16 +57,17 @@ class NN(gen_type.Calc_Type):
             crds = at_crds[step]
 
             # Get distances between neighbours
-            self.__get_distances(crds)
+            self.get_distances(crds)
 
             # Get a sorted list of atom indices by distance
-            self.__get_nearest_atom_inds()
+            self.get_nearest_atom_inds()
 
             # If we have some molecule metadata
             if 'num_at_per_mol' in self.Var.metadata:
-                self.__get_nmol()
-                self.__reshape_at_dist()
-                self.__get_nearest_atom_inds_per_mol()
+                self.at_per_mol = self.Var.metadata['num_at_per_mol']
+                self.nmol = mol_utils.get_nmol(self.natom, self.at_per_mol)
+                self.reshape_at_dist()
+                self.get_nearest_atom_inds_per_mol()
                 self.data[step]['closest_atoms_mol_grouped'] = self.closest_at_per_mol
                 self.data[step]['distances_mol_grouped'] = self.all_dist_per_mol
 
@@ -75,7 +78,7 @@ class NN(gen_type.Calc_Type):
 
         return self.data
 
-    def __get_distances(self, crds):
+    def get_distances(self, crds):
         """
         Will get all distances between atoms and store them in a 2D numpy array.
 
@@ -104,7 +107,7 @@ class NN(gen_type.Calc_Type):
         # Get lower triangle indices
         self.all_dist = self.all_dist + self.all_dist.T
 
-    def __get_nearest_atom_inds(self):
+    def get_nearest_atom_inds(self):
         """
         Will sort the atom indices by the distance from the current atom.
 
@@ -126,19 +129,8 @@ class NN(gen_type.Calc_Type):
             at_inds = [i[1] for i in sorted(zip(dist, at_inds))]
             self.closest_ats[iat] = at_inds
 
-    def __get_nmol(self):
-        """
-        Will get the number of molecules based on the sizes of various arrays.
-        """
-        self.at_per_mol = self.Var.metadata['num_at_per_mol']
-        self.nmol = self.natom / self.at_per_mol
 
-        # Error checking for self.nmol
-        err_msg = "Number of atoms per molecule doesn't neatly divide up the atoms in each xyz step!"
-        if type_check.is_int(self.nmol, err_msg):  self.nmol = int(self.nmol)
-
-
-    def __reshape_at_dist(self):
+    def reshape_at_dist(self):
         """
         Will reshape the all_dist array if we have the number of atoms per molecule metadata.
 
@@ -151,7 +143,7 @@ class NN(gen_type.Calc_Type):
            self.all_dist_per_mol[imol] = self.all_dist[start:end,
                                                                start:end]
 
-    def __get_nearest_atom_inds_per_mol(self):
+    def get_nearest_atom_inds_per_mol(self):
         """
         Will sort the atom indices by the distance from the current atom for each molecule.
 

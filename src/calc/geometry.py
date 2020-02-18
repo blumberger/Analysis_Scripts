@@ -9,8 +9,8 @@ import numpy as np
 
 
 #### Define Consts #####
-pi_4_3 = 4./3. * np.pi #
-pi_4   = 4. * np.pi    #
+PI_4_3 = 4./3. * np.pi #
+PI_4   = 4. * np.pi    #
 ########################
 
 
@@ -18,7 +18,7 @@ def volume_sphere(r):
     """
     Returns the volume of a sphere
     """
-    return pi_4_3 * r**3
+    return PI_4_3 * r**3
 
 
 def volume_concentric_spheres(R1, R2):
@@ -26,16 +26,16 @@ def volume_concentric_spheres(R1, R2):
     Returns the volume between 2 concentric spheres
     """
     if (R1 > R2):
-        return pi_4_3 * (R1**3 - R2**3)
+        return PI_4_3 * (R1**3 - R2**3)
     else:
-        return pi_4_3 * (R2**3 - R1**3)
+        return PI_4_3 * (R2**3 - R1**3)
 
 
 def volume_differential_shell(r, dr):
     """
     Should be the same as volume_concentric_spheres for vanishing dr.
     """
-    return pi_4 * (r**2) * dr
+    return PI_4 * (r**2) * dr
 
 
 def beginning_tests(xyz, mass=False):

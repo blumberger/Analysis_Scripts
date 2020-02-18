@@ -49,6 +49,7 @@ from src.parsing import parse_maths
 # Calculator functions
 from src.calc import pvecs as pvec_lib
 from src.calc import NN
+from src.calc import angular_distribution as ang_dist
 from src.calc import density as dens
 
 # Input file functions
@@ -169,7 +170,10 @@ class INP_File(object):
                   'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
                   'json': json.write_json, 'csv': csv_files.Write_CSV,
                  }
-    calc_fncs = {'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density}
+    calc_fncs = {
+                 'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,
+                 'angular_dist': ang_dist.Angular_Dist,
+                }
 
     line_declarations = LINE_DECLARATIONS
     line_declarations['variable'] = is_var_line
@@ -279,10 +283,7 @@ class INP_File(object):
 
         # Save the variable name for error checking later
         metadata = self.load_fncs[words[2]].metadata
-        var = inp_types.Variable(words[4], "", metadata)
-        setattr(self, words[4], var)
-        if words[4] not in self.variables:
-            self.variables.append(words[4])
+        self.set_var(words[4], "", metadata)
         return words[4]
 
     def check_write_command(self, line):
@@ -383,11 +384,7 @@ class INP_File(object):
             err_msg += "Num of ')' = %i\n" % line.count(")")
             self.print_error(err_msg)
 
-        Var = inp_types.Variable("", "", {metadata_name: ""})
-        setattr(self, new_var_name, Var)
-        if new_var_name not in self.variables:
-            self.variables.append(new_var_name)
-
+        self.set_var(new_var_name, "", {metadata_name: ""})
         return new_var_name
 
     def check_echo_command(self, line):
@@ -462,11 +459,7 @@ class INP_File(object):
                 self.print_error(err_msg)
 
         # Set the new var attribute to help error checking later.
-        new_var = inp_types.Variable(new_var_name, "")
-        setattr(self, new_var_name, new_var)
-        if new_var_name not in self.variables:
-            self.variables.append(new_var_name)
-
+        self.set_var(new_var_name, "")
         return new_var_name
 
 
@@ -503,8 +496,9 @@ class INP_File(object):
         self.E_str = "parse_lines"
         for line in self.file_ltxt:
             if line == "echo": print("")
+
             # Parse any variables
-            if self.line_declarations['variable'](line):
+            elif self.line_declarations['variable'](line):
                 self.parse_variable_line(line)
 
             # Parse any file loading commands
@@ -567,9 +561,7 @@ class INP_File(object):
 
         # Just setting a normal variable
         else:
-            Var = inp_types.Variable(var_name, value)
-            setattr(self, var_name, Var)
-            if var_name not in self.variables: self.variables.append(var_name)
+            Var = self.set_var(var_name, value)
 
         return var_name, Var
 
@@ -589,6 +581,7 @@ class INP_File(object):
         words = line.split('=')
         md_var_names, md_names, _ = self.parse_metadata_line(words[0],
                                                                 get_set="set")
+
         # Some error checking
         if len(md_var_names) > 1:
             err_msg = "Syntax Error: Can only declare 1 variable per line\n\n"
@@ -617,35 +610,54 @@ class INP_File(object):
         Outputs:
             <*> The value of a variable
         """
-        self.E_str = "parse_variable_value"
         tmp = self.parse_metadata_line(line, 'get')
         md_var_names, md_names, md_line = tmp
 
         # Error Checking
         for v_name, m_name in zip(md_var_names, md_names):
             if v_name not in self.variables:
+                self.E_str = "parse_variable_value"
                 self.print_error(f"Undeclared variable '{v_name}'")
+
             Var = getattr(self, v_name)
             if m_name not in Var.metadata:
+                self.E_str = "parse_variable_value"
                 self.print_error(f"Undeclared metadata '{m_name}'")
 
-        # If there is no metadata just set the value
-        if len(md_var_names) == 0:
-            value = type_check.eval_type(line)
-            if type(value) == str:
-                value = type_check.remove_quotation_marks(value)
-                value, _ = self.find_vars_in_line(value)
+        # Split any lists up
+        str_part, non_str = gen_parse.get_str_between_delims(line)
+        words = [md_line]
+        if ',' in non_str:
+            words = md_line.split(",")
 
-        else:
+        # Loop over all values in lists
+        values = []
+        for word in words:
+            # If there is no metadata just set the value
+            if len(md_var_names) == 0:
+                value = type_check.eval_type(word)
+                if type(value) == str:
+                    value = type_check.remove_quotation_marks(value)
+                    value, _ = self.find_vars_in_line(value)
+
             # Replace all metadata instances with their values
-            for var_i, (v_name, m_name) in enumerate(zip(md_var_names,
-                                                         md_names)):
-                Var = getattr(self, v_name)
-                metadata = Var.metadata[m_name]
-                md_line = md_line.replace(f"METADATA_{var_i}", str(metadata))
-            value = md_line
+            else:
+                # Loop over all metadata
+                for var_i, (v_name, m_name) in enumerate(zip(md_var_names,
+                                                             md_names)):
+                    Var = getattr(self, v_name)
+                    metadata = Var.metadata[m_name]
+                    word = word.replace(f"METADATA_{var_i}", str(metadata))
+                value = word
 
-        return type_check.eval_type(value)
+            value = type_check.eval_type(value)
+            values.append(value)
+
+        value = values
+        if len(value) == 1:
+            value = values[0]
+
+        return value
 
     def parse_metadata_line(self, line, get_set=False):
         """
@@ -752,14 +764,14 @@ class INP_File(object):
             variables[f"METADATA_{i}"] = Var.metadata[md_name]
 
         # Actually do the maths
-        new_var = parse_maths.eval_maths(new_line, variables)
+        New_Var = parse_maths.eval_maths(new_line, variables)
 
         # Store the result of the maths
         if metadata_name:
             Var = getattr(self, new_var_name)
-            Var.metadata[metadata_name] = new_var
+            Var.metadata[metadata_name] = New_Var
         else:
-            setattr(self, new_var_name, new_var)
+            setattr(self, new_var_name, New_Var)
             if new_var_name not in self.variables:
                self.variables.append(new_var_name)
 
@@ -791,10 +803,8 @@ class INP_File(object):
         metadata = {'file_type': dtype}
         for key in loaded_data.metadata:
             if key not in metadata: metadata[key] = loaded_data.metadata[key]
-        var = inp_types.Variable(data_name, loaded_data, metadata)
-        setattr(self, data_name, var)
-        if data_name not in self.variables:
-           self.variables.append(data_name)
+
+        self.set_var(data_name, loaded_data, metadata)
 
     def parse_write_cmd(self, line):
         """
@@ -1050,9 +1060,39 @@ class INP_File(object):
 
         return new_words
 
+    ############# Utilities ####################################################
+    def set_var(self, var_name, var_data, metadata={}):
+        """
+        Will set a variable in a consistent way.
 
+        Inputs:
+            * var_name <str> => Name of the variable to be set
+            * var_data <*> => The data to set in the variable
+            * metadata <dict> => Any metadata for the variable
+        Outputs:
+            * <Variable> An instance of the Variable class
+        """
+        var_name = var_name.strip()
 
-    ############# Error Handling ####################################################
+        # Get any old metadata
+        if var_name in self.variables:
+            Old_Var = getattr(self, var_name)
+            md_old = Old_Var.metadata
+            for key in md_old:
+                if key not in metadata:
+                    metadata[key] = md_old[key]
+
+        # Create a new Variable and set it to self
+        Var = inp_types.Variable(var_name, var_data, metadata)
+        setattr(self, var_name, Var)
+
+        # Append the variable to the list of variables
+        if var_name not in self.variables:
+            self.variables.append(var_name)
+
+        return Var
+
+    ############# Error Handling ###############################################
 
     def print_error(self, msg, line_num=False, errorFunc=SystemExit):
         """

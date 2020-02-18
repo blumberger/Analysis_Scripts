@@ -34,7 +34,7 @@ def get_nmol(natom, natom_in_mol):
     return nmol
 
 
-def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3):
+def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3, nstep=1):
     """
     Will reshape array to divide up the atoms into arrays with molecules.
 
@@ -47,5 +47,19 @@ def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3):
     Outputs:
         * <np.NDArray> array of shape (num_mols, ats_in_mol, cart_dims)
     """
-    nmol = get_nmol(len(crds), ats_in_mol)
-    return np.reshape(crds, (nmol, num_ats_in_mol, cart_dims))
+    if type(crds) == list:
+        crds = np.array(crds)
+
+    if len(crds.shape) == 3:
+        nstep = len(crds)
+        nmol = get_nmol(len(crds[0]), num_ats_in_mol)
+        return np.reshape(crds, (nstep, nmol, num_ats_in_mol, cart_dims))
+
+    elif len(crds.shape) == 2:
+        nmol = get_nmol(len(crds), num_ats_in_mol)
+        return np.reshape(crds, (nmol, num_ats_in_mol, cart_dims))
+
+    else:
+        raise SystemError("Wrong shape for atomic coordinate array!"
+                          + "It should either be (nstep, natom, 3) or"
+                          + " (natom, 3)")

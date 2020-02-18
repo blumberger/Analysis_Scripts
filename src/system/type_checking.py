@@ -40,7 +40,7 @@ def eval_type(String):
     """
     if is_float(String):
         return float(String)
-    elif String.isdigit():
+    elif is_num(String):
         return int(String)
     else:
         return String

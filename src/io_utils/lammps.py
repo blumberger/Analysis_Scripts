@@ -13,6 +13,7 @@ import json
 
 from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
+from src.data import consts
 
 
 class Lammps_Log_File(gen_io.DataFileStorage):
@@ -359,7 +360,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
         This doesn't affect the data it is only used for writing.
         """
-        with open("src/data/period_table.json", 'r') as f:
+        with open(consts.PT_FILEPATH, 'r') as f:
             pt = json.load(f)
         at_cvt = {int(pt[i]['atomic_weight']): pt[i]['abbreviation'] for i in pt
                   if pt[i]['atomic_weight'] is not None}

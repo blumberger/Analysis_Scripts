@@ -19,6 +19,7 @@ from collections import OrderedDict, Counter
 import numpy as np
 
 from src.io_utils import general_io as gen_io
+from src.parsing import general_parsing as gen_parse
 from src.system import type_checking as type_check
 
 
@@ -389,11 +390,13 @@ def read_xyz_file(filename, num_data_cols=False,
 
     # Get the timesteps
     if get_timestep:
-       timelines = [ltxt[time_ind+(i*lines_in_step)] for i in all_steps]
-       timesteps = [string_between(line, "time = ", time_delim)
-                    for line in timelines]
-       timesteps = np.array(timesteps)
+       timelines = (ltxt[time_ind+(i*lines_in_step)] for i in all_steps)
+       timesteps = (string_between(line, "time = ", time_delim)
+                    for line in timelines)
+       timesteps = (gen_parse.get_nums_in_str(i, True) for i in timesteps)
+       timesteps = np.array([i[0] if len(i) == 1 else 0.0 for i in timesteps])
        timesteps = timesteps.astype(float)
+
     else:
        print("***********WARNING***************\n\nThe timesteps could not be extracted\n\n***********WARNING***************")
        timesteps = [0] * len(all_steps)

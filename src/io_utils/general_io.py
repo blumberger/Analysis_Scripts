@@ -18,7 +18,7 @@ class DataFileStorage(object):
        * filepath <str> => The path to the file to be loaded.
    """
    numeric_data = 0
-   _poss_num_types_ = ('numeric_data', 'xyz_data')
+   _poss_num_types_ = ('numeric_data', 'xyz_data', "csv_data")
    _numeric_data_types = []
    metadata = {'file_type': 'txt'}
    def __init__(self, filepath):

@@ -87,3 +87,35 @@ def get_bracket_close(txt, start_delim='(', end_delim=')'):
 
     else:
         return -1
+
+
+def get_nums_in_str(string, blank_is_0=False):
+    """
+    Will get only the numbers from a string
+
+    Inputs:
+        * string <str> => The string to get numbers from
+    Outputs:
+        <list<float>> The numbers from a string
+    """
+    all_nums = re.findall("[0-9]+", string)
+    if blank_is_0 and len(all_nums) == 0:
+        return [0.0]
+    else:
+        return [float(i) for i in all_nums]
+
+
+def remove_num_from_str(string):
+    """
+    Will remove any numbers from a string object.
+
+    Inputs:
+        * string <str> => The string to remove numbers from
+    Outputs:
+        <str> A string without numbers
+    """
+    all_nums = re.findall("[0-9]", string)
+    for i in all_non_nums:
+        string = string.replace(i, "")
+
+    return string

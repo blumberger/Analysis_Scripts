@@ -1,0 +1,11 @@
+folder = "examples/data"
+xyz_file = "$folder/pentacene_pos.xyz"
+
+load $xyz_file xyz as xyz_data
+set system xyz_data to pentacene
+
+xyz_data['long_axis_atoms'] = 8, 25
+xyz_data['short_axis_atoms'] = 8, 25
+
+
+calc angular_dist from xyz_data as ang_dist

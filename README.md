@@ -60,7 +60,13 @@ Variables are declared using the follow syntax:
 <variable name> = <value>
 ```
 
-Values can be strings, floats or ints. Currently lists are not supported.
+Values can be strings, floats, ints or lists.
+
+Strings are set either with or without double quotation marks: "str"
+
+floats and ints are set without quotation marks
+
+lists are set with commas i.e. bob, 2, 9 (currently nested lists are not implemented)
 
 Variables can be overwritten by re-declaring them.
 

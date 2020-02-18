@@ -360,6 +360,7 @@ class INP_File(object):
                                                                         "get")
         # Check metadata and their variables have been declared
         metadata = {}
+        self.E_str = "check_math_line"
         for v_name, m_name in zip(md_var_names, md_names):
             if v_name not in self.variables:
                 self.print_error(f"Undeclared variable '{var}'")
@@ -371,6 +372,7 @@ class INP_File(object):
 
         # Check if there are any undeclared variables
         line, any_vars = self.find_vars_in_line(new_line)
+        self.E_str = "check_math_line"
 
         # Check if there are any unwanted characters
         bad_chars = "%£\"!&}{[]}:;@'^~#<,>?¬`|"
@@ -558,7 +560,7 @@ class INP_File(object):
         # If we are setting some metadata
         if metadata_name is not False:
             Var = getattr(self, var_name)
-            Var.metadata[metadata_name] = value
+            Var[metadata_name] = value
 
         # Just setting a normal variable
         else:
@@ -647,7 +649,7 @@ class INP_File(object):
                 for var_i, (v_name, m_name) in enumerate(zip(md_var_names,
                                                              md_names)):
                     Var = getattr(self, v_name)
-                    metadata = Var.metadata[m_name]
+                    metadata = Var[m_name]
                     word = word.replace(f"METADATA_{var_i}", str(metadata))
                 value = word
 
@@ -762,7 +764,7 @@ class INP_File(object):
         # Add required metadata
         for i, (var_name, md_name) in enumerate(zip(md_var_names, md_names)):
             Var = getattr(self, var_name)
-            variables[f"METADATA_{i}"] = Var.metadata[md_name]
+            variables[f"METADATA_{i}"] = Var[md_name]
 
         # Actually do the maths
         New_Var = parse_maths.eval_maths(new_line, variables)
@@ -770,7 +772,7 @@ class INP_File(object):
         # Store the result of the maths
         if metadata_name:
             Var = getattr(self, new_var_name)
-            Var.metadata[metadata_name] = New_Var
+            Var[metadata_name] = New_Var
         else:
             setattr(self, new_var_name, New_Var)
             if new_var_name not in self.variables:
@@ -832,12 +834,12 @@ class INP_File(object):
         fpath = os.path.abspath(os.path.expanduser(fpath))
 
         # Get the data to be written
-        var = getattr(self, dname)
+        Var = getattr(self, dname)
         if len(words) == 3:
-           ftype = var.metadata['file_type']
+           ftype = Var['file_type']
 
         # Write the data
-        self.write_fncs[ftype](var.data, fpath)
+        self.write_fncs[ftype](Var.data, fpath)
 
     def parse_echo_cmd(self, line):
         """
@@ -854,7 +856,7 @@ class INP_File(object):
                                                                        'get')
         for var_i, (v_name, m_name) in enumerate(zip(md_var_names, md_names)):
             Var = getattr(self, v_name)
-            metadata = Var.metadata[m_name]
+            metadata = Var[m_name]
             md_line = md_line.replace(f"METADATA_{var_i}", str(metadata))
         echo_cmd = md_line
 
@@ -937,7 +939,7 @@ class INP_File(object):
         # Get the variable and add metadata
         Var = getattr(self, var_name)
         for key in set_data:
-            Var.metadata[key] = set_data[key]
+            Var[key] = set_data[key]
 
     def parse_shell_cmd(self):
         """

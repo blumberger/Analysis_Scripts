@@ -38,9 +38,18 @@ class Variable(object):
 
     # Overload the indexing Functions
     def __getitem__(self, key):
-        return getattr(self, key)
+        """         Indexing affects metadata        """
+        if key in self.metadata:
+            return self.metadata[key]
+        return False
+
     def __setitem__(self, key, value):
-        self.key = value
+        """         Indexing affects metadata        """
+        self.metadata[key] = value
+        try:  # set data's metadata too
+            self.data.metadata[key] = value
+        except AttributeError:
+            pass
 
     # Overload mathematical operators
     def __add__(self, val):

@@ -15,5 +15,10 @@ filepath = "$folder/snapshot0.dat"
 # Read the lammps file
 read $filepath lammps_dump as data
 
-# Write the xyz data (default currently is to unwrap)
+# Write the wrapped xyz data
+data['coordinate_wrapping'] = "wrapped"
+write data "wrapped.xyz" as xyz
+
+# Write the unwrapped xyz data
+data['coordinate_wrapping'] = "unwrapped"
 write data "unwrapped.xyz" as xyz

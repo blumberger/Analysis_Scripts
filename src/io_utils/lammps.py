@@ -10,6 +10,7 @@ from io import StringIO
 from collections import Counter
 import re
 import json
+import copy
 
 from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
@@ -424,8 +425,9 @@ class Lammps_Dump(gen_io.DataFileStorage):
             else:
                 self.parse_dump(item_num)
 
-        self.unwrapped_csv = self.csv_data
-        self.wrapped_csv = self.fix_wrapping()
+        # Fix periodic BCs
+        self.wrapped_csv = copy.deepcopy(self.csv_data)
+        self.fix_wrapping()
 
     def parse_dump(self, item_num):
         """
@@ -509,20 +511,16 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         Will translate atom coords to fix wrapping of coords in periodic systems
         """
-        df = self.csv_data
-
         # Check we can do the wrapping
-        if not all(j in df.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z',)):
-            return df
+        if not all(j in self.csv_data.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z',)):
+            return self.csv_data
 
         # Apply the wrapping
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
         for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
             for idim, dim in enumerate('xyz'):
                 if unit_vec[idim] != 0:
-                    df[dim] += df[wrap_dim] * unit_vec[idim]
-
-        return df
+                    self.csv_data[dim] += self.csv_data[wrap_dim] * unit_vec[idim]
 
     def set_xyz_data(self):
         """
@@ -530,9 +528,8 @@ class Lammps_Dump(gen_io.DataFileStorage):
 
         This doesn't affect the data it is only used for writing.
         """
-        # Fix periodic BCs
         if self.metadata['coordinate_wrapping'] == 'unwrapped':
-            df = self.unwrapped_csv
+            df = self.csv_data
         else:
             df = self.wrapped_csv
 

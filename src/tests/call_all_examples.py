@@ -61,6 +61,11 @@ all_example_tests = {
                                                     'inp_file' : 'unwrap_snapshot_data.inp',
                                                     'out_file' : 'unwrapped.xyz',
                                                    },
+                      'calc_angular_distribution': {
+                                                    'test_func': true,
+                                                    'inp_file' : 'calc_angular_dist.inp',
+                                                    'out_file' : 'ang_dist.json',
+                                                   },
 
 
                       # Keep this one last

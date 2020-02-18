@@ -28,6 +28,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
     metadata = {'file_type': 'log_csv', 'number_atoms': 0,
                 'total_run_time': 0, 'run_times': []}
     name = "Lammps Log File"
+    _write_types = ('csv', 'txt',)
 
     def __init__(self, filepath):
         super().__init__(filepath)
@@ -143,8 +144,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
                 self.metadata['run_times'] = [int(i[4:]) for i in run_times]
                 self.metadata['total_run_time'] = sum(self.metadata['run_times'])
 
-
-    def repr(self):
+    def __repr__(self):
         return "Lammps Log File Class"
 
 
@@ -169,6 +169,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     A class that will loop over all lines and parse the CSVs from the
     lammps log file.
     """
+    _write_types = ('csv', 'xyz',)
     csv_data = {}
     metadata = {'file_type': 'log_csv'}
     sects = ('masses', 'atoms', 'bonds', 'angles', 'dihedrals',)
@@ -392,6 +393,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
     Inputs:
         * filepath <str> => The path to the file to be loaded.
     """
+    _write_types = ('csv', 'xyz',)
     name = "Lammps Dump"
     _defaults = {'coordinate_wrapping': 'unwrapped'}
     def parse(self):

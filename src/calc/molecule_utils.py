@@ -60,6 +60,7 @@ def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3, nstep=1):
         return np.reshape(crds, (nmol, num_ats_in_mol, cart_dims))
 
     else:
-        raise SystemError("Wrong shape for atomic coordinate array!"
+        raise SystemError("\n\n\nWrong shape for atomic coordinate array!\n\n"
                           + "It should either be (nstep, natom, 3) or"
-                          + " (natom, 3)")
+                          + " (natom, 3)\n\n"
+                          + f"Current shape = {crds.shape}")

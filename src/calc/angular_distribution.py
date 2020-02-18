@@ -28,6 +28,7 @@ class Angular_Dist(gen_type.Calc_Type):
         * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
     """
+    _write_types = ('json', )
     required_metadata = ('long_axis_atoms', 'short_axis_atoms',
                          'atoms_per_molecule')
 
@@ -37,6 +38,16 @@ class Angular_Dist(gen_type.Calc_Type):
     name = "Angular Distributions"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
 
+    def get_data(self):
+        """
+        Will get the data to use from the inputted class.
+        """
+        if 'xyz_data' in dir(self.Var.data):
+            self.data = self.Var.data.xyz_data
+        elif 'csv_data' in dir(self.Var.data):
+            self.data = self.Var.data.csv_data[['x', 'y', 'z']].to_numpy()
+            self.data = np.array([self.data])
+
     def calc(self):
         """
         Will calculate the angular distribution of the molecular system.
@@ -45,26 +56,71 @@ class Angular_Dist(gen_type.Calc_Type):
         ax of central molecule) of the long and short axes of the molecule then
         create a histogram of this data.
         """
+        self.get_data()
         ats_per_mol = self.Var.metadata['atoms_per_molecule']
-        all_at_crds = self.Var.data.xyz_data
+        long_ax_ats = self.Var.metadata['long_axis_atoms']
+        short_ax_ats = self.Var.metadata['short_axis_atoms']
+        all_at_crds = self.data
 
+        self.long_ax_angles, self.long_ax_vecs = [], []
+        self.long_ax_bin_edges, self.long_ax_counts = [], []
+        self.short_ax_angles, self.short_ax_vecs = [], []
+        self.short_ax_bin_edges, self.short_ax_counts = [], []
         for at_crds in all_at_crds:
             # Divide atomic coordinates into molecular coordinates
             mol_crds = mol_utils.atoms_to_mols(at_crds, ats_per_mol,
                                                     nstep=len(at_crds))
 
-            # Get the center mol (the one to compare to)
-            avg_mol_crds = np.mean(mol_crds, axis=1)
-            cent_ind, center = geom.find_center_atom(avg_mol_crds)
+            # Get the long ax angles
+            _ = self.get_angle_dist(mol_crds, long_ax_ats)
+            self.long_ax_angles.append(_[0])
+            self.long_ax_vecs.append(_[1])
+            hist = np.histogram(_[0])
+            self.long_ax_counts.append(hist[0])
+            self.long_ax_bin_edges.append(hist[1])
 
-            # Get the long axis atoms
-            long_ax_ats = self.Var.data.metadata['long_axis_atoms']
-            short_ax_ats = self.Var.data.metadata['short_axis_atoms']
+            # Get the long ax angles
+            _ = self.get_angle_dist(mol_crds, short_ax_ats)
+            self.short_ax_angles.append(_[0])
+            self.short_ax_vecs.append(_[1])
+            hist = np.histogram(_[0])
+            self.short_ax_counts.append(hist[0])
+            self.short_ax_bin_edges.append(hist[1])
 
-            long_axes = self.get_displacement_vecs(mol_crds, long_ax_ats)
-            break
+        self.short_ax_angles = np.array(self.short_ax_angles)
+        self.short_ax_vecs = np.array(self.short_ax_vecs)
+        self.short_ax_bin_edges = np.array(self.short_ax_bin_edges)
+        self.short_ax_counts = np.array(self.short_ax_counts)
 
-    def get_displacement_vecs(self, mol_crds, at_inds):
+        self.long_ax_angles = np.array(self.long_ax_angles)
+        self.long_ax_vecs = np.array(self.long_ax_vecs)
+        self.long_ax_bin_edges = np.array(self.long_ax_bin_edges)
+        self.long_ax_counts = np.array(self.long_ax_counts)
+
+
+    def json_data(self):
+        """
+        Will return data in a form that the json writer can write.
+
+        This function is just used for writing
+        """
+        data = {
+                'short_ax_angles': self.short_ax_angles.tolist(),
+                'short_ax_vecs': self.short_ax_vecs.tolist(),
+                'short_ax_histogram': {
+                                        'counts': self.short_ax_counts.tolist(),
+                                        'bin_edges': self.short_ax_bin_edges.tolist(),
+                                      },
+                'long_ax_angles': self.long_ax_angles.tolist(),
+                'long_ax_vecs': self.long_ax_vecs.tolist(),
+                'long_ax_histogram':  {
+                                        'counts': self.long_ax_counts.tolist(),
+                                        'bin_edges': self.long_ax_bin_edges.tolist(),
+                                      },
+                }
+        return data
+
+    def get_angle_dist(self, mol_crds, at_inds):
         """
         Will get the vectors describing the displacement between 2 atoms.
 
@@ -72,7 +128,26 @@ class Angular_Dist(gen_type.Calc_Type):
             * mol_crds <np.NDArray> => (nmol, nat_per_mol, 3) The molecular coordinates
             * at_inds <list<int>> => The atoms to get the displacement vec for.
         Outputs:
-            <np.NDArray> (nmol, 3) The displace from at1 to at2 for each mol.
+            (<np.NDArray>, <np.array>) The displacement from at1 to at2 for each mol
+                                        and just the center mol.
         """
-        disp_vec = mol_crds[:, at_inds[0], :] - mol_crds[:, at_inds[1], :]
-        return disp_vec
+        # Get the center mol (the one to compare to)
+        avg_mol_crds = np.mean(mol_crds, axis=1)
+        center_ind, center = geom.find_center_atom(avg_mol_crds)
+
+        at1, at2 = at_inds[0], at_inds[1]
+
+        # First get the vector describing an axis for all mols and the center one
+        axis_vecs = mol_crds[:, at1] - mol_crds[:, at2]
+        center_vec = axis_vecs[center_ind]
+
+        # Remove center mol (it always make a 0 angle with itself)
+        axis_vecs = axis_vecs[np.arange(len(axis_vecs)) != center_ind]
+
+        # Now find what angle the vector on each mol makes with the center
+        all_mags = np.linalg.norm(axis_vecs, axis=1) * np.linalg.norm(center_vec)
+        all_mags += 1e-12      # Just to remove silly numerical errors in arccos
+        all_dots = np.sum(axis_vecs * center_vec, axis=1)
+        all_angles = np.arccos(all_dots / all_mags), axis_vecs
+
+        return all_angles

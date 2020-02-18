@@ -167,12 +167,26 @@ class NN(gen_type.Calc_Type):
                at_inds = [i[1] for i in sorted(zip(dist, at_inds))]
                self.closest_at_per_mol[imol, iat] = at_inds
 
+    def json_data(self):
+        """
+        Will return data in a form that the json writer can write.
+
+        This function is just used for writing
+        """
+        return_data = {}
+        for step in self.data:
+            return_data[step] = {}
+            for key in self.data[step]:
+                return_data[step][key] = self.data[step][key].tolist()
+
+        return return_data
+
     def __str__(self):
         """
         Overload the string function
         """
         for step in self.data:
             for key in self.data[step]:
-                self.data[step][key] = self.data[step][key].tolist()
+                self.data[step][key] = self.data[step][key]
 
         return str(self.data)

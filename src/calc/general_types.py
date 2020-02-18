@@ -19,6 +19,7 @@ class Calc_Type(object):
     Public Methods:
         * calc => To be overridden to calculate the property in question.
     """
+    _write_types = ('txt',)
     required_metadata = ()
     required_calc = ()
     required_data_names = ()

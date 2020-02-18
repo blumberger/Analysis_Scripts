@@ -14,7 +14,7 @@ def write_json(data, filepath):
         * filepath <str> => The filepath to save the data to.
     """
     # A hack to get the data from a variable
-    data = dict(eval(str(data)))
+    data = data.json_data()
 
     with open(filepath, 'w') as f:
         json.dump(data, f)

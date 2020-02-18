@@ -424,6 +424,9 @@ class Lammps_Dump(gen_io.DataFileStorage):
             else:
                 self.parse_dump(item_num)
 
+        self.unwrapped_csv = self.csv_data
+        self.wrapped_csv = self.fix_wrapping()
+
     def parse_dump(self, item_num):
         """
         Will parse the dump CSV data.
@@ -528,9 +531,10 @@ class Lammps_Dump(gen_io.DataFileStorage):
         This doesn't affect the data it is only used for writing.
         """
         # Fix periodic BCs
-        df = self.csv_data
         if self.metadata['coordinate_wrapping'] == 'unwrapped':
-            df = self.fix_wrapping()
+            df = self.unwrapped_csv
+        else:
+            df = self.wrapped_csv
 
         # Set the xyz data
         self.xyz_data = np.array([df[['x', 'y', 'z']].to_numpy()])

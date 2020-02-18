@@ -1,6 +1,7 @@
 **BUG REPORT:**
 
    WARNING: Pvecs calculator not fully tested
+   WARNING: Angular distributions not fully tested
 
 # MD analysis scripts
 

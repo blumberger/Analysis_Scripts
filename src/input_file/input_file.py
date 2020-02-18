@@ -165,6 +165,7 @@ class INP_File(object):
                  'cp2k_inp': CP2K_inp.Read_INP, 'xyz': xyz.XYZ_File,
                  'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
                  'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
+                 'lammps_dump': lammps.Lammps_Dump,
                 }
     write_fncs = {
                   'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,

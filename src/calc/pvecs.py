@@ -118,7 +118,7 @@ class PVecs(gen_type.Calc_Type):
 
         return mol_crds, ats_per_mol
 
-    def _set_xyz_data_(self):
+    def set_xyz_data(self):
         """
         Set the xyz data attributes required for writing an xyz file.
 

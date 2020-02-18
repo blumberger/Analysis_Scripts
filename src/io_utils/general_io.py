@@ -20,10 +20,16 @@ class DataFileStorage(object):
    numeric_data = 0
    _poss_num_types_ = ('numeric_data', 'xyz_data', "csv_data")
    _numeric_data_types = []
+   _defaults = {}
    metadata = {'file_type': 'txt'}
    def __init__(self, filepath):
       self.filepath = filepath
       self.file_txt = open_read(self.filepath)
+
+      # Set the default parameters
+      for key in self._defaults:
+          if key not in self.metadata:
+              self.metadata[key] = self._defaults[key]
 
       self.parse()
       for var in dir(self):

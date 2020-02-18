@@ -93,8 +93,8 @@ class Write_XYZ_File(gen_io.Write_File):
       """
       def __init__(self, Data_Class, filepath):
           # If we can set the xyz variables in the data class then set them
-          if '_set_xyz_data_' in dir(Data_Class):
-              Data_Class._set_xyz_data_()
+          if 'set_xyz_data' in dir(Data_Class):
+              Data_Class.set_xyz_data()
 
           # Run standard file writing procedure
           super().__init__(Data_Class, filepath)

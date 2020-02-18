@@ -56,6 +56,11 @@ all_example_tests = {
                                              'inp_file' : 'calc_densities.inp',
                                              'out_file' : 'density_0.csv',
                                             },
+                      'unwrap_snapshot_data':      {
+                                                    'test_func': true,
+                                                    'inp_file' : 'unwrap_snapshot_data.inp',
+                                                    'out_file' : 'unwrapped.xyz',
+                                                   },
 
 
                       # Keep this one last

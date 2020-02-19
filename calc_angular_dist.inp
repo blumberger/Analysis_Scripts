@@ -1,0 +1,26 @@
+######################################
+#                                    #
+# An input file to calculate and     #
+# save the angular distribution of   #
+# the long and short axes of a       #
+# pentacene system.                  #
+######################################
+
+# Set some filepath variables
+folder = "examples/data/Lammps"
+filepath = "$folder/snapshot*.dat"
+
+# Read data from a Lammps snapshot
+load $filepath lammps_dump as data
+
+# Tell the code we are using pentacene
+#  and give some other paramaters
+set system data to pentacene
+data['long_axis_atoms'] = 8, 25
+data['short_axis_atoms'] = 8, 25
+
+# Calculate the angular distribution
+calc angular_dist from data as ang_dist
+
+# Write the angular distribution as a json file
+write ang_dist "ang_dist.json" as json

@@ -1,0 +1,22 @@
+######################################
+#                                    #
+# An example input file using for    #
+# loops to iterate over many values. #
+######################################
+
+
+# Loop over 1, ..., 10
+for i in range(10) {
+    j = i * 2
+    echo "$i * 2 = $j"
+}
+
+echo "Finished range for loop"
+
+# Loop over all files in the examples directory
+echo "Files in './examples/' dir are:"
+for i in filepath("examples/*") {
+    echo "    $i"
+}
+
+echo "Finished filepath for loop"

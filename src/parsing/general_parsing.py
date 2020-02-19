@@ -28,18 +28,38 @@ def get_str_between_delims(string, start_delim='"', end_delim=False):
     start_ind = string.find(start_delim)
     if start_ind == -1:
         return "", string
-    start_ind += 1
 
     end_ind = get_bracket_close(string[start_ind:], start_delim=start_delim,
                                 end_delim=end_delim)
     end_ind += start_ind
 
-    txt_within_delim = string[start_ind: end_ind]
-    txt_without_delim = string[:start_ind-1] + string[end_ind+1:]
-
+    txt_within_delim = string[start_ind+1: end_ind]
+    txt_without_delim = string[:start_ind+1] + string[end_ind:]
     return txt_within_delim, txt_without_delim
 
+def split_str_by_multiple_splitters(string, splitters):
+    """
+    Will split a string by multiple values.
 
+    For example if a string was 'a,b.c-d' and the splitters were ',.-' then this
+    would return ['a', 'b', 'c']
+
+    Inputs:
+        * splitters <iterable> => The values to split the string by.
+    Outputs:
+        <list<str>> The string split by many splitters
+    """
+    split_parts = []
+    build_up = ""
+    for i in string:
+        if i in splitters:
+            if build_up:
+                split_parts.append(build_up)
+            build_up = ""
+        else:
+            build_up += i
+    if build_up: split_parts.append(build_up)
+    return split_parts
 
 def rm_comment_from_line(line, comment_str='#'):
     """
@@ -62,7 +82,6 @@ def rm_comment_from_line(line, comment_str='#'):
 
     return line, comment
 
-
 def get_bracket_close(txt, start_delim='(', end_delim=')'):
     """
     Get the close of the bracket of a delimeter in a string.
@@ -78,18 +97,20 @@ def get_bracket_close(txt, start_delim='(', end_delim=')'):
         <int> The index of the corresponding end_delim
     """
     start_ind = txt.find(start_delim)
-
-    brack_num = 0
-    for ichar in range(len(txt[start_ind:])):
+    brack_num = 1
+    for ichar in range(start_ind+1, len(txt[start_ind:])-1):
         char = txt[ichar]
-        if char == start_delim: brack_num += 1
-        elif char == end_delim: brack_num -= 1
+        if char == end_delim: brack_num -= 1
+        elif char == start_delim: brack_num += 1
 
         if brack_num == 0:
             return ichar + start_ind
 
     else:
+        if txt[-1] == end_delim:
+            return len(txt) - 1
         return -1
+
 
 
 def get_nums_in_str(string, blank_is_0=False):

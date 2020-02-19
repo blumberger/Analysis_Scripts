@@ -59,13 +59,18 @@ all_example_tests = {
                       'unwrap_snapshot_data':      {
                                                     'test_func': true,
                                                     'inp_file' : 'unwrap_snapshot_data.inp',
-                                                    'out_file' : 'unwrapped.xyz',
+                                                    'out_file' : ('unwrapped.xyz', "wrapped.xyz"),
                                                    },
                       'calc_angular_distribution': {
                                                     'test_func': true,
                                                     'inp_file' : 'calc_angular_dist.inp',
                                                     'out_file' : 'ang_dist.json',
                                                    },
+                      'for_loops': {
+                                     'test_func': true,
+                                     'inp_file' : 'for_loops.inp',
+                                     'out_file' : False,
+                                   },
 
 
                       # Keep this one last
@@ -105,13 +110,16 @@ for test_fold in all_example_tests:
 
     # Check the file has been created
     if out_file:
-        if not os.path.isfile(out_file):
-            all_errors.append(f"Couldn't find the output file {out_file}")
-            continue 
-        else:
-            os.remove(out_file)
-            print(" ")
-            print(f"  Removed {out_file}")
+        if type(out_file) == str:
+            out_file = (out_file,)
+        for file_ in out_file:
+            if not os.path.isfile(file_):
+                all_errors.append(f"Couldn't find the output file {file_}")
+                continue 
+            else:
+                os.remove(file_)
+                print(" ")
+                print(f"  Removed {file_}")
         
         
     print("\n\n#################################################\n\n\n\n\n")

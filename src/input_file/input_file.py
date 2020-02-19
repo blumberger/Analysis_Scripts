@@ -30,6 +30,7 @@ IMPORTANT VARIABLES:
 import re
 import os
 from IPython import embed
+import glob
 
 # Fundamental system functions
 from src.system import type_checking as type_check
@@ -198,8 +199,11 @@ class INP_File(object):
             self.file_ltxt_orig[line_num] = self.file_ltxt[line_num - 1]
 
         # Now do the parsing
+        self.line_num = 0
         self.clean_inp()
+        self.line_num = 0
         self.check_all_lines()
+        self.line_num = 0
         self.parse_lines()
 
 
@@ -265,11 +269,78 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        self.E_str = "check_for_command"
-        print(line)
-        print(gen_parse.get_str_between_delims(line, start_delim="(",
-                                               end_delim=")"))
-        raise SystemExit("BREAK")
+        words = gen_parse.split_str_by_multiple_splitters(line, '() ,{}')
+        words = self.fix_words(words)
+        if '{' not in line:
+            self.print_error("Syntax Error: It should be 'for <var> in <iter> {'")
+
+        if type(words[1]) != str:
+            self.E_str = "check_for_command"
+            self.print_error("Only string iterators are allowed in for loops!")
+
+        valid_for_loopers = ("range", "filepath", "list")
+        for keyword in valid_for_loopers:
+            if keyword in line:
+                fnc = getattr(self, f"check_{keyword}_keyword")
+                fnc(line)
+                break
+        else:
+            self.print_error("Invalid loop keyword. Allowed keywords are:"
+                             + "\n\t* ".join(valid_for_loopers))
+
+        rest_filetxt = '\n'.join(self.file_ltxt[self.line_num:])
+        if gen_parse.get_bracket_close(rest_filetxt, "{", "}") == -1:
+            self.print_error("You need to close you curvey brace {")
+
+        # Just for error checking later
+        self.set_var(words[1], "", {})
+
+    def check_range_keyword(self, line):
+        """
+        Will check the range keyword is being used correctly.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        line = line.replace(" ", "")
+        line = line[line.find("range")+5:]
+        range_str, _  = gen_parse.get_str_between_delims(line, "(", ")")
+
+        words = [i for i in range_str.split(",") if i]
+
+        if len(words) > 3:
+            self.E_str = "check_range_keyword"
+            self.print_error("Syntax error in for loop using range keyword.\n"
+                             "Correct syntax is:  range(<start>, <end>, <step>)")
+        elif len(words) == 1:
+            start, step = 0, 1
+            end = type_check.eval_type(words[0])
+        elif len(words) == 2:
+            step = 1
+            start, end = [type_check.eval_type(i) for i in words]
+        elif len(words) == 3:
+            start, end, step = [type_check.eval_type(i) for i in words]
+
+        else:
+            self.print_error("You must specify a range as 'range(<start>, <end>, <step>)'")
+
+        for i in (start, end, step):
+            if type(i) != int:
+                self.print_error(f"Type in range must by int! You typed '{i}'")
+
+    def check_filepath_keyword(self, line):
+        """ There is nothing to check for the filepath. """
+        pass
+
+
+    def check_list_keyword(self, line):
+        """
+        Will check the range keyword is being used correctly.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        self.print_error("Not yet implemented!")
 
     def check_load_command(self, line):
         """
@@ -437,7 +508,6 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        self.E_str = "check_calc_command"
         err_msg =  "The calc command takes the syntax 'calc <property to calc>"
         err_msg += " from <variable name> as <new variable name>'"
 
@@ -446,6 +516,7 @@ class INP_File(object):
         words = line.split()
         words = self.fix_words(words)
 
+        self.E_str = "check_calc_command"
         if len(words) != 6:
             self.print_error(err_msg)
 
@@ -510,12 +581,17 @@ class INP_File(object):
 
     #############      Parsing Methods       #############
 
-    def parse_lines(self):
+    def parse_lines(self, lines=False):
         """
         Will loop over all lines and produce
         """
+        if lines is False:  lines = self.file_ltxt[self.line_num:]
         self.E_str = "parse_lines"
-        for line in self.file_ltxt:
+
+        # Loop over lines and parse
+        while self.line_num < len(lines):
+            line = lines[self.line_num]
+
             if line == "echo": print("")
 
             # Parse any variables
@@ -549,6 +625,14 @@ class INP_File(object):
             # Parse any echo commands
             elif self.line_declarations['shell'](line):
                 self.parse_shell_cmd()
+
+            # Parse any echo commands
+            elif self.line_declarations['for'](line):
+                self.parse_for_cmd(line)
+
+            # The end of control statements
+            elif '}' in line:
+                pass
 
             # Print a warning about unknown line
             else:
@@ -1007,6 +1091,98 @@ class INP_File(object):
         # Open the IPython shell
         embed(colors="Linux")
 
+    def parse_for_cmd(self, line):
+        """
+        Will parse a for loop line.
+        """
+        # Get the iterator name
+        words = line.split()
+        iter_var_name = words[1]
+
+        # Find the code to run
+        brack_num = 1
+        for line_num, iter_line in enumerate(self.file_ltxt[self.line_num+1:]):
+            if '}' in iter_line: brack_num -=1
+            elif '{' in iter_line and 'for' in iter_line: brack_num += 1
+
+            if brack_num == 0:
+                end_line = line_num + self.line_num + 1
+                break
+        new_lines = self.file_ltxt[self.line_num+1:end_line]
+
+        # Carry out the relevant for loop function
+        valid_for_loopers = ("range", "filepath", "list")
+        for keyword in valid_for_loopers:
+            if keyword in line:
+                fnc = getattr(self, f"do_{keyword}_forloop")
+                all_iter_vals = fnc(line)
+                break
+
+        # Do the for loop
+        for iter_val in all_iter_vals:
+            self.line_num = 0
+            self.set_var(iter_var_name, iter_val)
+            self.parse_lines(new_lines)
+
+        self.line_num = end_line
+
+    def do_range_forloop(self, line):
+        """
+        Will carry out the range for loop (i.e. range(1, 10, 1))
+
+        Inputs:
+            * line <str> => The line containing the for loop
+        """
+        self.E_str = "do_range_forloop"
+
+        # Get the range parameters
+        line = line.replace(" ", "")
+        line = line[line.find("range")+5:]
+        range_str, _  = gen_parse.get_str_between_delims(line, "(", ")")
+        words = range_str.split(",")
+
+        if len(words) == 1:
+            start, step = 0, 1
+            end = int(words[0])
+        elif len(words) == 2:
+            step = 1
+            start, end = [int(i) for i in words]
+        else:
+            start, end, step = [int(i) for i in words]
+
+        return range(start, end, step)
+
+    def do_filepath_forloop(self, line):
+        """
+        Will carry out the filepath for loop (i.e. filepath("..."))
+
+        Inputs:
+            * line <str> => The line containing the for loop
+            * lines <list<str>> => The lines to iterate.
+        """
+        self.E_str = "do_filepath_forloop"
+        line = line.replace(" ", "")
+        line = line[line.find("filepath")+5:]
+        filepath_str, _  = gen_parse.get_str_between_delims(line, "(", ")")
+        filepath_str = type_check.remove_quotation_marks(filepath_str)
+
+        all_filepaths = glob.glob(filepath_str)
+        if not all_filepaths:
+            self.print_warning("I can't find anything matching the filepath you've enterred!")
+
+        return all_filepaths
+
+    def do_list_forloop(self, line):
+        """
+        Will carry out the list for loop (i.e. list('a', 'b', 'c'))
+
+        Inputs:
+            * line <str> => The line containing the for loop
+            * lines <list<str>> => The lines to iterate.
+        """
+        self.E_str = "do_list_forloop"
+        self.print_error("Not yet implemented")
+
 
 
     ##### Inp Cleaning methods #################################
@@ -1115,7 +1291,7 @@ class INP_File(object):
 
     ############# Error Handling ###############################################
 
-    def print_error(self, msg, line_num=False, errorFunc=SystemExit):
+    def print_error(self, msg, line_num=False, errorFunc=SystemError):
         """
         Will print an error message in a consistent format.
 

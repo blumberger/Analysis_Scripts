@@ -14,7 +14,7 @@ conv_fact = 2
 load $xyz_filepath xyz as pos
 
 # Add 2.7 to all the data in the xyz file and multiply by 2
-math pos = (pos * $conv_fact) + 2
+pos = (pos * $conv_fact) + 2
 
 # write the pos data
 write pos "ammended.xyz"

@@ -267,15 +267,18 @@ class INP_File(object):
 
         words = line.split()
         words = self.fix_words(words)
+        self.E_str = "check_load_command"
         if len(words) != 5:
             self.print_error(err_msg)
 
         try:
             words[1] = type_check.remove_quotation_marks(words[1])
-            filepath = gen_io.get_abs_path(words[1])
+            filepaths = gen_io.fix_filepath(words[1])
         except IOError as e:
+            self.E_str = "check_load_command"
             self.print_error(str(e))
 
+        self.E_str = "check_load_command"
         if words[2] not in self.load_fncs:
             err_msg = "I don't know how to load files of type '{words[2]}'."
             err_msg += "\n\nFor a full list of file types that can be loaded see below:\n\t* "
@@ -799,10 +802,10 @@ class INP_File(object):
         # Read the data
         _, fpath, dtype, _, data_name = words
         fpath = type_check.remove_quotation_marks(fpath)
-        fpath = gen_io.get_abs_path(fpath)
+        fpaths = gen_io.fix_filepath(words[1])
 
         # Create the variable object and save it
-        loaded_data = self.load_fncs[dtype](fpath)
+        loaded_data = self.load_fncs[dtype](fpaths)
         metadata = {'file_type': dtype}
         for key in loaded_data.metadata:
             if key not in metadata: metadata[key] = loaded_data.metadata[key]
@@ -1062,6 +1065,15 @@ class INP_File(object):
             new_words.append(new_word)
 
         return new_words
+
+    def fix_filepath(self, filepath):
+        """
+        Will fix a filepath by expanding a glob and getting the absolute path.
+        """
+        filepaths = gen_io.expand_glob_filepath(filepath)
+        filepaths = [gen_io.get_abs_path(f) for f in filepaths]
+        return filepaths
+
 
     ############# Utilities ####################################################
     def set_var(self, var_name, var_data, metadata={}):

@@ -8,93 +8,94 @@ import os
 
 
 class DataFileStorage(object):
-   """
-   A class to act as a template for other classes that load and store data from files to use.
+    """
+    A class to act as a template for other classes that load and store data from files to use.
 
-   The class takes the filepath as an input and calls a method named parse(). Any data stored
-   under the name numeric_data will be manipulated via the operator overload functions.
+    The class takes the filepath as an input and calls a method named parse(). Any data stored
+    under the name numeric_data will be manipulated via the operator overload functions.
 
-   Inputs:
-       * filepath <str> => The path to the file to be loaded.
-   """
-   numeric_data = 0
-   _poss_num_types_ = ('numeric_data', 'xyz_data', "csv_data")
-   _numeric_data_types = []
-   _defaults = {}
-   metadata = {'file_type': 'txt'}
-   def __init__(self, filepath):
-      self.filepath = filepath
-      self.file_txt = open_read(self.filepath)
+    Inputs:
+        * filepath <str> => The path to the file to be loaded.
+    """
+    numeric_data = 0
+    _poss_num_types_ = ('numeric_data', 'xyz_data', "csv_data")
+    _numeric_data_types = []
+    _defaults = {}
+    metadata = {'file_type': 'txt'}
+    def __init__(self, filepath):
+       self.filepaths = self.get_glob_filepath(filepath)
+       self.file_txt = open_read(self.filepath)
 
-      # Set the default parameters
-      for key in self._defaults:
-          if key not in self.metadata:
-              self.metadata[key] = self._defaults[key]
+       # Set the default parameters
+       for key in self._defaults:
+           if key not in self.metadata:
+               self.metadata[key] = self._defaults[key]
 
-      self.parse()
-      for var in dir(self):
-          if var in self._poss_num_types_:
-              self._numeric_data_types.append(var)
+       for self.filepath in self.filepaths:
+           self.parse()
 
+       for var in dir(self):
+           if var in self._poss_num_types_:
+               self._numeric_data_types.append(var)
 
-   # Dummy method to hold the place of an actual parser later
-   def parse(self):
-       """
-       Should be overridden in any child classes.
-       """
-       pass
+    # Dummy method to hold the place of an actual parser later
+    def parse(self):
+        """
+        Should be overridden in any child classes.
+        """
+        pass
 
-   # Overload adding
-   def __add__(self, val):
-       for i in self._numeric_data_types:
-           att = getattr(self, i)
-           att += float(val)
-           setattr(self, i, att)
-       return self
+    # Overload adding
+    def __add__(self, val):
+        for i in self._numeric_data_types:
+            att = getattr(self, i)
+            att += float(val)
+            setattr(self, i, att)
+        return self
 
-   # Overload multiplying
-   def __mul__(self, val):
-       for i in self._numeric_data_types:
-           att = getattr(self, i)
-           att *= float(val)
-           setattr(self, i, att)
-       return self
+    # Overload multiplying
+    def __mul__(self, val):
+        for i in self._numeric_data_types:
+            att = getattr(self, i)
+            att *= float(val)
+            setattr(self, i, att)
+        return self
 
-   # Overload subtracting
-   def __sub__(self, val):
-       for i in self._numeric_data_types:
-           att = getattr(self, i)
-           att -= float(val)
-           setattr(self, i, att)
-       return self
+    # Overload subtracting
+    def __sub__(self, val):
+        for i in self._numeric_data_types:
+            att = getattr(self, i)
+            att -= float(val)
+            setattr(self, i, att)
+        return self
 
-   # Overload division operator i.e. a / b
-   def __truediv__(self, val):
-       for i in self._numeric_data_types:
-           att = getattr(self, i)
-           att /= float(val)
-           setattr(self, i, att)
-       return self
+    # Overload division operator i.e. a / b
+    def __truediv__(self, val):
+        for i in self._numeric_data_types:
+            att = getattr(self, i)
+            att /= float(val)
+            setattr(self, i, att)
+        return self
 
-   # Overload floor division operator i.e. a // b
-   def __floordiv__(self, val):
-       for i in self._numeric_data_types:
-           att = getattr(self, i)
-           att //= float(val)
-           setattr(self, i, att)
-       return self
+    # Overload floor division operator i.e. a // b
+    def __floordiv__(self, val):
+        for i in self._numeric_data_types:
+            att = getattr(self, i)
+            att //= float(val)
+            setattr(self, i, att)
+        return self
 
-   # Overload the power operator
-   def __pow__(self, val):
-       for i in self._numeric_data_types:
-           att = getattr(self, i)
-           att **= float(val)
-           setattr(self, i, att)
-       return self
+    # Overload the power operator
+    def __pow__(self, val):
+        for i in self._numeric_data_types:
+            att = getattr(self, i)
+            att **= float(val)
+            setattr(self, i, att)
+        return self
 
-   # str() would return filetxt by default
-   def __str__(self):
-       return self.file_txt
+    # str() would return filetxt by default
+    def __str__(self):
+        return self.file_txt
 
 
 class Write_File(object):
@@ -221,6 +222,20 @@ def remove_file_extension(filepath):
     new_filepath = filepath[:ext_ind]
     ext = filepath[ext_ind+1:]
     return new_filepath, ext
+
+def expand_glob_filepath(filepath):
+    """
+    Will expand a glob filepath into a list of filepaths
+
+    Inputs:
+        * filepath <str> => The filepath to expand
+    """
+    print(filepath)
+    if '*' not in filepath:
+        return [filepath]
+    else:
+        print(filepath)
+        raise SystemExit("BREAK")
 
 
 def get_abs_path(filepath):

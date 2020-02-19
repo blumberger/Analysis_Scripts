@@ -30,9 +30,6 @@ class Lammps_Log_File(gen_io.DataFileStorage):
     name = "Lammps Log File"
     _write_types = ('csv', 'txt',)
 
-    def __init__(self, filepath):
-        super().__init__(filepath)
-
     def parse(self):
         """
         Will loop over all steps and parse the csv from the lammps log file.
@@ -174,9 +171,6 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     metadata = {'file_type': 'log_csv'}
     sects = ('masses', 'atoms', 'bonds', 'angles', 'dihedrals',)
     name = "Lammps Input Data"
-
-    def __init__(self, filepath):
-        super().__init__(filepath)
 
     def parse(self):
         """
@@ -396,6 +390,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
     _write_types = ('csv', 'xyz',)
     name = "Lammps Dump"
     _defaults = {'coordinate_wrapping': 'unwrapped'}
+    
     def parse(self):
         """
         Will parse the file text and store the data.

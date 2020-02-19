@@ -10,7 +10,7 @@ import re
 from src.system import type_checking as type_check
 
 
-def get_str_between_delims(string, delim='"'):
+def get_str_between_delims(string, start_delim='"', end_delim=False):
     """
     Will get the string between 2 delimeters.
 
@@ -23,12 +23,15 @@ def get_str_between_delims(string, delim='"'):
     Outputs:
         (<str>, <str>) The line without the text within the delimeter and the text within
     """
-    start_ind = string.find(delim)
+    if end_delim is False:  end_delim = start_delim
+
+    start_ind = string.find(start_delim)
     if start_ind == -1:
         return "", string
     start_ind += 1
 
-    end_ind = get_bracket_close(string[start_ind:], start_delim=delim, end_delim=delim)
+    end_ind = get_bracket_close(string[start_ind:], start_delim=start_delim,
+                                end_delim=end_delim)
     end_ind += start_ind
 
     txt_within_delim = string[start_ind: end_ind]

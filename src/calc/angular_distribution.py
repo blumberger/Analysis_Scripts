@@ -5,6 +5,7 @@ A module to calculate nearest neighbour lists
 """
 import numpy as np
 import json
+import matplotlib.pyplot as plt
 
 # Import calculating functions
 from src.calc import general_types as gen_type
@@ -31,7 +32,7 @@ class Angular_Dist(gen_type.Calc_Type):
     _write_types = ('json', )
     required_metadata = ('long_axis_atoms', 'short_axis_atoms',
                          'atoms_per_molecule')
-
+    _defaults = {'number_bins': 'auto', 'histogram_density': True}
     # Need these 3 attributes to create a new variable type
     data = {}
     metadata = {'file_type': 'json'}
@@ -75,7 +76,8 @@ class Angular_Dist(gen_type.Calc_Type):
             _ = self.get_angle_dist(mol_crds, long_ax_ats)
             self.long_ax_angles.append(_[0])
             self.long_ax_vecs.append(_[1])
-            hist = np.histogram(_[0])
+            hist = np.histogram(_[0], bins=self.metadata['number_bins'],
+                               density=self.metadata['histogram_density'])
             self.long_ax_counts.append(hist[0])
             self.long_ax_bin_edges.append(hist[1])
 
@@ -83,7 +85,8 @@ class Angular_Dist(gen_type.Calc_Type):
             _ = self.get_angle_dist(mol_crds, short_ax_ats)
             self.short_ax_angles.append(_[0])
             self.short_ax_vecs.append(_[1])
-            hist = np.histogram(_[0])
+            hist = np.histogram(_[0], bins=self.metadata['number_bins'],
+                               density=self.metadata['histogram_density'])
             self.short_ax_counts.append(hist[0])
             self.short_ax_bin_edges.append(hist[1])
 
@@ -151,3 +154,58 @@ class Angular_Dist(gen_type.Calc_Type):
         all_angles = np.arccos(all_dots / all_mags), axis_vecs
 
         return all_angles
+
+    def plot_single(self, axis, bin_edges, counts, label=""):
+        """
+        Will plot 1 histogram on 1 axis according to bin_edges and counts.
+
+        Inputs:
+            * axes <plt.axis> OPTIONAL => The axis on which to plot.
+        Outputs:
+            (plt.bar, plt.axis) bar class and axis that the hist has been plotted on.
+        """
+        # Convert to degress
+        edges = bin_edges * 180 / np.pi
+
+        bars = axis.bar(edges[:-1], counts, width=np.diff(edges), label=label)
+        return bars, axis
+
+    def plot(self, axes=False, label=""):
+        """
+        Will plot a histogram of angles and return axis.
+
+        If the axis argument is supplied then that axis will be used.
+
+        Inputs:
+            axes <array<plt.axis>> OPTIONAL => The axes on which to plot (len 2).
+        Outputs:
+            (plt.axis) Axes on which the histograms are plotted.
+        """
+        if axes is False:
+            _, axes = plt.subplots(2)
+
+        # Plot long axis angle distribution
+        all_bars = []
+        bars, ax = self.plot_single(axes[0], self.long_ax_bin_edges[0],
+                                    self.long_ax_counts[0], label=label)
+        all_bars.append(bars)
+        axes[0] = ax
+
+        # Plot short axis angle distribution
+        all_bars = []
+        bars, ax = self.plot_single(axes[1], self.short_ax_bin_edges[0],
+                                    self.short_ax_counts[0], label=label)
+        all_bars.append(bars)
+        axes[1] = ax
+
+        # Make it pretty
+        axes[0].set_ylabel("Long Ax Density")
+        axes[1].set_ylabel("Short Ax Density")
+        axes[1].set_xlabel(r"Angle [$^o$]")
+
+        for ax in axes:
+            if label:
+                ax.legend()
+            ax.set_xlim([0, 360])
+
+        return axes

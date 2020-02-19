@@ -23,6 +23,7 @@ class Calc_Type(object):
     required_metadata = ()
     required_calc = ()
     required_data_names = ()
+    _defaults = {}
 
     # Require these 3 objects for the formation of a new variable type
     name = "General Calc Type"
@@ -38,6 +39,11 @@ class Calc_Type(object):
         for key in self.required_metadata:
             if key not in self.Var.metadata:
                raise KeyError(f"Please load the data '{key}' into the variable '{self.Var.name}'")
+
+        # Set the default parameters
+        for key in self._defaults:
+            if key not in self.metadata:
+                self.metadata[key] = self._defaults[key]
 
         for name in self.required_data_names:
             all_attrs = dir(self.Var.data)

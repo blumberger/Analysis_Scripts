@@ -55,7 +55,8 @@ from src.calc import density as dens
 # Input file functions
 from src.input_file import input_file_types as inp_types
 
-CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell')
+CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
+            'script')
 SET_FOLDERPATH = "src/data/set"
 
 
@@ -245,6 +246,10 @@ class INP_File(object):
                 var = self.check_set_command(line)
                 # if var != "": variables.append(var)
 
+            # Error check any for loop commands
+            elif self.line_declarations['for'](line):
+                self.check_for_command(line)
+
             self.line_num += 1
 
         # Reset the inp file variables and line number
@@ -252,6 +257,19 @@ class INP_File(object):
         for var in set(variables):
             delattr(self, var)
             self.variables.remove(var)
+
+    def check_for_command(self, line):
+        """
+        Will check the syntax of a for loop command.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        self.E_str = "check_for_command"
+        print(line)
+        print(gen_parse.get_str_between_delims(line, start_delim="(",
+                                               end_delim=")"))
+        raise SystemExit("BREAK")
 
     def check_load_command(self, line):
         """
@@ -974,7 +992,7 @@ class INP_File(object):
             print(f"| {var}: |")
             print("-"*(len(var) + 5))
             if attrs:
-                print("Attributes:\n")
+                print(f"Attributes in {var}.data:"+"\n")
                 for i in range((len(attrs) // n_attr) + 1):
                     print('\t'.join([i.ljust(20) for i in attrs[i*n_attr: (i+1)*n_attr]]))
                 print("-" * 76)

@@ -1,0 +1,14 @@
+##################################
+#                                #
+# An input file that sets the    #
+# variable x and then the script #
+# 'little_script.py' prints the  #
+# value of x.                    #
+##################################
+
+# Set variable x
+x = "Hello World!"
+
+# Run the script little_script.py
+folder = "examples/scripts/"
+script $folder/little_script.py

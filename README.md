@@ -62,7 +62,7 @@ Variables are declared using the follow syntax:
 
 Values can be strings, floats, ints or lists.
 
-Strings are set either with or without double quotation marks: "str"
+Strings are set with double quotation marks: "str"
 
 floats and ints are set without quotation marks
 
@@ -164,6 +164,30 @@ You can print variables in this by calling them, as in bash, with a dollar sign 
 ```
 echo "Value of variable: $variable"
 ```
+
+#### For loops
+You can repeat tasks with a for loop with the following syntax:
+```
+for <var> in <iterator> {
+...
+}
+```
+The <iterator> can be range() (as in python range), filepath(<filepath>) or list(<list>).
+
+The { must be on the same line as the for statement, the } must be on it's own line.
+
+An example is given in the examples/for_loops folder.
+
+
+#### Scripts
+You can interact with the variables you set via python scripts. To run the script use the following syntax:
+```
+script <filepath> <script_type>
+```
+Currently only python scripts are supported but others will be added later.
+
+An example is given in the examples/scripts folder
+
 
 #### Interacting with data with IPython
 You can interact with the data you've created through the IPython shell if you use the command:

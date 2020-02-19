@@ -71,6 +71,12 @@ all_example_tests = {
                                      'inp_file' : 'for_loops.inp',
                                      'out_file' : False,
                                    },
+                      'scripts': {
+                                     'test_func': true,
+                                     'inp_file' : 'run_script.inp',
+                                     'out_file' : False,
+                                   },
+
 
 
                       # Keep this one last

@@ -59,7 +59,7 @@ from src.input_file import input_file_types as inp_types
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
             'script')
 SET_FOLDERPATH = "src/data/set"
-
+allowed_script_types = {'python', 'C++', 'C'}
 
 
 def is_var_line(line):
@@ -254,6 +254,10 @@ class INP_File(object):
             elif self.line_declarations['for'](line):
                 self.check_for_command(line)
 
+            # Error check any for script commands
+            elif self.line_declarations['script'](line):
+                self.check_script_command(line)
+
             self.line_num += 1
 
         # Reset the inp file variables and line number
@@ -261,39 +265,6 @@ class INP_File(object):
         for var in set(variables):
             delattr(self, var)
             self.variables.remove(var)
-
-    def check_for_command(self, line):
-        """
-        Will check the syntax of a for loop command.
-
-        Inputs:
-            * line <str> => A string containing the cleaned line from a input file.
-        """
-        words = gen_parse.split_str_by_multiple_splitters(line, '() ,{}')
-        words = self.fix_words(words)
-        if '{' not in line:
-            self.print_error("Syntax Error: It should be 'for <var> in <iter> {'")
-
-        if type(words[1]) != str:
-            self.E_str = "check_for_command"
-            self.print_error("Only string iterators are allowed in for loops!")
-
-        valid_for_loopers = ("range", "filepath", "list")
-        for keyword in valid_for_loopers:
-            if keyword in line:
-                fnc = getattr(self, f"check_{keyword}_keyword")
-                fnc(line)
-                break
-        else:
-            self.print_error("Invalid loop keyword. Allowed keywords are:"
-                             + "\n\t* ".join(valid_for_loopers))
-
-        rest_filetxt = '\n'.join(self.file_ltxt[self.line_num:])
-        if gen_parse.get_bracket_close(rest_filetxt, "{", "}") == -1:
-            self.print_error("You need to close you curvey brace {")
-
-        # Just for error checking later
-        self.set_var(words[1], "", {})
 
     def check_range_keyword(self, line):
         """
@@ -579,6 +550,59 @@ class INP_File(object):
         # Run set command for error checking variables later
         self.parse_set_cmd(line)
 
+    def check_for_command(self, line):
+        """
+        Will check the syntax of a for loop command.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        words = gen_parse.split_str_by_multiple_splitters(line, '() ,{}')
+        words = self.fix_words(words)
+        if '{' not in line:
+            self.print_error("Syntax Error: It should be 'for <var> in <iter> {'")
+
+        if type(words[1]) != str:
+            self.E_str = "check_for_command"
+            self.print_error("Only string iterators are allowed in for loops!")
+
+        valid_for_loopers = ("range", "filepath", "list")
+        for keyword in valid_for_loopers:
+            if keyword in line:
+                fnc = getattr(self, f"check_{keyword}_keyword")
+                fnc(line)
+                break
+        else:
+            self.print_error("Invalid loop keyword. Allowed keywords are:"
+                             + "\n\t* ".join(valid_for_loopers))
+
+        rest_filetxt = '\n'.join(self.file_ltxt[self.line_num:])
+        if gen_parse.get_bracket_close(rest_filetxt, "{", "}") == -1:
+            self.print_error("You need to close you curvey brace {")
+
+        # Just for error checking later
+        self.set_var(words[1], "", {})
+
+    def check_script_command(self, line):
+        """
+        Will check the syntax of a for script command.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        line, _ = self.find_vars_in_line(line)
+        words = line.split()
+        if 1 > len(words) > 3:
+            self.print_error("Syntax Error: correct syntax is script <filepath>")
+
+        if len(words) == 3:
+            if words[2] not in allowed_script_types:
+                self.print_error(f"I don't know how to handle the '{words[2]}' script type")
+
+        if not os.path.isfile(words[1]):
+            self.print_error(f"IO Error: Can't find script '{words[1]}'")
+
+
     #############      Parsing Methods       #############
 
     def parse_lines(self, lines=False):
@@ -622,13 +646,17 @@ class INP_File(object):
             elif self.line_declarations['set'](line):
                 self.parse_set_cmd(line)
 
-            # Parse any echo commands
+            # Parse any shell commands
             elif self.line_declarations['shell'](line):
                 self.parse_shell_cmd()
 
-            # Parse any echo commands
+            # Parse any for loop commands
             elif self.line_declarations['for'](line):
                 self.parse_for_cmd(line)
+
+            # Parse any echo commands
+            elif self.line_declarations['script'](line):
+                self.parse_script_cmd(line)
 
             # The end of control statements
             elif '}' in line:
@@ -1081,9 +1109,6 @@ class INP_File(object):
                     print('\t'.join([i.ljust(20) for i in attrs[i*n_attr: (i+1)*n_attr]]))
                 print("-" * 76)
 
-        # print("\n" + "-"*76 + "\n\n\n")
-
-
         # Declare all the variables in the global scope so the user can use them
         for var_name in self.variables:
             globals()[var_name] = getattr(self, var_name)
@@ -1158,7 +1183,6 @@ class INP_File(object):
 
         Inputs:
             * line <str> => The line containing the for loop
-            * lines <list<str>> => The lines to iterate.
         """
         self.E_str = "do_filepath_forloop"
         line = line.replace(" ", "")
@@ -1178,12 +1202,43 @@ class INP_File(object):
 
         Inputs:
             * line <str> => The line containing the for loop
-            * lines <list<str>> => The lines to iterate.
         """
         self.E_str = "do_list_forloop"
         self.print_error("Not yet implemented")
 
+    def parse_script_cmd(self, line):
+        """
+        Will parse a script line and run it.
 
+        Inputs:
+            * line <str> => The line containing the for loop
+        """
+        line, _ = self.find_vars_in_line(line)
+        words = line.split()
+        filepath = gen_io.get_abs_path(words[1])
+        if len(words) == 2:
+            self.exec_python_script(filepath)
+        else:
+            if words[2] == 'python':
+                self.exec_python_script(filepath)
+            else:
+                self.print_error(f"'{words[2]}' scripts not yet suported")
+
+    def exec_python_script(self, filepath):
+        """
+        Will execute a python script from a filepath
+
+        Inputs:
+            * filepath <str> => The filepath to load and execute.
+        """
+        with open(filepath, 'r') as f:
+            script_txt = f.read()
+
+        # Declare all the variables in the global scope so the user can use them
+        for var_name in self.variables:
+            globals()[var_name] = getattr(self, var_name)
+
+        exec(script_txt)
 
     ##### Inp Cleaning methods #################################
 
@@ -1224,8 +1279,8 @@ class INP_File(object):
             if check_var not in self.variables:
                 self.print_error(f"Can't find variable '{check_var}'")
 
-            var = getattr(self, check_var)
-            line = line.replace(f"${check_var}", str(var))
+            Var = getattr(self, check_var)
+            line = line.replace(f"${check_var}", str(Var))
 
         return line, any_vars
 

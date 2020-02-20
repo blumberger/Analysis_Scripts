@@ -344,7 +344,7 @@ class INP_File(object):
 
         # Save the variable name for error checking later
         metadata = self.load_fncs[words[2]].metadata
-        self.set_var(words[4], "", metadata)
+        self.set_var(words[4], "~", metadata)
         return words[4]
 
     def check_write_command(self, line):
@@ -447,7 +447,7 @@ class INP_File(object):
             err_msg += "Num of ')' = %i\n" % line.count(")")
             self.print_error(err_msg)
 
-        self.set_var(new_var_name, "", {metadata_name: ""})
+        self.set_var(new_var_name, "~", {metadata_name: ""})
         return new_var_name
 
     def check_echo_command(self, line):
@@ -522,7 +522,7 @@ class INP_File(object):
                 self.print_error(err_msg)
 
         # Set the new var attribute to help error checking later.
-        self.set_var(new_var_name, "")
+        self.set_var(new_var_name, "~")
         return new_var_name
 
 
@@ -581,7 +581,7 @@ class INP_File(object):
             self.print_error("You need to close you curvey brace {")
 
         # Just for error checking later
-        self.set_var(words[1], "", {})
+        self.set_var(words[1], "~", {})
 
     def check_script_command(self, line):
         """
@@ -963,6 +963,11 @@ class INP_File(object):
         fpath = type_check.remove_quotation_marks(fpath)
         fpath = os.path.abspath(os.path.expanduser(fpath))
 
+        # Create the folder if we need to
+        folder = gen_io.get_folder_from_filepath(fpath)
+        if not os.path.isdir(folder):
+           os.makedirs(folder)
+
         # Get the data to be written
         Var = getattr(self, dname)
         if len(words) == 3:
@@ -1121,6 +1126,7 @@ class INP_File(object):
         Will parse a for loop line.
         """
         # Get the iterator name
+        line, _ = self.find_vars_in_line(line)
         words = line.split()
         iter_var_name = words[1]
 
@@ -1239,6 +1245,16 @@ class INP_File(object):
             globals()[var_name] = getattr(self, var_name)
 
         exec(script_txt)
+
+        # Grab the variables back from the script
+        new_vars = {}
+        new_var_names = [i for i in locals() if not callable(i) and i[0] != '_']
+        for i in new_var_names:
+            Var = inp_types.Variable(i, locals()[i])
+            new_vars[i] = Var
+
+        for var_name in new_vars:
+            locals()[var_name] = new_vars[var_name]
 
     ##### Inp Cleaning methods #################################
 

@@ -6,3 +6,5 @@
 config/vars
 *.*.sw*
 */.*.sw*
+
+snapshots/

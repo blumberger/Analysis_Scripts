@@ -41,6 +41,29 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         self.get_csv_lines(50)
         self.read_csv_lines()
         self.get_metadata()
+        self.append_csvs()
+
+    def append_csvs(self): 
+        """
+        Will append the csv files into multiple csvs with the same columns
+        """
+        # Get all unique headers
+        col_heads = []
+        for df in self.csv_data:
+            heads = '|'.join(df.columns)
+            if heads not in col_heads:
+               col_heads.append(heads)
+        
+        # Collect similar dataframes
+        self.collected_csv_data = [pd.DataFrame() for i in range(len(col_heads))]
+        count = 0
+        for df in self.csv_data:
+            heads = '|'.join(df.columns)
+            if heads == col_heads[count]:
+               self.collected_csv_data[count] = self.collected_csv_data[count].append(df)
+            else:
+               count += 1
+               self.collected_csv_data[count] = self.collected_csv_data[count].append(df)
 
     def get_csv_lines(self, same_line_tolerance=100):
         """

@@ -98,7 +98,7 @@ def get_bracket_close(txt, start_delim='(', end_delim=')'):
     """
     start_ind = txt.find(start_delim)
     brack_num = 1
-    for ichar in range(start_ind+1, len(txt[start_ind:])-1):
+    for ichar in range(start_ind+1, len(txt)):
         char = txt[ichar]
         if char == end_delim: brack_num -= 1
         elif char == start_delim: brack_num += 1

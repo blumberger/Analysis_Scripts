@@ -206,6 +206,6 @@ class Angular_Dist(gen_type.Calc_Type):
         for ax in axes:
             if label:
                 ax.legend()
-            ax.set_xlim([0, 360])
+            ax.set_xlim([0, 180])
 
         return axes

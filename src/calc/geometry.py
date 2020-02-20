@@ -90,12 +90,14 @@ def find_center_atom(crds):
     """
     crds, _ = beginning_tests(crds)
 
-    center_point = np.mean(crds, axis=0)
-    dist_from_mean = np.linalg.norm(crds - center_point, axis=1)
-    min_at_ind = np.argmin(dist_from_mean)
+    # Center point = (max - min) / 2
+    center_point = (np.max(crds, axis=0) - np.min(crds, axis=0))/2.
+
+    dist_from_center = np.linalg.norm(crds - center_point, axis=1)
+    min_at_ind = np.argmin(dist_from_center)
     center_xyz = crds[min_at_ind]
 
-    return min_at_ind, center_xyz
+    return min_at_ind, center_xyz, dist_from_center
 
 
 def get_vector_from_cds(at1, at2):

@@ -1,0 +1,1 @@
+This folder just contains input files that have been created by users (probably Matt). It is simply to tidy things away when they aren't needed. The input files in here are not gauranteed to be easy to read/nicely commented.

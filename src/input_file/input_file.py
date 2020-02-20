@@ -52,6 +52,7 @@ from src.calc import pvecs as pvec_lib
 from src.calc import NN
 from src.calc import angular_distribution as ang_dist
 from src.calc import density as dens
+from src.calc import RDF as rdf
 
 # Input file functions
 from src.input_file import input_file_types as inp_types
@@ -175,7 +176,7 @@ class INP_File(object):
                  }
     calc_fncs = {
                  'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,
-                 'angular_dist': ang_dist.Angular_Dist,
+                 'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
                 }
 
     line_declarations = LINE_DECLARATIONS
@@ -331,8 +332,10 @@ class INP_File(object):
             self.print_error(err_msg)
 
         try:
-            words[1] = type_check.remove_quotation_marks(words[1])
-            filepath = gen_io.get_abs_path(words[1])
+            # A quick hack to not check filepaths that are set via a for loop.
+            if '^EMPTY^' not in words[1]:
+                words[1] = type_check.remove_quotation_marks(words[1])
+                filepath = gen_io.get_abs_path(words[1])
         except IOError as e:
             self.print_error(str(e))
 
@@ -344,7 +347,7 @@ class INP_File(object):
 
         # Save the variable name for error checking later
         metadata = self.load_fncs[words[2]].metadata
-        self.set_var(words[4], "~", metadata)
+        self.set_var(words[4], "^EMPTY^", metadata)
         return words[4]
 
     def check_write_command(self, line):
@@ -447,7 +450,7 @@ class INP_File(object):
             err_msg += "Num of ')' = %i\n" % line.count(")")
             self.print_error(err_msg)
 
-        self.set_var(new_var_name, "~", {metadata_name: ""})
+        self.set_var(new_var_name, "^EMPTY^", {metadata_name: ""})
         return new_var_name
 
     def check_echo_command(self, line):
@@ -522,7 +525,7 @@ class INP_File(object):
                 self.print_error(err_msg)
 
         # Set the new var attribute to help error checking later.
-        self.set_var(new_var_name, "~")
+        self.set_var(new_var_name, "^EMPTY^")
         return new_var_name
 
 
@@ -581,7 +584,7 @@ class INP_File(object):
             self.print_error("You need to close you curvey brace {")
 
         # Just for error checking later
-        self.set_var(words[1], "~", {})
+        self.set_var(words[1], "^EMPTY^", {})
 
     def check_script_command(self, line):
         """

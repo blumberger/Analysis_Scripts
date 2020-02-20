@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A module to calculate nearest neighbour lists
+A module to calculate the angular distributions of molecules in a system.
 """
 import numpy as np
 import json
@@ -36,7 +36,7 @@ class Angular_Dist(gen_type.Calc_Type):
     # Need these 3 attributes to create a new variable type
     data = {}
     metadata = {'file_type': 'json'}
-    name = "Angular Distributions"
+    name = "Angular Distribution"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
 
     def get_data(self):

@@ -43,7 +43,10 @@ class Calc_Type(object):
         # Set the default parameters
         for key in self._defaults:
             if key not in self.metadata:
-                self.metadata[key] = self._defaults[key]
+                if key not in self.Var.metadata:
+                    self.metadata[key] = self._defaults[key]
+                else:
+                    self.metadata[key] = self.Var.metadata[key]
 
         for name in self.required_data_names:
             all_attrs = dir(self.Var.data)

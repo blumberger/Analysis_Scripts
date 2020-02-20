@@ -26,7 +26,7 @@ class Density(gen_type.Calc_Type):
     required_data_names = ('csv', )
 
     # Need these 3 attributes to create a new variable type
-    csv_data = {}
+    csv_data = []
     metadata = {'file_type': 'csv'}
     name = "Densities"
 
@@ -52,17 +52,39 @@ class Density(gen_type.Calc_Type):
         if type(data) == list:
             for df in data:
                 if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
-                    self.csv_data[data_count] = self.__calc_dens__(df)
+                    self.csv_data.append(self.__calc_dens__(df))
                     did_dens_calc = True
                     data_count += 1
 
         elif type(data) == pd.DataFrame:
             if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
-                self.csv_data[data_count] = self.__calc_dens__(data)
+                self.csv_data.append(self.__calc_dens__(data))
                 did_dens_calc = True
 
         if did_dens_calc is False:
             raise SystemExit("Can't find the required DataFrame headers to calculate the density")
+
+    def append_csvs(self):
+        """
+        Will append the csv files into multiple csvs with the same columns
+        """
+        # Get all unique headers
+        col_heads = []
+        for df in self.csv_data:
+            heads = '|'.join(df.columns)
+            if heads not in col_heads:
+               col_heads.append(heads)
+
+        # Collect similar dataframes
+        self.collected_csv_data = [pd.DataFrame() for i in range(len(col_heads))]
+        count = 0
+        for df in self.csv_data:
+            heads = '|'.join(df.columns)
+            if heads == col_heads[count]:
+               self.collected_csv_data[count] = self.collected_csv_data[count].append(df)
+            else:
+               count += 1
+               self.collected_csv_data[count] = self.collected_csv_data[count].append(df)
 
     def __get_tot_mass__(self):
         """

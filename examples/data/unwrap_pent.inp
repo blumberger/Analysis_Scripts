@@ -1,0 +1,4 @@
+filepath = "/scratch/mellis/OLD_Pentacene/Full_Lammps_Run_10ns_Quench/xyz_md/snapshot0.dat"
+
+load $filepath lammps_dump as data
+write data "pentacene.xyz" as xyz

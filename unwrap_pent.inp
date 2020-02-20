@@ -1,0 +1,6 @@
+
+for num in range(0, 30000, 5000) {
+   filepath = "/scratch/mellis/OLD_Pentacene/Full_Lammps_Run_10ns_Quench/xyz_md/snapshot$num.dat"
+   load $filepath lammps_dump as data
+   write data "pentacene$num.xyz" as xyz
+}

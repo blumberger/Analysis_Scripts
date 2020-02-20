@@ -14,6 +14,26 @@ class NN(gen_type.Calc_Type):
     """
     Will calculate the Nearest neighbour list from the data contained within a data file.
 
+    The nearest neighbour list will be stored in a dictionary named 'data'. The
+    structure of this dictionary is:
+        {istep:
+               {
+                'distances': np.NDArray(natom, natom),
+                'closest_atom_indices': np.NDArray(natom, natom),
+               }
+         }
+
+    If the number of atoms per molecule is specified then 2 more keys will
+    appear at each step:
+        {istep:
+            {
+             'distances': np.NDArray(natom, natom),
+             'closest_atom_indices': np.NDArray(natom, natom),
+             'closest_atoms_mol_grouped': np.NDArray(nmol, natom, natom-1),
+             'distances_mol_grouped': np.NDArray(nmol, natom, natom-1),
+            }
+        }
+
     Inputs:
         * Variable <Variable> => An instance of the Variable class
 
@@ -63,8 +83,8 @@ class NN(gen_type.Calc_Type):
             self.get_nearest_atom_inds()
 
             # If we have some molecule metadata
-            if 'num_at_per_mol' in self.Var.metadata:
-                self.at_per_mol = self.Var.metadata['num_at_per_mol']
+            if 'atoms_per_molecule' in self.Var.metadata:
+                self.at_per_mol = self.Var.metadata['atoms_per_molecule']
                 self.nmol = mol_utils.get_nmol(self.natom, self.at_per_mol)
                 self.reshape_at_dist()
                 self.get_nearest_atom_inds_per_mol()

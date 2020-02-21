@@ -20,7 +20,7 @@ class PVecs(gen_type.Calc_Type):
         * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
     """
-    required_metadata = ('num_at_per_mol',)
+    required_metadata = ('atoms_per_molecule',)
     required_calc = ('NN', )
     required_data_names = ('xyz', )
 
@@ -36,7 +36,7 @@ class PVecs(gen_type.Calc_Type):
         XYZFile = self.Var.data
         at_crds = XYZFile.xyz_data
         self.nstep = XYZFile.nstep
-        self.at_per_mol = self.Var.metadata['num_at_per_mol']
+        self.at_per_mol = self.Var.metadata['atoms_per_molecule']
 
         # First remove 'Ne' atoms
         self.cols = XYZFile.cols

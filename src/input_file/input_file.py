@@ -602,6 +602,7 @@ class INP_File(object):
             if words[2] not in allowed_script_types:
                 self.print_error(f"I don't know how to handle the '{words[2]}' script type")
 
+        words[1] = type_check.remove_quotation_marks(words[1])
         if not os.path.isfile(words[1]):
             self.print_error(f"IO Error: Can't find script '{words[1]}'")
 
@@ -1224,6 +1225,7 @@ class INP_File(object):
         """
         line, _ = self.find_vars_in_line(line)
         words = line.split()
+        words[1] = type_check.remove_quotation_marks(words[1])
         filepath = gen_io.get_abs_path(words[1])
         if len(words) == 2:
             self.exec_python_script(filepath)

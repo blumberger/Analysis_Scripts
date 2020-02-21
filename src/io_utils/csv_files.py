@@ -21,10 +21,34 @@ class Write_CSV(object):
     """
     def __init__(self, Data_Class, filepath):
         filepath, _ = gen_io.remove_file_extension(filepath)
-        if type(Data_Class.csv_data) == dict:
+
+        # The CSV data may be stored in many formats
+        # Write lists of csvs
+        if type(Data_Class.csv_data) == list:
+            if len(Data_Class.csv_data) == 1:
+                self.write_csv(Data_Class.csv_data[0], f"{filepath}.csv")
+            else:
+                for i, df in Data_Class.csv_data:
+                    new_filepath = f"{filepath}_{i}.csv"
+                    self.write_csv(df, new_filepath)
+
+        # Write dicts of csvs
+        elif type(Data_Class.csv_data) == dict:
             for key in Data_Class.csv_data:
                 new_filepath = f"{filepath}_{key}.csv"
-                if type(Data_Class.csv_data[key]) == pd.DataFrame:
-                    Data_Class.csv_data[key].to_csv(new_filepath, index=False)
-                else:
-                    print(f"Can't save data {key}")
+                self.write_csv(Data_Class.csv_data[key], new_filepath)
+
+        # Write plain DataFrames
+        else:
+            self.write_csv(Data_Class.csv_data, filepath)
+
+    def write_csv(self, df, filepath):
+        """
+        Will write the csv after checking that it is a dataframe
+        """
+        type_ = type(df)
+        if type_ == pd.DataFrame:
+            df.to_csv(filepath, index=False)
+        else:
+            raise IOError(f"Can't csv data to '{filepath}'."
+                          + " It is of unknown type {type_}.")

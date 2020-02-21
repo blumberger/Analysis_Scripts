@@ -136,7 +136,7 @@ class Angular_Dist(gen_type.Calc_Type):
         """
         # Get the center mol (the one to compare to)
         avg_mol_crds = np.mean(mol_crds, axis=1)
-        center_ind, center = geom.find_center_atom(avg_mol_crds)
+        center_ind, _, _ = geom.find_center_atom(avg_mol_crds)
 
         at1, at2 = at_inds[0], at_inds[1]
 

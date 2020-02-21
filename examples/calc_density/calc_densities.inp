@@ -19,4 +19,4 @@ calc density from lammps_data as density
 echo $density
 
 # Write the density file as density.csv
-write density density.csv
+write density "density.csv"

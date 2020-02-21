@@ -1,8 +1,0 @@
-folder = "/scratch/mellis/OLD_Pentacene/Full_Lammps_Run_100ps_Quench_iso"
-snapshots_folder = "$folder/xyz_md"
-
-load "$folder/log.lammps" lammps_log as log_data
-set system log_data to pentacene
-calc density from log_data as density_data
-
-shell

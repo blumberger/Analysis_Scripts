@@ -54,7 +54,7 @@ all_example_tests = {
                       'calc_density':       {
                                              'test_func': true,
                                              'inp_file' : 'calc_densities.inp',
-                                             'out_file' : 'density_0.csv',
+                                             'out_file' : 'density.csv',
                                             },
                       'unwrap_snapshot_data':      {
                                                     'test_func': true,
@@ -71,6 +71,12 @@ all_example_tests = {
                                      'inp_file' : 'for_loops.inp',
                                      'out_file' : False,
                                    },
+                      'calc_RDF': {
+                                     'test_func': true,
+                                     'inp_file' : 'calc_RDF.inp',
+                                     'out_file' : False,
+                                   },
+
                       'scripts': {
                                      'test_func': true,
                                      'inp_file' : 'run_script.inp',

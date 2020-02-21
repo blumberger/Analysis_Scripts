@@ -1,0 +1,25 @@
+############################################
+#                                          #
+# An input file to calculate the radial    #
+# distribution function for an xyz file.   #
+############################################
+
+# Set some variables
+folder = "./examples/data"
+filepath = "$folder/pentacene_crystal.xyz"
+
+# Load the data from an xyz file
+load $filepath xyz as data
+
+# Tell the code we are working with pentacene
+set system data to pentacene
+
+# Set the number of bins for the RDF calc
+data['number_bins'] = 120
+
+# Calculate RDF
+calc RDF from data as rdf_data
+
+# Plot the data with a little script
+inp_folder = "examples/calc_RDF"
+script "$inp_folder/plot_script.py"

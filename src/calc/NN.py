@@ -4,6 +4,7 @@
 A module to calculate nearest neighbour lists
 """
 import numpy as np
+import time
 
 from src.calc import general_types as gen_type
 from src.calc import molecule_utils as mol_utils
@@ -91,7 +92,6 @@ class NN(gen_type.Calc_Type):
                 self.data[step]['closest_atoms_mol_grouped'] = self.closest_at_per_mol
                 self.data[step]['distances_mol_grouped'] = self.all_dist_per_mol
 
-
             # Save data in dict
             self.data[step]['distances'] = self.all_dist
             self.data[step]['closest_atom_indices'] = self.closest_ats
@@ -130,6 +130,8 @@ class NN(gen_type.Calc_Type):
     def get_nearest_atom_inds(self):
         """
         Will sort the atom indices by the distance from the current atom.
+
+        This should be optimised!
 
         This will create a numpy array of size (natom, natom). Indexing as:
              closest_ats[i]

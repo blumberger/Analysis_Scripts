@@ -124,8 +124,8 @@ class Density(gen_type.Calc_Type):
         Overload the string function
         """
         s = ""
-        for key in self.csv_data:
-            s += f"Dataframe {key}:"
-            s += "\n\n" + str(self.csv_data[key])
+        for i, df in enumerate(self.csv_data):
+            s += f"Dataframe {i}:"
+            s += "\n\n" + str(df)
 
-        return str(self.csv_data)
+        return s

@@ -17,7 +17,7 @@ echo "Loading file: $xyz_filepath"
 load $xyz_filepath xyz as pos
 
 # Add the attribute 'num_ats_per_mol' to the variable pos
-pos['num_at_per_mol'] = 6
+pos['atoms_per_molecule'] = 6
 
 # Calculate the nearest neighbour list
 calc pvecs from pos as pvec_data

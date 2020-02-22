@@ -199,13 +199,13 @@ class Angular_Dist(gen_type.Calc_Type):
         axes[1] = ax
 
         # Make it pretty
-        axes[0].set_ylabel("Long Ax Density")
-        axes[1].set_ylabel("Short Ax Density")
-        axes[1].set_xlabel(r"Angle [$^o$]")
+        axes[0].set_ylabel("Long Ax Density", fontsize=16)
+        axes[1].set_ylabel("Short Ax Density", fontsize=16)
+        axes[1].set_xlabel(r"Angle [$^o$]", fontsize=16)
 
-        for ax in axes:
-            if label:
-                ax.legend()
+        axes[0].legend(fontsize=16)
+        for i, ax in enumerate(axes):
             ax.set_xlim([0, 180])
-
+        plt.tight_layout()
+        
         return axes

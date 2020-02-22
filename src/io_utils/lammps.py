@@ -43,7 +43,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         self.get_metadata()
         self.append_csvs()
 
-    def append_csvs(self): 
+    def append_csvs(self):
         """
         Will append the csv files into multiple csvs with the same columns
         """
@@ -53,7 +53,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             heads = '|'.join(df.columns)
             if heads not in col_heads:
                col_heads.append(heads)
-        
+
         # Collect similar dataframes
         self.collected_csv_data = [pd.DataFrame() for i in range(len(col_heads))]
         count = 0

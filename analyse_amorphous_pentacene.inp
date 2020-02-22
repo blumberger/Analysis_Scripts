@@ -1,0 +1,38 @@
+####
+# Will get plot the temperature, angular distribution and RDF for each step
+# Will plot the density against time
+####
+
+
+
+folder = "/scratch/mellis/Lammps_Pentacene_1ns_BADFIX"
+snapshots_folder = "$folder/xyz_md"
+
+load "$folder/log.lammps" lammps_log as log_data
+set system log_data to pentacene
+calc density from log_data as density_data
+
+
+count = 0
+for snapshot_file in filepath("$snapshots_folder/*") {
+   load $snapshot_file lammps_dump as L_dump
+
+   set system L_dump to pentacene
+   L_dump['long_axis_atoms'] = 8, 25
+   L_dump['short_axis_atoms'] = 0, 18
+   L_dump['number_bins'] = 30
+   calc angular_dist from L_dump as ang_dist
+
+   L_dump['number_bins'] = 140
+   calc RDF from L_dump as rdf_data
+
+   script plot_script.py
+
+   #write L_dump "./snapshots/$count.xyz" as xyz
+
+   echo "Done $count"
+   count = count + 1
+}
+
+script create_frames.py
+#script append_all_xyz.py

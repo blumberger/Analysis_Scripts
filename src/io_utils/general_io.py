@@ -36,6 +36,11 @@ class DataFileStorage(object):
           if var in self._poss_num_types_:
               self._numeric_data_types.append(var)
 
+   def set_data(self):
+       """
+       A dummy function, can be overwritten if required to set the
+       """
+       pass
 
    # Dummy method to hold the place of an actual parser later
    def parse(self):

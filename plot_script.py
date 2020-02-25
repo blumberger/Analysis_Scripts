@@ -9,7 +9,7 @@ if not os.path.isdir("snapshots"):
 # Plot the temperature
 f, a = plt.subplots(figsize=(12, 6))
 
-temp_data = log_data.data.collected_csv_data[1]
+temp_data = log_data.data.collected_csv_data[0]
 
 timestep = L_dump.data.metadata['timestep']
 

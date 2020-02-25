@@ -5,7 +5,7 @@
 
 
 
-folder = "/scratch/mellis/Lammps_Pentacene_1ns_BADFIX"
+folder = "/scratch/mellis/shuttle/Lammps_Pentacene_MAINTAINED_PRESSURE"
 snapshots_folder = "$folder/xyz_md"
 
 load "$folder/log.lammps" lammps_log as log_data

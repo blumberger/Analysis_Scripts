@@ -1249,7 +1249,12 @@ class INP_File(object):
         for var_name in self.variables:
             globals()[var_name] = getattr(self, var_name)
 
-        exec(script_txt)
+        try:
+            exec(script_txt)
+        except Exception as e:
+            self.print_error("Something is wrong with your script!\n\nError: "
+                             + str(e) + "\n\n" + f"Script Name: {filepath}")
+
 
         # Grab the variables back from the script
         new_vars = {}

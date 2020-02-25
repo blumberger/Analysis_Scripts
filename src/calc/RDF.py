@@ -59,11 +59,16 @@ class RDF(gen_type.Calc_Type):
         for at_crds in self.compute_data:
             mol_crds = mol_utils.atoms_to_mols(at_crds, self.ats_per_mol)
             self.COMs = self.get_COMs(mol_crds, self.cols[0, :36])
+            self.get_dims()
 
             self.get_max_dist(self.COMs)
             self.tot_volume = geom.volume_sphere(self.max_dist)
+
+            N = len(self.COMs)
+            rho = N / self.tot_volume * (N-1)
+
             self.calc_shell_volumes()
-            self.vols += self.shell_volumes * len(self.COMs)
+            self.vols += self.shell_volumes * N
 
             # Loop over all mols
             for i, mol1 in enumerate(self.COMs):
@@ -74,13 +79,24 @@ class RDF(gen_type.Calc_Type):
                 for dist in all_dist:
                     index = int(dist // self.dr)
                     if 0 < index < self.nbins:
-                        self.RDF[index] += 2.0
-
+                        r = self.radii[index]
+                        vol = 4 * np.pi * r**2 * self.dr
+                        self.RDF[index] += 2.0# / (N * vol * rho)
 
         # Now normalise
-        rho = len(self.COMs) / self.tot_volume
         norm = rho * self.vols
         self.RDF /= norm
+
+    def get_dims(self, crds):
+        """
+        Will get the dimensions of a square periodic cell
+
+        Inputs:
+            * crds <np.NDArray> => The coordinates of your mols of shape (nmol, 3)
+        """
+        self.xmax, self.xmin = np.min(crds[:, 0]), np.max(crds[:, 0])
+        self.ymax, self.ymin = np.min(crds[:, 1]), np.max(crds[:, 1])
+        self.zmax, self.zmin = np.min(crds[:, 2]), np.max(crds[:, 2])
 
     def get_data(self):
         """
@@ -89,6 +105,8 @@ class RDF(gen_type.Calc_Type):
         if 'xyz_data' in dir(self.Var.data):
             self.compute_data = self.Var.data.xyz_data
         elif 'csv_data' in dir(self.Var.data):
+            # self.Var.data.metadata['coordinate_wrapping'] = "wrapped"
+            self.Var.data.set_data()
             self.compute_data = self.Var.data.csv_data[['x', 'y', 'z']].to_numpy()
             self.compute_data = np.array([self.compute_data])
 

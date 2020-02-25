@@ -453,6 +453,20 @@ class Lammps_Dump(gen_io.DataFileStorage):
         # Fix periodic BCs
         self.wrapped_csv = copy.deepcopy(self.csv_data)
         self.fix_wrapping()
+        self.set_data()
+
+    def set_data(self):
+        """
+        Will set the csv_data to either wrapped_csv or unwrapped_csv according to metadata.
+        """
+        if self.metadata['coordinate_wrapping'] == 'unwrapped':
+            self.csv_data = self.unwrapped_csv
+        elif self.metadata['coordinate_wrapping'] == 'wrapped':
+            self.csv_data = self.wrapped_csv
+        else:
+            raise SystemExit("Unknown value for paramter 'coordinate_wrapping'.\n\n"
+                  + f"You set {self.metdata['coordinate_wrapping']}."
+                  + "\n\nValid options are: \n\t* 'unwrapped', \n\t* 'wrapped'.")
 
     def parse_dump(self, item_num):
         """

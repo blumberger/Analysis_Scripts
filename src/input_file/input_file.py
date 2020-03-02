@@ -42,6 +42,7 @@ from src.io_utils import xyz_files as xyz
 from src.io_utils import lammps
 from src.io_utils import json_files as json
 from src.io_utils import csv_files
+from src.io_utils import massif_files as M_files
 
 # Parsing
 from src.parsing import general_parsing as gen_parse
@@ -170,7 +171,7 @@ class INP_File(object):
                  'cp2k_inp': CP2K_inp.Read_INP, 'xyz': xyz.XYZ_File,
                  'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
                  'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
-                 'lammps_dump': lammps.Lammps_Dump,
+                 'lammps_dump': lammps.Lammps_Dump, 'massif_file': M_files.Massif_File,
                 }
     write_fncs = {
                   'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
@@ -186,6 +187,7 @@ class INP_File(object):
     line_declarations['load'] = lambda x: len(re.findall("^load |^read ", x)) > 0
     line_declarations['math'] = is_math_line
     line_declarations['shell'] = lambda x: x.strip().lower() == "shell"
+    line_declarations['python'] = lambda x: x == "python"
 
     def __init__(self, inp_filepath):
         self.E_str = "init"
@@ -662,28 +664,37 @@ class INP_File(object):
         words = line.split()
         self.E_str = "check_python_command"
 
-        # Check script calling syntax
-        if len(words) == 1:
-            self.print_error("Syntax Error: correct syntax is script <filepath>")
+        corr_syn = "The correct syntax for running a bit of python code is:\n\n"
+        corr_syn += "    python {\n\n    ...\n\n    }"
 
-        # Check the script type
-        if len(words) == 3:
-            if words[2] not in VALID_SCRIPT_TYPES:
-                self.print_error(f"I don't know how to handle the '{words[2]}' script type")
+        # Check the braces are opened and closed properly
+        if self.file_ltxt[self.line_num+1] != "{":
+            self.print_error("You must open a bracket for the python command\n\n"
+                             + corr_syn)
 
-        # Check the script exists
-        words[1] = gen_parse.rm_quotation_marks(words[1])
-        if not os.path.isfile(words[1]):
-            self.print_error(f"IO Error: Can't find script '{words[1]}'")
+        rest_filetxt = '\n'.join(self.file_ltxt[self.line_num:])
+        if gen_parse.get_bracket_close(rest_filetxt, "{", "}") == -1:
+            self.print_error("You must close a brace in the python command.\n\n"
+                             + corr_syn)
 
-        # Parse any variables from the script (if a python script)
-        if len(words) == 2 or words[2] == "python":
-            with open(words[1], "r") as f:
-                vars = [i.strip('= ') for i in re.findall(VAR_REGEX+" *=", f.read())]
-            for var in vars:
-                self.set_var(var, "")
+        # Find where the little script ends
+        brack_num, new_lines = 1, []
+        for end_line, new_line in enumerate(self.file_ltxt[self.line_num+2:]):
+            if new_line == '{':   brack_num += 1
+            elif new_line == '}': brack_num -= 1
 
-        return vars
+            if brack_num > 0:     new_lines.append(new_line)
+            elif brack_num == 0:  break
+        end_line += self.line_num + 2
+
+        # Parse all the variables
+        any_vars = re.findall(VAR_REGEX+" *=", rest_filetxt)
+        any_vars = (var.strip('= ') for var in any_vars)
+        for var in any_vars:
+            self.set_var(var, "^EMPTY^")
+
+        self.line_num = end_line
+        return any_vars
 
     #############      Parsing Methods       #############
 
@@ -696,7 +707,7 @@ class INP_File(object):
 
         # Loop over lines and parse
         while self.line_num < len(lines):
-            line = lines[self.line_num]
+            line = lines[self.line_num].strip()
 
             if line == "echo": print("")
 
@@ -739,6 +750,9 @@ class INP_File(object):
             # Parse any echo commands
             elif self.line_declarations['script'](line):
                 self.parse_script_cmd(line)
+
+            elif self.line_declarations['python'](line):
+                self.parse_python_cmd(line)
 
             # The end of control statements
             elif '}' in line:
@@ -1322,22 +1336,25 @@ class INP_File(object):
             else:
                 self.print_error(f"'{words[2]}' scripts not yet suported")
 
-    def exec_python_script(self, filepath):
+    def exec_python_script(self, filepath=False, script_txt=False):
         """
         Will execute a python script from a filepath
 
         Inputs:
             * filepath <str> => The filepath to load and execute.
         """
-        with open(filepath, 'r') as f:
-            script_txt = f.read()
+        if script_txt is False and type(filepath) is str:
+            with open(filepath, 'r') as f:
+                script_txt = f.read()
+        elif type(script_txt) is str and filepath is False:
+            pass
+        else:
+            SystemError("'exec_python_script' function used incorrectly!")
 
         # Declare all the variables in the global scope so the user can use them
         for var_name in self.variables:
             globals()[var_name] = getattr(self, var_name)
 
-        new_vars = {}
-        prev_locals = [i for i in self.variables]
         # Run the script in a try loop
         try:
             exec(script_txt)
@@ -1345,14 +1362,48 @@ class INP_File(object):
             self.print_error("Something is wrong with your script!\n\nError: "
                              + str(e) + "\n\n" + f"Script Name: {filepath}")
 
-        # Grab the variables back from the script and set them to vars in this class
-        new_locals = locals()
-        for i in ('new_vars', 'var_name', 'script_txt', 'f', 'filepath', 'self',
-                  'prev_locals',):
-            new_locals.pop(i)
-        new_vars = (i for i in new_locals if i not in prev_locals)
-        for new_var_name in new_vars:
-            self.set_var(new_var_name, new_locals[new_var_name])
+        # Parse all the variables
+        any_vars = re.findall(VAR_REGEX+" *=", script_txt)
+        any_vars = (var.strip('= ') for var in any_vars)
+        for var in any_vars:
+            if var in locals():
+                self.set_var(var, locals()[var])
+
+    def parse_python_cmd(self, line):
+        """
+        Will execute a python script from a string in the input file.
+
+        Inputs:
+            * filepath <str> => The filepath to load and execute.
+        """
+        # Find the code to run
+        brack_num, new_lines = 1, []
+        for end_line, new_line in enumerate(self.file_ltxt[self.line_num+2:]):
+            if new_line == '{':   brack_num += 1
+            elif new_line == '}': brack_num -= 1
+
+            if brack_num > 0:     new_lines.append(new_line)
+            elif brack_num == 0:  break
+        end_line += self.line_num + 2
+
+        py_script = self.file_ltxt[self.line_num+2:end_line]
+
+        # Now shift everything back to the minimum indentation
+        min_indent = 100000
+        for line in py_script:
+            indent = re.findall("^ *", line)[0]
+            len(indent)
+            min_indent = min([min_indent, len(indent)])
+        for line_num in range(len(py_script)):
+            ind_search = "^" + " "*min_indent
+            line = re.sub(ind_search, "", py_script[line_num])
+            py_script[line_num] = line
+
+        py_script = '\n'.join(py_script)
+
+        self.exec_python_script(script_txt=py_script)
+
+        self.line_num = end_line
 
 
     ##### Inp Cleaning methods #################################
@@ -1381,15 +1432,35 @@ class INP_File(object):
         This will also remove blank lines.
         """
         # Loop over all lines, check for braces and replace them with \n{ and \n}
+        brack_num = False
         for line_num, line in enumerate(self.file_ltxt):
-            str_part, non_str = gen_parse.get_str_between_delims(line)
+            # First check for any python code.
+            if re.findall("^python.*{|^python ", line):
+                if '{' in line: self.file_ltxt[line_num] = line.replace("{", "\n{\n")
+                brack_num = True
 
-            non_str = non_str.replace("{", "\n{\n").replace("}", "\n}\n")
-            line = non_str.replace(r"??!%s!?", str_part)
-            self.file_ltxt[line_num] = line
+            if brack_num is True:
+                if '{' in line: brack_num = 1; continue
+
+            elif type(brack_num) is int:
+                if '{' in line:    brack_num += 1
+                elif '}' in line:  brack_num -= 1
+
+                if brack_num == 0:
+                    brack_num = False
+                    continue
+
+            # If there is no python code carry on
+            else:
+                str_part, non_str = gen_parse.get_str_between_delims(line)
+
+                non_str = non_str.replace("{", "\n{\n").replace("}", "\n}\n")
+                line = non_str.replace(r"??!%s!?", str_part)
+                self.file_ltxt[line_num] = line
+
 
         # Re-split by line-end and remove blank lines
-        self.file_ltxt = [i.strip() for i in '\n'.join(self.file_ltxt).split('\n')
+        self.file_ltxt = [i for i in '\n'.join(self.file_ltxt).split('\n')
                           if not i.isspace() and i]
 
     def find_vars_in_line(self, line):

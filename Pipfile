@@ -11,7 +11,7 @@ pandas = "*"
 matplotlib = "*"
 scipy = "*"
 argparse = "*"
-ipython = "*"
 pyqt5 = "*"
+ipython = "*"
 
 [requires]

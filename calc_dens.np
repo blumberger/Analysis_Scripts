@@ -1,6 +1,0 @@
-load "/scratch/mellis/OLD_Pentacene/Full_Lammps_Run_100ps_Quench_iso/log.lammps" lammps_log as data
-
-set system data to pentacene
-calc density from data as dens
-
-script plot_dens.py

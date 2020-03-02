@@ -16,4 +16,4 @@ echo $x                 (Should be 12)
 
 # Set x using a deeper nesting of brackets
 x = (4 * ($x * 10 / (5*2)) / 4) + 3
-echo $x               (Should be 15)
+echo $x               (Should be 15.0)

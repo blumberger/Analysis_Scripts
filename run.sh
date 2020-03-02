@@ -2,6 +2,7 @@ CONFIG_DIR="./config"
 CONFIG_VAR_FILE="$CONFIG_DIR/vars"
 PWD=`pwd`
 
+source ./scripts/run_utils.sh
 
 # Try to read the variable config file, this is just a file that stores variables permanently. It will be ignored by git.
 INSTALL_DEPS="false"
@@ -22,13 +23,8 @@ fi
 # Install the necessary python libraries and create a virtual enviroment
 if [ "$INSTALL_DEPS" == "true" ]
 then
-    echo "Installing dependencies"
-    if [ "$PIPENV_EXISTS" == "" ]
-    then
-        python3 -m pip install pipenv --user
-    fi
-    pipenv install
-    echo "Installed dependencies"
+    # From ./scripts/run_utils.sh
+    install_deps
 fi
 
 # Create the config directory if it doesn't exist
@@ -49,7 +45,7 @@ do
     case $arg in 
         i) INP_FILE=$OPTARG; HELP="false";;
         t) TEST="true"; HELP="false";;
-        u) HELP="false"; pipenv install;;
+        u) HELP="false"; install_deps;; # from ./scripts/run_utils.sh
         h) HELP="true";;
     esac
 done
@@ -103,7 +99,7 @@ fi
 
 if [ "$TEST" == "true" ]
 then
-    pipenv run python3 $PWD/src/tests/call_all_examples.py
+    pipenv run python3 -c "from src.tests import call_all_examples"
     exit 0
 fi
 

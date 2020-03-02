@@ -4,29 +4,6 @@
 A module that provides useful functions for checking the type of certain variables.
 """
 
-def remove_quotation_marks(String):
-    """
-    Will remove any quotation marks from a string.
-
-    Inputs:
-        * String <str> => A string that needs quotation marks removed.
-    Outputs:
-        <str> A string with quotation marks removed.
-    """
-    String = String.strip()
-    if len(String) < 2: return String
-    if len(String) == 2:
-        if String == "''" or String == '""':
-            return ""
-
-    for i in ('"', "'"):
-        while String[0] == i and String[-1] == i:
-            String = String[1:-1]
-
-    return String
-
-
-
 def eval_type(String):
     """
     Will convert a string to a number if possible. If it isn't return a string.

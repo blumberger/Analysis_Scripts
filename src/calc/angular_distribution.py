@@ -30,24 +30,20 @@ class Angular_Dist(gen_type.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     _write_types = ('json', )
-    required_metadata = ('long_axis_atoms', 'short_axis_atoms',
-                         'atoms_per_molecule')
-    _defaults = {'number_bins': 'auto', 'histogram_density': True}
+    required_metadata = ('atoms_per_molecule',)
+    _defaults = {'number_bins': 'auto', 'histogram_density': True,
+                 'short_axis_atoms': [[23, 24], [22, 25],
+                                      [21, 26], [20, 27],
+                                      [19, 18], [34, 10],
+                                      [9, 0], [8, 1], [7, 2],
+                                      [6, 3], [5, 4]],
+                 'long_axis_atoms': [[23, 5], [24, 4], [22, 6], [25, 3]],
+                }
     # Need these 3 attributes to create a new variable type
     data = {}
     metadata = {'file_type': 'json'}
     name = "Angular Distribution"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
-
-    def get_data(self):
-        """
-        Will get the data to use from the inputted class.
-        """
-        if 'xyz_data' in dir(self.Var.data):
-            self.data = self.Var.data.xyz_data
-        elif 'csv_data' in dir(self.Var.data):
-            self.data = self.Var.data.csv_data[['x', 'y', 'z']].to_numpy()
-            self.data = np.array([self.data])
 
     def calc(self):
         """
@@ -59,9 +55,14 @@ class Angular_Dist(gen_type.Calc_Type):
         """
         self.get_data()
         ats_per_mol = self.Var.metadata['atoms_per_molecule']
-        long_ax_ats = self.Var.metadata['long_axis_atoms']
-        short_ax_ats = self.Var.metadata['short_axis_atoms']
-        all_at_crds = self.data
+        if 'long_axis_atoms' not in self.Var.metadata:
+            long_ax_ats = self.metadata['long_axis_atoms']
+        else: long_ax_ats = self.Var.metadata['long_axis_atoms']
+        if 'short_axis_atoms' not in self.Var.metadata:
+            short_ax_ats = self.metadata['short_axis_atoms']
+        else: short_ax_ats = self.Var.metadata['short_axis_atoms']
+
+        all_at_crds = self.compute_data
 
         self.long_ax_angles, self.long_ax_vecs = [], []
         self.long_ax_bin_edges, self.long_ax_counts = [], []
@@ -100,7 +101,6 @@ class Angular_Dist(gen_type.Calc_Type):
         self.long_ax_bin_edges = np.array(self.long_ax_bin_edges)
         self.long_ax_counts = np.array(self.long_ax_counts)
 
-
     def json_data(self):
         """
         Will return data in a form that the json writer can write.
@@ -138,10 +138,14 @@ class Angular_Dist(gen_type.Calc_Type):
         avg_mol_crds = np.mean(mol_crds, axis=1)
         center_ind, _, _ = geom.find_center_atom(avg_mol_crds)
 
-        at1, at2 = at_inds[0], at_inds[1]
+        # First convert to array
+        if len(np.shape(at_inds)) == 1:
+            at_inds = [at_inds]
+        at_inds = np.array(at_inds)
 
         # First get the vector describing an axis for all mols and the center one
-        axis_vecs = mol_crds[:, at1] - mol_crds[:, at2]
+        axis_vecs = mol_crds[:, at_inds[:, 0]] - mol_crds[:, at_inds[:, 1]]
+        axis_vecs = np.mean(axis_vecs, axis=1)
         center_vec = axis_vecs[center_ind]
 
         # Remove center mol (it always make a 0 angle with itself)
@@ -167,7 +171,8 @@ class Angular_Dist(gen_type.Calc_Type):
         # Convert to degress
         edges = bin_edges * 180 / np.pi
 
-        bars = axis.bar(edges[:-1], counts, width=np.diff(edges), label=label)
+        bars = axis.bar(edges[:-1], counts, width=np.diff(edges), label=label,
+                        alpha=0.7)
         return bars, axis
 
     def plot(self, axes=False, label=""):
@@ -207,5 +212,5 @@ class Angular_Dist(gen_type.Calc_Type):
         for i, ax in enumerate(axes):
             ax.set_xlim([0, 180])
         plt.tight_layout()
-        
+
         return axes

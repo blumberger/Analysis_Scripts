@@ -51,6 +51,17 @@ class Variable(object):
         except AttributeError:
             pass
 
+    # Overload appending
+    def append(self, val):
+        """
+        Check the data is a list, if not don't append
+        """
+        if type(self.data) == list:
+            self.data.append(val)
+            return self
+        else:
+            raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
+
     # Overload mathematical operators
     def __add__(self, val):
         """Ammend data attribute and return self"""

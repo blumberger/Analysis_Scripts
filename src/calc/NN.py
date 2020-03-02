@@ -47,7 +47,6 @@ class NN(gen_type.Calc_Type):
     required_data_names = ('xyz', )
 
     # Need these 3 attributes to create a new variable type
-    data = {}
     metadata = {'file_type': 'json'}
     name = "Nearest Neighbour Lists"
 
@@ -64,6 +63,7 @@ class NN(gen_type.Calc_Type):
         the second key being either 'distances' or 'atom_indices' the third key
         will be the atom index.
         """
+        self.data = {}
         XYZFile = self.Var.data
         cols = XYZFile.cols
         at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.xyz_data])

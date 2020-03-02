@@ -26,7 +26,6 @@ class Density(gen_type.Calc_Type):
     required_data_names = ('csv', )
 
     # Need these 3 attributes to create a new variable type
-    csv_data = []
     metadata = {'file_type': 'csv'}
     name = "Densities"
 
@@ -43,6 +42,7 @@ class Density(gen_type.Calc_Type):
         the second key being either 'distances' or 'atom_indices' the third key
         will be the atom index.
         """
+        self.csv_data = []
         data = self.Var.data.csv_data
         did_dens_calc = False
         data_count = 0

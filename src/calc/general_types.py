@@ -3,6 +3,10 @@
 """
 A module that contains general types that can be subclassed to create new calculation types.
 """
+import copy
+import numpy as np
+
+from collections import Counter
 
 class Calc_Type(object):
     """
@@ -34,6 +38,14 @@ class Calc_Type(object):
         """
         Just check the required metadata is there and call the calc function.
         """
+        # Copy all data to make them unique for each instance
+        all_vars = [i for i in dir(self) if i[0] != '_']
+        for i in all_vars:
+            if i[0] != '_':
+                var = getattr(self, i)
+                if not callable(var) and isinstance(var, (dict, list, tuple)):
+                    setattr(self, i, copy.deepcopy(var))
+
         # Check we have all the data we need to calculate the property
         self.Var = Variable
         for key in self.required_metadata:
@@ -58,6 +70,72 @@ class Calc_Type(object):
                                      + "\n\nYou need to give me a"
                                      + f" variable with some '{name}' data in.")
 
+    def get_data(self):
+        """
+        Will get the data to use from the inputted class.
+        """
+        if 'xyz_data' in dir(self.Var.data):
+            self.compute_data = self.Var.data.xyz_data
+        elif 'csv_data' in dir(self.Var.data):
+            self.Var.data.set_data()
+            self.compute_data = self.Var.data.csv_data[['x', 'y', 'z']].to_numpy()
+            self.compute_data = np.array([self.compute_data])
+
+    def get_cols_from_CSV(self):
+        """
+        Will get the element type columns from a csv file.
+        """
+        df = self.Var.data.csv_data
+        # Error check
+        if 'type' not in df.columns:
+            raise SystemError("\n\n\nI can't calculate the COMs of the mols. I "
+                              + "can't find the atoms types in the data."
+                              + "I don't what atom types are in the mol")
+
+        # Error check -if there is a mol with equal nums of atom of x and y type.
+        num_elm_in_mol = [self.at_types[i] for i in self.at_types]
+        if len(set(num_elm_in_mol)) != len(num_elm_in_mol):
+            raise SystemError("\n\n\nCan't compute center of masses for RDF."
+                            + " I don't know what types the atoms are and can't"
+                            + " work them out as the molecule has 2 or more "
+                            + "elements with the same number of atoms.\n\n"
+                            + " There are no other RDF methods implemented.")
+
+        # Compare how many atoms of each type are in each molecule and how many there should be.
+        num_at_types = Counter(df.loc[:self.ats_per_mol-1, 'type'])
+        at_types = {i: self.at_types[i] for i in self.at_types}
+        cvt_type = {}
+        for i in num_at_types:
+            for elm in at_types:
+                if at_types[elm] == num_at_types[i]:
+                    print(f"Atom type '{i}' is element {elm}.")
+                    cvt_type[str(i)] = elm
+                    break
+            else:
+                raise SystemError("Could determine what element each atom type is.")
+            at_types.pop(elm)
+
+        # Create the cols array
+        self.cols = df['type'].to_numpy().astype(str)
+        self.natom = len(self.cols)
+        for i in np.unique(self.cols):
+            self.cols[self.cols == i] = cvt_type[i]
+        self.cols = np.array([self.cols])
+
+    def get_cols(self):
+        """
+        Will try to get the atom element types from the number of each type in a
+        molecule.
+        """
+
+        if 'cols' not in dir(self.Var.data):
+            if 'csv_data' in dir(self.Var.data):
+                self.get_cols_from_CSV()
+            else:
+                raise SystemError("Can't compute center of masses for RDF."
+                               + " There are no other RDF methods implemented.")
+        else:
+            self.cols = self.Var.data.cols
 
     def calc(self):
         """

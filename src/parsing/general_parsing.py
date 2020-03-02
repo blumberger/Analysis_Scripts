@@ -10,6 +10,28 @@ import re
 from src.system import type_checking as type_check
 
 
+def rm_quotation_marks(String):
+    """
+    Will remove any quotation marks from a string.
+
+    Inputs:
+        * String <str> => A string that needs quotation marks removed.
+    Outputs:
+        <str> A string with quotation marks removed.
+    """
+    String = String.strip()
+    if len(String) < 2: return String
+    if len(String) == 2:
+        if String == "''" or String == '""':
+            return ""
+
+    for i in ('"', "'"):
+        while String[0] == i and String[-1] == i:
+            String = String[1:-1]
+
+    return String
+
+
 def get_str_between_delims(string, start_delim='"', end_delim=False):
     """
     Will get the string between 2 delimeters.
@@ -34,7 +56,7 @@ def get_str_between_delims(string, start_delim='"', end_delim=False):
     end_ind += start_ind
 
     txt_within_delim = string[start_ind+1: end_ind]
-    txt_without_delim = string[:start_ind+1] + string[end_ind:]
+    txt_without_delim = string[:start_ind+1] + r"??!%s!?" + string[end_ind:]
     return txt_within_delim, txt_without_delim
 
 def split_str_by_multiple_splitters(string, splitters):

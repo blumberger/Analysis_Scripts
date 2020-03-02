@@ -56,14 +56,10 @@ class Lammps_Log_File(gen_io.DataFileStorage):
 
         # Collect similar dataframes
         self.collected_csv_data = [pd.DataFrame() for i in range(len(col_heads))]
-        count = 0
         for df in self.csv_data:
             heads = '|'.join(df.columns)
-            if heads == col_heads[count]:
-               self.collected_csv_data[count] = self.collected_csv_data[count].append(df)
-            else:
-               count += 1
-               self.collected_csv_data[count] = self.collected_csv_data[count].append(df)
+            index = col_heads.index(heads)
+            self.collected_csv_data[index] = self.collected_csv_data[index].append(df)
 
     def get_csv_lines(self, same_line_tolerance=100):
         """
@@ -200,6 +196,8 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
     def __init__(self, filepath):
         super().__init__(filepath)
+        self.metadata = copy.deepcopy(self.metadata)
+        self.csv_data = copy.deepcopy(self.csv_data)
 
     def parse(self):
         """
@@ -454,6 +452,17 @@ class Lammps_Dump(gen_io.DataFileStorage):
         self.wrapped_csv = copy.deepcopy(self.csv_data)
         self.fix_wrapping()
 
+    def set_data(self):
+        """
+        Will set the wrapped_csv or unwrapped_csv to be the csv_data.
+
+        This depends on the metadata inputted.
+        """
+        if self.metadata['coordinate_wrapping'] == 'wrapped' or not self.unwrapped_avail:
+            self.csv_data = self.wrapped_csv
+        else:
+            self.csv_data = self.unwrapped_csv
+
     def parse_dump(self, item_num):
         """
         Will parse the dump CSV data.
@@ -536,16 +545,20 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         Will translate atom coords to fix wrapping of coords in periodic systems
         """
+        self.unwrapped_avail = True
+        self.unwrapped_csv = copy.deepcopy(self.csv_data)
+
         # Check we can do the wrapping
-        if not all(j in self.csv_data.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z',)):
-            return self.csv_data
+        if not all(j in self.unwrapped_csv.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z',)):
+            self.unwrapped_avail = False
+            return self.unwrapped_csv
 
         # Apply the wrapping
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
         for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
             for idim, dim in enumerate('xyz'):
                 if unit_vec[idim] != 0:
-                    self.csv_data[dim] += self.csv_data[wrap_dim] * unit_vec[idim]
+                    self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
 
     def set_xyz_data(self):
         """

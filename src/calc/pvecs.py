@@ -27,12 +27,12 @@ class PVecs(gen_type.Calc_Type):
     # Need these 3 attribute to create a new variable type
     metadata = {'file_type': 'xyz'}
     name = "P-Vecs"
-    data = []
 
     def calc(self):
         """
         Will calculate the pvecs from self.xyz_data_File.xyz_data
         """
+        self.data = []
         XYZFile = self.Var.data
         at_crds = XYZFile.xyz_data
         self.nstep = XYZFile.nstep

@@ -1347,34 +1347,39 @@ class INP_File(object):
             else:
                 self.print_error(f"'{words[2]}' scripts not yet suported")
 
-    def exec_python_script(self, filepath=False, script_txt=False):
+    def exec_python_script(self, A_Bdsalkjsdjk=False, Z_z_SDslkajdsASDnmsd=False):
         """
-        Will execute a python script from a filepath
+        Will execute a python script from a A_Bdsalkjsdjk
+
+        The variables in this are intentionally randomish junk. This is to avoid
+        variable problems when running scripts in the local scope of this
+        function. Obviously this is a horrible hack, but it works for now.
 
         Inputs:
-            * filepath <str> => The filepath to load and execute.
+            * A_Bdsalkjsdjk <str> => The filepath to load and execute.
+            * A_Bdsalkjsdjk <str> => The filepath to load and execute.
         """
-        if script_txt is False and type(filepath) is str:
-            with open(filepath, 'r') as f:
-                script_txt = f.read()
-        elif type(script_txt) is str and filepath is False:
-            filepath = "inline-script"
+        if Z_z_SDslkajdsASDnmsd is False and type(A_Bdsalkjsdjk) is str:
+            with open(A_Bdsalkjsdjk, 'r') as sdiukndvqo_groeihbn:
+                Z_z_SDslkajdsASDnmsd = sdiukndvqo_groeihbn.read()
+        elif type(Z_z_SDslkajdsASDnmsd) is str and A_Bdsalkjsdjk is False:
+            A_Bdsalkjsdjk = "inline-script"
         else:
             SystemError("'exec_python_script' function used incorrectly!")
 
         # Declare all the variables in the global scope so the user can use them
-        for var_name in self.variables:
-            globals()[var_name] = getattr(self, var_name)
+        for _asdoiasn_sdaknfjf in self.variables:
+            globals()[_asdoiasn_sdaknfjf] = getattr(self, _asdoiasn_sdaknfjf)
 
         # Run the script in a try loop
         try:
-            exec(script_txt)
+            exec(Z_z_SDslkajdsASDnmsd)
         except Exception as e:
             self.print_error("Something is wrong with your script!\n\nError: "
-                             + str(e) + "\n\n" + f"Script Name: {filepath}")
+                             + str(e) + "\n\n" + f"Script Name: {A_Bdsalkjsdjk}")
 
         # Parse all the variables
-        any_vars = re.findall(VAR_REGEX+" *=", script_txt)
+        any_vars = re.findall(VAR_REGEX+" *=", Z_z_SDslkajdsASDnmsd)
         any_vars = (var.strip('= ') for var in any_vars)
         for var in any_vars:
             if var in locals():
@@ -1412,7 +1417,7 @@ class INP_File(object):
 
         py_script = '\n'.join(py_script)
 
-        self.exec_python_script(script_txt=py_script)
+        self.exec_python_script(Z_z_SDslkajdsASDnmsd=py_script)
 
         self.line_num = end_line
 

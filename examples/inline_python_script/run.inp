@@ -1,0 +1,31 @@
+###############################################
+#                                             #
+# An example of using python code within an   #
+# input file to manipulate variables.         #
+###############################################
+
+# Run some python code below (between the braces)
+python {
+    x = "Hello World!"
+    y = {'foo':'bar'}
+
+    if x == "BOB":
+        print("BOB")
+    print(x)
+    print(y)
+    print({i: range(10) for i in range(3)})
+}
+
+# Output some stuff
+echo ""
+echo "The variable y from the python code was $y"
+
+
+# Run another python script here
+python {
+    import numpy as np
+
+    print("\nWe can add more variables to ones declared above")
+    y['bob'] = 'fatima'
+    print(f"\n{y}")
+}

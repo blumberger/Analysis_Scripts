@@ -111,6 +111,11 @@ all_example_tests = {
                                      'inp_file' : 'run_script.inp',
                                      'out_file' : False,
                                    },
+                      'inline_python_script': {
+                                     'test_func': check_stdout,
+                                     'inp_file' : 'run.inp',
+                                     'out_file' : False,
+                                   },
 
 
 

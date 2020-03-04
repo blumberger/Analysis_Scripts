@@ -1,0 +1,38 @@
+folder =  "/home/oem/Data/FSSH/FSSH"
+
+python { 
+    times = []
+    sizes = []
+}
+
+for i in filepath($folder/run-fssh*) {
+echo $i
+    python {
+        import pandas as pd
+        import numpy as np
+
+        data = pd.read_csv(i+"/run-1.ener", skiprows = [0], names = ("Step", "Time", "Kin", "Temp", "Pot", "Etot", "CPU"), delim_whitespace=True)['CPU']
+        avg_cpu = np.mean(data[4:])
+        times.append(avg_cpu)
+
+        size = (int(i.split('_')[-1]) ** 3) * 2
+        sizes.append(size)
+    }
+}
+
+python {
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    plt.plot(sizes, times, 'bo')
+    fit = np.polyfit(sizes, times, 3)
+    plt.plot(range(0, 2000), np.polyval(fit, range(0, 2000)), 'k-', lw=0.7)
+    
+    plt.annotate(r"Scaling: AN$^3$ + BN$^2$ + CN"+"\n\nWhere:\n           A = %.2g\n           B = %.2g\n           C = %.2g" % (fit[0], fit[1], fit[2]), (100, 1000), fontsize=22)
+
+    plt.ylabel("CPU time [s]", fontsize=26)
+    plt.xlabel("Num Pentacene Mols", fontsize=26)
+
+
+    plt.show()
+}

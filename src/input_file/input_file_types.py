@@ -28,7 +28,7 @@ class Variable(object):
     # Overload the type convertors
     def __str__(self):
         """return str(data)"""
-        return str(self.data)
+        return f"Variable '{self.name}':" + "\n" + str(self.data)
     def __float__(self):
         """return float(data)"""
         return float(self.data)
@@ -61,6 +61,15 @@ class Variable(object):
             return self
         else:
             raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
+
+    def __len__(self):
+        """
+        Return a length of the variable
+        """
+        if isinstance(self.data, (list, dict, tuple)):
+            return len(self.data)
+        else:
+            return 1
 
     # Overload mathematical operators
     def __add__(self, val):

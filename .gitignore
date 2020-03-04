@@ -8,4 +8,4 @@ config/vars
 */.*.sw*
 
 snapshots/
-*.inp
+./*.inp

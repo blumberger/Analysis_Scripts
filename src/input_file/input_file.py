@@ -1381,9 +1381,10 @@ class INP_File(object):
         # Parse all the variables
         any_vars = re.findall(VAR_REGEX+" *=", Z_z_SDslkajdsASDnmsd)
         any_vars = (var.strip('= ') for var in any_vars)
-        for var in any_vars:
-            if var in locals():
-                self.set_var(var, locals()[var])
+        for var_name in any_vars:
+            if var_name in locals():
+                setattr(self, var_name, locals()[var_name])
+                if var_name not in self.variables: self.variables.append(var_name)
 
     def parse_python_cmd(self, line):
         """
@@ -1507,7 +1508,9 @@ class INP_File(object):
                 self.print_error(f"Can't find variable '{check_var}'")
 
             Var = getattr(self, check_var)
-            line = line.replace(f"${check_var}", str(Var))
+            str_var = str(Var)
+            str_var = re.sub("Variable .*:[\n]+", "", str_var)
+            line = line.replace(f"${check_var}", str_var)
 
         return line, any_vars
 

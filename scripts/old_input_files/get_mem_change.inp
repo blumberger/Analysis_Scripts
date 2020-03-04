@@ -1,0 +1,88 @@
+folder = "/home/oem/Data/FSSH"
+
+python { 
+    all_peaks = []
+    all_sizes = []
+}
+
+for filepath in filepath("$folder/run-fssh*") {
+
+    python {
+        import os;
+        massif_files = [i for i in os.listdir(filepath) if 'massif' in i]
+        if len(massif_files):
+            massif_file = massif_files[0]
+    }
+
+    load "$filepath/$massif_file" massif_file as mem_data
+
+
+    python {
+        all_peaks.append(mem_data.data.peak_mem)
+
+        size = int(filepath.split('_')[-1])
+        size = 2 * (size ** 3)
+        all_sizes.append(size)
+    }
+}
+
+
+python {
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    x = all_sizes
+    y = all_peaks
+
+    plt.plot(x, y, 'ko')
+
+    plt.xlabel("System Size [num pent mols]", fontsize=26)
+    plt.ylabel("Memory Used [MB]", fontsize=26)
+
+    mem_per_core_low = 64000. / 24.
+    plt.axhline(mem_per_core_low, ls='--', color='g')
+    plt.annotate("Mem per core low mem node", (0, 1.01*mem_per_core_low), fontsize=20)
+
+    mem_per_core_high = 128000. / 24.
+    plt.axhline(mem_per_core_high, ls='--', color='r')
+    plt.annotate("Mem per core high mem node", (0, 1.005*mem_per_core_high), fontsize=20)
+
+    fit = np.polyfit(x, y, 2)
+    new_x = range(0, 2000, 10)
+    new_y = np.polyval(fit, new_x)
+    plt.plot(new_x, new_y, '-', lw=0.7)
+
+    # Now determine were we cross the x axis for high and low mem nodes
+    A, B, C = fit
+    y = mem_per_core_low
+    max_mols_low = (-B + np.sqrt(B**2 - 4*(A * (C-y))))/(2*A)
+    max_mols_low = int(max_mols_low)
+
+    y = mem_per_core_high
+    max_mols_high = (-B + np.sqrt(B**2 - 4*(A * (C-y))))/(2*A)
+    max_mols_high = int(max_mols_high)
+
+    plt.plot([max_mols_low, max_mols_low], [0, mem_per_core_low], 'g--', lw=0.7)
+    max_dim_low = int(max_mols_low**(1/3))
+    plt.annotate(f"   {max_mols_low} mols\n~{max_dim_low}x{max_dim_low}x{max_dim_low}", (max_mols_low, 400), fontsize=17)
+
+    plt.plot([max_mols_high, max_mols_high], [0, mem_per_core_high], 'r--', lw=0.7)
+    max_dim_high = int(max_mols_high**(1/3))
+    plt.annotate(f"   {max_mols_high} mols\n~{max_dim_high}x{max_dim_high}x{max_dim_high}", (max_mols_high, 400), fontsize=17)
+
+
+    plt.figure()
+    new_sizes = np.arange(1, 15)
+    new_mems = np.polyval(fit, new_sizes**3)
+    
+    cores_per_traj = (128000./24.) / new_mems
+    cores_per_traj[cores_per_traj > 1] = 1
+    #cores_per_traj = cores_per_traj
+
+    plt.plot(new_sizes, cores_per_traj * 100.)
+    plt.ylabel("Percentage of node usable [%]", fontsize=26)
+    plt.xlabel("Dimension of Crystal", fontsize=26)
+    plt.annotate("If we use more than the\namount of RAM per core\nwe won't be able to use\nthe full node on archer.", (2, 55), fontsize=20)
+
+    plt.show()
+}

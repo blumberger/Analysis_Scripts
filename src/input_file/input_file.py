@@ -198,6 +198,10 @@ class INP_File(object):
         # ltxt (list txt) is the file txt with each line in a different element
         self.file_ltxt = [i for i in self.file_txt.split("\n")
                           if i and not i.isspace()]
+
+        # Clean up the input file and get some important iterators
+        self.line_num = 0
+        self.clean_inp()
         self.line_nums = list(range(1, len(self.file_ltxt)+1))
         self.inp_filename = self.inp_filepath[self.inp_filepath.rfind('/')+1:]
 
@@ -206,8 +210,6 @@ class INP_File(object):
             self.file_ltxt_orig[line_num] = self.file_ltxt[line_num - 1]
 
         # Now do the parsing
-        self.line_num = 0
-        self.clean_inp()
         self.line_num = 0
         self.check_all_lines()
         self.line_num = 0
@@ -224,7 +226,7 @@ class INP_File(object):
         variables = []
         lines = self.file_ltxt
         while self.line_num < len(lines):
-            line = lines[self.line_num]
+            line = lines[self.line_num].strip()
             if line == "}":  self.line_num += 1; continue
 
             # Error check any variables
@@ -698,15 +700,18 @@ class INP_File(object):
 
     #############      Parsing Methods       #############
 
-    def parse_lines(self, lines=False):
+    def parse_lines(self, start_line=0, end_line=False):
         """
         Will loop over all lines and produce
         """
-        if lines is False:  lines = self.file_ltxt[self.line_num:]
+        if end_line is False: end_line = len(self.file_ltxt)
+
+        lines = self.file_ltxt
         self.E_str = "parse_lines"
+        self.line_num = start_line
 
         # Loop over lines and parse
-        while self.line_num < len(lines):
+        while self.line_num < end_line:
             line = lines[self.line_num].strip()
 
             if line == "echo": print("")
@@ -1243,14 +1248,20 @@ class INP_File(object):
         for keyword in VALID_FOR_FUNCS:
             if re.findall(f"{keyword}\(.*\)", line):
                 fnc = getattr(self, f"do_{keyword}_forloop")
-                all_iter_vals = fnc(line)
+                all_iter_vars = fnc(line)
                 break
 
         # Do the for loop
-        for iter_val in all_iter_vals:
-            self.line_num = 0
-            self.set_var(iter_var_name, iter_val)
-            self.parse_lines(new_lines)
+        start_for = self.line_num + 2
+        end_for = end_line
+
+        for iter_var in all_iter_vars:
+            # self.set_var(iter_var_name, iter_var)
+            setattr(self, iter_var_name, iter_var)
+            # Append the variable to the list of variables
+            if iter_var_name not in self.variables:
+                self.variables.append(iter_var_name)
+            self.parse_lines(start_for, end_for)
 
         self.line_num = end_line
 
@@ -1347,7 +1358,7 @@ class INP_File(object):
             with open(filepath, 'r') as f:
                 script_txt = f.read()
         elif type(script_txt) is str and filepath is False:
-            pass
+            filepath = "inline-script"
         else:
             SystemError("'exec_python_script' function used incorrectly!")
 
@@ -1434,10 +1445,20 @@ class INP_File(object):
         # Loop over all lines, check for braces and replace them with \n{ and \n}
         brack_num = False
         for line_num, line in enumerate(self.file_ltxt):
-            # First check for any python code.
+            # First check for any inline python code brace opening
             if re.findall("^python.*{|^python ", line):
-                if '{' in line: self.file_ltxt[line_num] = line.replace("{", "\n{\n")
-                brack_num = True
+                # Put line breaks around the first occurance of the open brace.
+                if '{' in line:
+                    splitter = line.split("{")
+                    line = splitter[0] + '\n{\n' + '{'.join(splitter[1:])
+                    brack_num = True
+
+                # Put line breaks around the last occurance of the close brace.
+                if '}' in line:
+                    splitter = line.split("}")
+                    line = '}'.join(splitter[:-1]) + '\n}\n' + splitter[-1]
+                    brack_num = False
+                self.file_ltxt[line_num] = line
 
             if brack_num is True:
                 if '{' in line: brack_num = 1; continue
@@ -1457,7 +1478,6 @@ class INP_File(object):
                 non_str = non_str.replace("{", "\n{\n").replace("}", "\n}\n")
                 line = non_str.replace(r"??!%s!?", str_part)
                 self.file_ltxt[line_num] = line
-
 
         # Re-split by line-end and remove blank lines
         self.file_ltxt = [i for i in '\n'.join(self.file_ltxt).split('\n')

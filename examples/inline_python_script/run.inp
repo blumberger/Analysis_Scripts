@@ -4,6 +4,9 @@
 # input file to manipulate variables.         #
 ###############################################
 
+# Run some python code in 1 line
+python { print("\n1 line        (This should be '1 line')\n") }
+
 # Run some python code below (between the braces)
 python {
     x = "Hello World!"
@@ -11,9 +14,8 @@ python {
 
     if x == "BOB":
         print("BOB")
-    print(x)
-    print(y)
-    print({i: range(10) for i in range(3)})
+    print(x, "            (This should be 'Hello World!')")
+    print(y, "            (This should be '{'foo': 'bar'}')")
 }
 
 # Output some stuff
@@ -25,7 +27,7 @@ echo "The variable y from the python code was $y"
 python {
     import numpy as np
 
-    print("\nWe can add more variables to ones declared above")
-    y['bob'] = 'fatima'
-    print(f"\n{y}")
+    print("\nWe can see previously declared variables")
+    
+    print("y =", y, "                (This should be 'y = {'foo': 'bar'}')")
 }

@@ -59,9 +59,10 @@ from src.calc import RDF as rdf
 from src.input_file import input_file_types as inp_types
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
-            'script', 'python')
+            'script', 'python', 'if')
 SET_FOLDERPATH = "src/data/set"
 VALID_FOR_FUNCS = ("range", "filepath", "list")
+VALID_LOAD_WORDS = ("into", "as")
 VALID_SCRIPT_TYPES = {'python', 'C++', 'C'}
 VAR_REGEX = "\$*[A-Za-z]+[A-Za-z0-9_-]*"
 IN_STR_VAR_REGEX = "\$[A-Za-z]+[A-Za-z0-9_-]*"
@@ -279,6 +280,10 @@ class INP_File(object):
                 for var in vars:
                     if var not in variables: variables.append(var)
 
+            # Error check any python commands
+            elif self.line_declarations['if'](line):
+                self.check_if_statement(line)
+
             self.line_num += 1
 
         # Reset the inp file variables and line number
@@ -346,13 +351,17 @@ class INP_File(object):
             * line <str> => A string containing the cleaned line from a input file.
         """
         self.E_str = "check_load_command"
-        err_msg = "The load command takes the syntax 'load <file> <file_type> as <name>'"
+        err_msg = "The load command takes the syntax 'load <file> <file_type> as|into <name>'"
 
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
 
         words = line.split()
         words = self.fix_words(words)
+        self.E_str = "check_load_command"
         if len(words) != 5:
+            self.print_error(err_msg)
+
+        if words[3] not in VALID_LOAD_WORDS:
             self.print_error(err_msg)
 
         try:
@@ -386,7 +395,7 @@ class INP_File(object):
         err_msg += "\n\nor you could specify the type of file to write via:\n\n\t"
         err_msg += "write <data_name> <filepath> as <file_type>"
 
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
         if len(words) != 3 and len(words) != 5:
@@ -412,7 +421,7 @@ class INP_File(object):
             * line <str> => A string containing the cleaned line from a input file.
         """
         self.E_str = "check_variable_line"
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
         words = [i for i in line.split('=') if i]
         words = self.fix_words(words)
 
@@ -458,7 +467,7 @@ class INP_File(object):
             metadata[m_name] = ""
 
         # Check if there are any undeclared variables
-        line, any_vars = self.find_vars_in_line(new_line)
+        line, any_vars = self.find_vars_in_str(new_line)
         self.E_str = "check_math_line"
 
         # Check if there are any unwanted characters
@@ -487,7 +496,7 @@ class INP_File(object):
         self.E_str = "check_echo_command"
 
         # Check for any undeclared variables
-        self.find_vars_in_line(line)
+        self.find_vars_in_str(line)
 
         # Check for any undeclared metadata
         line = re.sub("^echo ", "", line)
@@ -510,7 +519,7 @@ class INP_File(object):
         err_msg += " from <variable name> as <new variable name>'"
 
         # Clean up the line
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
 
@@ -628,7 +637,7 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        line, _ = self.find_vars_in_line(line)
+        line, _ = self.find_vars_in_str(line)
         words = line.split()
         self.E_str = "check_script_command"
 
@@ -662,7 +671,7 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        line, _ = self.find_vars_in_line(line)
+        line, _ = self.find_vars_in_str(line)
         words = line.split()
         self.E_str = "check_python_command"
 
@@ -697,6 +706,23 @@ class INP_File(object):
 
         self.line_num = end_line
         return any_vars
+
+    def check_if_statement(self, line):
+        """
+        Will check the syntax of an if statement.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        line = re.sub("^if *", "", line)
+        # remove the brackets
+        statement, _ = gen_parse.get_str_between_delims(line, "(", ")")
+
+        # Check all variables have been declared
+        any_vars = [i.strip('$') for i in re.findall(VAR_REGEX, statement)]
+        for var_name in any_vars:
+            if var_name not in self.variables:
+                self.print_error(f"Unknown variable: {var_name}")
 
     #############      Parsing Methods       #############
 
@@ -758,6 +784,9 @@ class INP_File(object):
 
             elif self.line_declarations['python'](line):
                 self.parse_python_cmd(line)
+
+            elif self.line_declarations['if'](line):
+                self.parse_if_cmd(line)
 
             # The end of control statements
             elif '}' in line:
@@ -872,7 +901,7 @@ class INP_File(object):
                 value = type_check.eval_type(word)
                 if type(value) == str:
                     value = gen_parse.rm_quotation_marks(value)
-                    value, _ = self.find_vars_in_line(value)
+                    value, _ = self.find_vars_in_str(value)
 
             # Replace all metadata instances with their values
             else:
@@ -1022,7 +1051,7 @@ class INP_File(object):
         """
         self.E_str = "parse_load_cmd"
         # Split the line by whitespace and get the values of any variables
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
 
@@ -1039,8 +1068,14 @@ class INP_File(object):
         for key in Loaded_Data.metadata:
             if key not in metadata: metadata[key] = Loaded_Data.metadata[key]
 
-
-        self.set_var(data_name, Loaded_Data, metadata)
+        if words[3] == 'into':
+            if data_name not in self.variables:
+                self.set_var(data_name, [Loaded_Data], metadata)
+            else:
+                vars = getattr(self, data_name)
+                vars.append(Loaded_Data)
+        elif words[3] == "as":
+            self.set_var(data_name, Loaded_Data, metadata)
 
     def parse_write_cmd(self, line):
         """
@@ -1054,7 +1089,7 @@ class INP_File(object):
         """
         self.E_str = "parse_write_cmd"
         # Split the line by whitespace and get the values of any variables
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
 
@@ -1116,7 +1151,7 @@ class INP_File(object):
         """
         self.E_str = "parse_calc_cmd"
         # Clean up the line
-        line, any_vars = self.find_vars_in_line(line)
+        line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         _, calc_type, _, var_name, _, new_var_name = words
 
@@ -1206,6 +1241,8 @@ class INP_File(object):
         print("\n\n\nVariables loaded:")
         for var in self.variables:
             Var = getattr(self, var)
+            if 'data' not in dir(Var):
+                continue
             attrs = [i for i in dir(Var.data) if '_' != i[0] and not callable(getattr(Var.data, i))]
             n_attr = 3
             print("-"*(len(var) + 5))
@@ -1229,20 +1266,12 @@ class INP_File(object):
         Will parse a for loop line.
         """
         # Get the iterator name
-        line, _ = self.find_vars_in_line(line)
+        line, _ = self.find_vars_in_str(line)
         words = line.split()
         iter_var_name = words[1]
 
-
         # Find the code to run
-        brack_num, new_lines = 1, []
-        for end_line, new_line in enumerate(self.file_ltxt[self.line_num+2:]):
-            if new_line == '{':   brack_num += 1
-            elif new_line == '}': brack_num -= 1
-
-            if brack_num > 0:     new_lines.append(new_line)
-            elif brack_num == 0:  break
-        end_line += self.line_num + 2
+        end_line = self.get_end_brace()
 
         # Carry out the relevant for loop function
         for keyword in VALID_FOR_FUNCS:
@@ -1335,7 +1364,7 @@ class INP_File(object):
         Inputs:
             * line <str> => The line containing the for loop
         """
-        line, _ = self.find_vars_in_line(line)
+        line, _ = self.find_vars_in_str(line)
         words = line.split()
         words[1] = gen_parse.rm_quotation_marks(words[1])
         filepath = gen_io.get_abs_path(words[1])
@@ -1394,23 +1423,19 @@ class INP_File(object):
             * filepath <str> => The filepath to load and execute.
         """
         # Find the code to run
-        brack_num, new_lines = 1, []
-        for end_line, new_line in enumerate(self.file_ltxt[self.line_num+2:]):
-            if new_line == '{':   brack_num += 1
-            elif new_line == '}': brack_num -= 1
-
-            if brack_num > 0:     new_lines.append(new_line)
-            elif brack_num == 0:  break
-        end_line += self.line_num + 2
+        end_line = self.get_end_brace()
 
         py_script = self.file_ltxt[self.line_num+2:end_line]
 
         # Now shift everything back to the minimum indentation
         min_indent = 100000
         for line in py_script:
-            indent = re.findall("^ *", line)[0]
-            len(indent)
+            if line.strip()[0] != '#':
+                indent = re.findall("^ *", line)[0]
+            else:
+                continue
             min_indent = min([min_indent, len(indent)])
+
         for line_num in range(len(py_script)):
             ind_search = "^" + " "*min_indent
             line = re.sub(ind_search, "", py_script[line_num])
@@ -1422,6 +1447,52 @@ class INP_File(object):
 
         self.line_num = end_line
 
+    def parse_if_cmd(self, line):
+        """
+        Will carry out the list for loop (i.e. list('a', 'b', 'c'))
+
+        Inputs:
+            * line <str> => The line containing the for loop
+        """
+        line = re.sub("^if *", "", line)
+        # remove the brackets
+        statement, _ = gen_parse.get_str_between_delims(line, "(", ")")
+
+        # Check all variables have been declared
+        any_vars = [i for i in re.findall(VAR_REGEX, statement)]
+        vars = [getattr(self, var.strip('$')).data for var in any_vars]
+        for var_name, var_val in zip(any_vars, vars):
+            statement = statement.replace(var_name, str(var_val))
+
+        # Evaluate the if statement
+        try:
+            bob = {}
+            exec(f"val={statement}", bob)
+            val = bob['val']
+        except Exception as e:
+            self.print_error("Couldn't parse the if statement\n\nError:"
+                             + str(e))
+
+        end_line = self.get_end_brace()
+
+        self.line_num += 1
+        if val is False:
+            self.line_num = end_line
+
+    def get_end_brace(self):
+        """
+        Will find where the brace ends in a control statement.
+        """
+        # Find the code to run
+        brack_num, new_lines = 1, []
+        for end_line, new_line in enumerate(self.file_ltxt[self.line_num+2:]):
+            if new_line == '{':   brack_num += 1
+            elif new_line == '}': brack_num -= 1
+
+            if brack_num > 0:     new_lines.append(new_line)
+            elif brack_num == 0:  break
+        end_line += self.line_num + 2
+        return end_line
 
     ##### Inp Cleaning methods #################################
 
@@ -1489,9 +1560,9 @@ class INP_File(object):
         self.file_ltxt = [i for i in '\n'.join(self.file_ltxt).split('\n')
                           if not i.isspace() and i]
 
-    def find_vars_in_line(self, line):
+    def find_vars_in_str(self, line):
         """
-        Will find the variables that have been used in a line of text.
+        Will find the variables that have been used in a string (i.e. with the $).
 
         If any variables found aren't declared an error will be thrown
 
@@ -1500,7 +1571,7 @@ class INP_File(object):
         Outputs:
             * (<str>, <list<*>>) The editted line with variables replaced and the variables
         """
-        self.E_str = "find_vars_in_line"
+        self.E_str = "find_vars_in_str"
         any_vars = [i[1:] for i in re.findall(IN_STR_VAR_REGEX, line)]
         for check_var in any_vars:
             # Check the variable exists

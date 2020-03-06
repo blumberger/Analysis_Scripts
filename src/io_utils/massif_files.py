@@ -21,7 +21,8 @@ class Massif_File(gen_io.DataFileStorage):
         * timesteps <numpy.array> => The parsed timesteps from the xyz file.
     """
     def __init__(self, filepath):
-        self.data, self.heap_tree = {}, {}
+        self.data, self.heap_tree_txt = {}, {}
+        self.heap_tree = []
         super().__init__(filepath)
 
     def parse(self):
@@ -80,4 +81,63 @@ class Massif_File(gen_io.DataFileStorage):
         if detailed_heap:
             heap_tree = ltxt[7:]
             snapshot_num = len(self.data['time'])
-            self.heap_tree[snapshot_num] = heap_tree
+            self.heap_tree.append(self.get_detailed_tree_info(heap_tree))
+            self.heap_tree_txt[snapshot_num] = heap_tree
+
+    def get_detailed_tree_info(self, heap_tree):
+        """
+        Will parse the info contained within the detailed heap tree breakdown.
+
+        This basically means it will find which module/subroutine is responsible
+        for what amount of RAM consumption.
+
+        Inputs:
+            * heap_tree <str> => The string containing the detailed heap tree info.
+        Outputs:
+            <list> detailed tree -the information parsed into a list containing
+            a dict for each high mem SR.
+        """
+        detailed_tree = {}
+
+        # Get the first line values
+        for line_num, line in enumerate(heap_tree):
+            splitter = line.split()
+            if len(splitter) == 5 and splitter[2][:2] == '0x':
+                break
+        N_prev, mem_cons_prev, mem_address_prev, module_SR_prev, line_str_prev = splitter
+        file_, bad_line_num = line_str_prev.strip('()').split(':')
+
+
+        # Parse all lines
+        cont = True
+        while cont:
+            if line_num >= len(heap_tree): cont = False
+            tree = {
+                    'mem_cons': mem_cons_prev, 'N': [N_prev],
+                    'mem_address': [mem_address_prev],
+                    'line': [int(bad_line_num)], 'file': [file_]
+                    }
+            # Parse a block
+            while line_num < len(heap_tree):
+                line = heap_tree[line_num]
+                splitter = line.split()
+                if len(splitter) == 5 and splitter[2][:2] == '0x':
+                    N, mem_cons, mem_address, module_SR, line_str = splitter
+                    file_, bad_line_num = line_str.strip('()').split(':')
+                    tree['N'].append(N)
+                    tree['mem_address'].append(mem_address)
+                    tree['line'].append(bad_line_num)
+                    tree['file'].append(file_)
+
+                    # Check if the block ends
+                    if mem_cons != mem_cons_prev:
+                        break
+
+                line_num += 1
+
+            detailed_tree[module_SR_prev] = tree
+            N_prev, mem_cons_prev = N, mem_cons
+            mem_address_prev, module_SR_prev = mem_address, module_SR
+            line_str_prev = line_str
+
+        return detailed_tree

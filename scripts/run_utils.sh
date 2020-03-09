@@ -1,4 +1,4 @@
-# Will install any dependencies and init the pip virtual environment
+# Will install any python dependencies and init the pip virtual environment
 function install_deps() {
     echo "Installing dependencies"
     if [ "$PIPENV_EXISTS" == "" ]
@@ -9,4 +9,3 @@ function install_deps() {
     pipenv install ipython
     echo "Installed dependencies"
 }
-

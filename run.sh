@@ -1,11 +1,32 @@
+#!/usr/bin/env bash
+
+##########################################
+# This script will run the analysis according to the input file
+# 
+# For more info run ./run.sh -h
+##########################################
+
+
 CONFIG_DIR="./config"
 CONFIG_VAR_FILE="$CONFIG_DIR/vars"
 PWD=`pwd`
 
+export CONFIG_DIR
+export CONFIG_VAR_FILE
+export PWD
+
 source ./scripts/run_utils.sh
 
-# Try to read the variable config file, this is just a file that stores variables permanently. It will be ignored by git.
+# Create the config directory if it doesn't exist
 INSTALL_DEPS="false"
+if ! [ -d "$CONFIG_DIR" ]
+then
+   mkdir $CONFIG_DIR
+else
+   INSTALL_DEPS="true"
+fi
+
+# Try to read the variable config file, this is just a file that stores variables permanently. It will be ignored by git.
 if ! [ -f "$CONFIG_VAR_FILE" ]
 then
     INSTALL_DEPS="true"
@@ -27,11 +48,8 @@ then
     install_deps
 fi
 
-# Create the config directory if it doesn't exist
-if ! [ -d "$CONFIG_DIR" ]
-then
-   mkdir $CONFIG_DIR
-fi
+# Compile any C programs that need compiling
+./scripts/compile_C_progs.sh
 
 # Let the script know we don't need to install things next time.
 echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE

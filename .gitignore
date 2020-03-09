@@ -9,3 +9,5 @@ config/vars
 
 snapshots/
 ./*.inp
+
+bin/

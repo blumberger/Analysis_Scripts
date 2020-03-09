@@ -1,0 +1,8 @@
+{
+  'RDF': {
+      'folder': {
+        'type': 'string',
+        'description': 'The folderpath to the snapshot files'
+      }
+  }
+}

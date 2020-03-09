@@ -3,6 +3,9 @@
 """
 A module to calculate radial distribution functions of mols
 """
+
+
+
 import numpy as np
 import json
 from collections import Counter
@@ -44,53 +47,83 @@ class RDF(gen_type.Calc_Type):
         """
         Will calculate the radial distribution function for the system.
         """
-        self.data = {'rdf': [], 'r': []}
-        self.ats_per_mol = self.Var.metadata['atoms_per_molecule']
-        self.at_types = self.Var.metadata['number_each_atom']
+        self.dr = 0.01
+        self.cutoff = 12.5
+        self.ats_per_mol = self.metadata['atoms_per_molecule']
 
-        self.get_data()
-        self.get_cols()
-        all_at_crds = self.compute_data
-        print(np.shape(self.compute_data))
-        self.get_num_bins()
+        self.get_xyz_data()
+        self.get_cols(self.metadata['number_each_atom'],
+                      self.ats_per_mol)
 
-        self.RDF = np.zeros(self.nbins)
-        self.vols = np.zeros(self.nbins)
+        xyz = self.compute_data
+        mol_xyz = mol_utils.atoms_to_mols(xyz, self.ats_per_mol, nstep=len(xyz))
+        nmol = mol_xyz.shape[1]
+        mol_col = np.reshape(self.cols[0], (nmol, self.ats_per_mol))
+        mask = mol_col == "C"
 
-        # Loop over all steps
-        for at_crds in self.compute_data:
-            mol_crds = mol_utils.atoms_to_mols(at_crds, self.ats_per_mol)
-            self.COMs = self.get_COMs(mol_crds, self.cols[0, :36])
+        x_len = np.max(xyz[:, :, 0]) - np.min(xyz[:, :, 0])
+        y_len = np.max(xyz[:, :, 1]) - np.min(xyz[:, :, 1])
+        z_len = np.max(xyz[:, :, 2]) - np.min(xyz[:, :, 2])
+        self.V = x_len * y_len * z_len
 
-            N = len(self.COMs)
-            # print(self.COMs[:, 0] - 39.788086)
+        self.bins = np.arange(0, self.cutoff+self.dr, self.dr)
+        self.RDF = np.zeros(len(self.bins))
 
-            self.get_max_dist(self.COMs)
-            self.tot_volume = geom.volume_sphere(self.max_dist)
-            self.calc_shell_volumes()
-            self.vols += self.shell_volumes * len(self.COMs)
+        # Loop over all available steps
+        for step_xyz in mol_xyz:
+            just_carbons = step_xyz[mask]
+            self.N = len(just_carbons)
+            mol_inds, _ = np.mgrid[0:nmol,0:self.ats_per_mol]
+            mol_inds = mol_inds[mask]
+            self.calc_RDF(just_carbons, mol_inds,
+                          rdf_type=self.metadata['rdf_type'])
 
-            # Loop over all mols
-            for i, mol1 in enumerate(self.COMs):
-                # self.vols += self.shell_volumes
+    def calc_RDF(self, pos_data, mol_inds, rdf_type="intermolecular"):
+        """
+        Will calculate RDF for the provided position data.
 
-                # Loop over all mol pairs
-                all_dist = np.linalg.norm(self.COMs[i+1:] - mol1, axis=1)
-                for dist in all_dist:
-                    index = int(dist // self.dr)
-                    if 0 < index < self.nbins:
-                        self.RDF[index] += 2.0
+        Inputs:
+            * pos_data <array> => The data to calculate the RDF from
+            * mol_inds <array> => Same length as pos_data giving the molecular index
+        """
+        if rdf_type == "intermolecular":
+            make_mask = lambda mol_ind: mol_inds != mol_ind
+        elif rdf_type == "intramolecular":
+            make_mask = lambda mol_ind: mol_inds == mol_ind
+        else:
+            raise SystemError("\n\n\nI don't understand the type of RDF you want."
+                 + "\n\nChoose from:\n\t* 'intermolecular'\n\t* 'intramolecular'")
+
+        N = len(pos_data)
+        mol_ind = mol_inds[0]
+        mask = mol_inds != mol_ind
+
+        # Loop over all atoms and get the RDF contribution from each one
+        for at_num, xyz in enumerate(pos_data):
+
+            if mol_inds[at_num] != mol_ind:
+                mol_ind = mol_inds[at_num]
+                mask = mol_inds != mol_ind
+
+            # Counting all distances which means we are doing double to calculations
+            # This can be optimised later.
+            dist = np.linalg.norm(pos_data[mask] - xyz, axis=1)
+            dist = dist[dist < self.cutoff]
 
 
-        # Now normalise
-        rho = (N*(N-1))  / self.tot_volume
-        norm = rho * self.vols
-        self.RDF /= norm
+            bin_index = (dist // self.dr).astype(int)
+            for i, bin_ind in enumerate(bin_index):
+                R1 = dist[i]
+                R2 = R1 + self.dr
+                vol_sect = geom.volume_concentric_spheres(R1, R2)
 
-        # import matplotlib.pyplot as plt
-        # plt.plot(self.radii, self.RDF)
-        # plt.xlim([0, 15])
-        # plt.show()
+                self.RDF[bin_ind] += self.N / (vol_sect * self.V * 2)
+
+        import matplotlib.pyplot as plt
+        plt.plot(self.bins, self.RDF)
+        plt.show()
+
+
 
     def calc_shell_volumes(self):
         """
@@ -142,43 +175,5 @@ class RDF(gen_type.Calc_Type):
         COMs = [[crds[:, 0] * masses, crds[:, 1] * masses, crds[:, 2] * masses]
                 for crds in mol_crds]
         COMs = np.sum(COMs, axis=2) / tot_mass
-
-        # import matplotlib.pyplot as plt
-        # from mpl_toolkits.mplot3d import Axes3D
-        #
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection="3d")
-        # ax.plot(COMs[:, 0], COMs[:, 1], COMs[:, 2], 'ro')
-        #
-        # # Catoms = self.compute_data[0][self.cols[0] == "C"]
-        # # Hatoms = self.compute_data[0][self.cols[0] == "H"]
-        # # ax.plot(Catoms[:, 0], Catoms[:, 1], Catoms[:, 2], 'k.')
-        # # ax.plot(Hatoms[:, 0], Hatoms[:, 1], Hatoms[:, 2], 'y.')
-        #
-        # ax.set_xlim([0, 80])
-        # ax.set_ylim([0, 80])
-        # ax.set_zlim([0, 80])
-        #
-        # print(self.Var.data.filepath)
-        # plt.show()
-        # raise SystemExit("RBREAK")
-
-
-        # s = f"{len(COMs)}"+"\n"+"time: 0.0 fs"+"\n"
-        # for i in COMs:
-        #     s += f"C {i[0]} {i[1]} {i[2]}" + "\n"
-        # print(s)
-        # print(COMs)
-        #
-        # fp = self.Var.data.filepath
-        # if '50ps' in fp:
-        #     with open("COMs_50ps.xyz", "w") as f:
-        #         f.write(s)
-        # elif 'crystal' in fp:
-        #     with open("COMs_crystal.xyz", "w") as f:
-        #         f.write(s)
-        # else:
-        #     with open("COMs_1ns.xyz", "w") as f:
-        #         f.write(s)
 
         return COMs

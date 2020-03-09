@@ -51,7 +51,7 @@ class Angular_Dist(gen_type.Calc_Type):
         ax of central molecule) of the long and short axes of the molecule then
         create a histogram of this data.
         """
-        self.get_data()
+        self.get_xyz_data()
         ats_per_mol = self.Var.metadata['atoms_per_molecule']
         if 'long_axis_atoms' not in self.Var.metadata:
             long_ax_ats = self.metadata['long_axis_atoms']

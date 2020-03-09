@@ -51,6 +51,8 @@ class Calc_Type(object):
         for key in self.required_metadata:
             if key not in self.Var.metadata:
                raise KeyError(f"Please load the data '{key}' into the variable '{self.Var.name}'")
+            else:
+               self.metadata[key] = self.Var[key]
 
         # Set the default parameters
         for key in self._defaults:
@@ -70,7 +72,7 @@ class Calc_Type(object):
                                      + "\n\nYou need to give me a"
                                      + f" variable with some '{name}' data in.")
 
-    def get_data(self):
+    def get_xyz_data(self):
         """
         Will get the data to use from the inputted class.
         """
@@ -81,11 +83,12 @@ class Calc_Type(object):
             self.compute_data = self.Var.data.csv_data[['x', 'y', 'z']].to_numpy()
             self.compute_data = np.array([self.compute_data])
 
-    def get_cols_from_CSV(self):
+    def get_cols_from_CSV(self, number_each_atom, ats_per_mol):
         """
         Will get the element type columns from a csv file.
         """
         df = self.Var.data.csv_data
+
         # Error check
         if 'type' not in df.columns:
             raise SystemError("\n\n\nI can't calculate the COMs of the mols. I "
@@ -93,7 +96,7 @@ class Calc_Type(object):
                               + "I don't what atom types are in the mol")
 
         # Error check -if there is a mol with equal nums of atom of x and y type.
-        num_elm_in_mol = [self.at_types[i] for i in self.at_types]
+        num_elm_in_mol = [number_each_atom[i] for i in number_each_atom]
         if len(set(num_elm_in_mol)) != len(num_elm_in_mol):
             raise SystemError("\n\n\nCan't compute center of masses for RDF."
                             + " I don't know what types the atoms are and can't"
@@ -102,8 +105,8 @@ class Calc_Type(object):
                             + " There are no other RDF methods implemented.")
 
         # Compare how many atoms of each type are in each molecule and how many there should be.
-        num_at_types = Counter(df.loc[:self.ats_per_mol-1, 'type'])
-        at_types = {i: self.at_types[i] for i in self.at_types}
+        num_at_types = Counter(df.loc[:ats_per_mol-1, 'type'])
+        at_types = {i: number_each_atom[i] for i in number_each_atom}
         cvt_type = {}
         for i in num_at_types:
             for elm in at_types:
@@ -122,7 +125,7 @@ class Calc_Type(object):
             self.cols[self.cols == i] = cvt_type[i]
         self.cols = np.array([self.cols])
 
-    def get_cols(self):
+    def get_cols(self, number_each_atom, ats_per_mol):
         """
         Will try to get the atom element types from the number of each type in a
         molecule.
@@ -130,7 +133,7 @@ class Calc_Type(object):
 
         if 'cols' not in dir(self.Var.data):
             if 'csv_data' in dir(self.Var.data):
-                self.get_cols_from_CSV()
+                self.get_cols_from_CSV(number_each_atom, ats_per_mol)
             else:
                 raise SystemError("Can't compute center of masses for RDF."
                                + " There are no other RDF methods implemented.")

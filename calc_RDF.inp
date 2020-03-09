@@ -1,0 +1,10 @@
+folder = "/homes/mellis/Downloads/RDF/xyz_md_800K"
+filepath = "$folder/snapshot0.dat"
+
+
+load $filepath lammps_dump as data
+set system data to pentacene
+
+calc RDF from data as rdf_data
+
+

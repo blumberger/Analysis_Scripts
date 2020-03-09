@@ -1245,6 +1245,7 @@ class INP_File(object):
                 continue
             attrs = [i for i in dir(Var.data) if '_' != i[0] and not callable(getattr(Var.data, i))]
             n_attr = 3
+            print("\n")
             print("-"*(len(var) + 5))
             print(f"| {var}: |")
             print("-"*(len(var) + 5))
@@ -1252,7 +1253,14 @@ class INP_File(object):
                 print(f"Attributes in {var}.data:"+"\n")
                 for i in range((len(attrs) // n_attr) + 1):
                     print('\t'.join([i.ljust(20) for i in attrs[i*n_attr: (i+1)*n_attr]]))
-                print("-" * 76)
+
+            methods = [i for i in dir(Var.data) if '_' != i[0] and callable(getattr(Var.data, i))]
+            n_attr = 3
+            if methods:
+                print(f"Methods in {var}.data:"+"\n")
+                for i in range((len(methods) // n_attr) + 1):
+                    print('\t'.join([(i+'()').ljust(20) for i in methods[i*n_attr: (i+1)*n_attr]]))
+            print("\n" + "*" * 76)
 
         # Declare all the variables in the global scope so the user can use them
         for var_name in self.variables:
@@ -1376,44 +1384,40 @@ class INP_File(object):
             else:
                 self.print_error(f"'{words[2]}' scripts not yet suported")
 
-    def exec_python_script(self, A_Bdsalkjsdjk=False, Z_z_SDslkajdsASDnmsd=False):
+    def exec_python_script(self, filepath=False, script_txt=False):
         """
-        Will execute a python script from a A_Bdsalkjsdjk
-
-        The variables in this are intentionally randomish junk. This is to avoid
-        variable problems when running scripts in the local scope of this
-        function. Obviously this is a horrible hack, but it works for now.
+        Will execute a python script from a filepath
 
         Inputs:
-            * A_Bdsalkjsdjk <str> => The filepath to load and execute.
-            * A_Bdsalkjsdjk <str> => The filepath to load and execute.
+            * filepath <str> => The filepath to load and execute.
+            * script_txt <str> => The script to be executed.
         """
-        if Z_z_SDslkajdsASDnmsd is False and type(A_Bdsalkjsdjk) is str:
-            with open(A_Bdsalkjsdjk, 'r') as sdiukndvqo_groeihbn:
-                Z_z_SDslkajdsASDnmsd = sdiukndvqo_groeihbn.read()
-        elif type(Z_z_SDslkajdsASDnmsd) is str and A_Bdsalkjsdjk is False:
-            A_Bdsalkjsdjk = "inline-script"
+        if script_txt is False and type(filepath) is str:
+            with open(filepath, 'r') as sdiukndvqo_groeihbn:
+                script_txt = sdiukndvqo_groeihbn.read()
+        elif type(script_txt) is str and filepath is False:
+            filepath = "inline-script"
         else:
-            SystemError("'exec_python_script' function used incorrectly!")
+            SystemError("'exec_python_script' function used incorrectly!"
+                        +" Choose either script_txt or filepath")
 
         # Declare all the variables in the global scope so the user can use them
-        for _asdoiasn_sdaknfjf in self.variables:
-            globals()[_asdoiasn_sdaknfjf] = getattr(self, _asdoiasn_sdaknfjf)
+        vars = {var_name: getattr(self, var_name) for var_name in self.variables}
 
         # Run the script in a try loop
         try:
-            exec(Z_z_SDslkajdsASDnmsd)
+            exec(script_txt, vars)
         except Exception as e:
-            self.print_error("Something is wrong with your script!\n\nError: "
-                             + str(e) + "\n\n" + f"Script Name: {A_Bdsalkjsdjk}")
+            err_msg = str(e)
+            if 'txt' in dir(e):
+                err_msg = "Error in your python code.\n\n"+f"Script: {filepath}" + "\n"
+                err_msg += f"Bad Line: {e.text}" + "\n" + f"Line Num: {e.lineno}"
+                err_msg += "\nError Msg: " + f"{e.msg}"
+            self.print_error(err_msg)
 
-        # Parse all the variables
-        any_vars = re.findall(VAR_REGEX+" *=", Z_z_SDslkajdsASDnmsd)
-        any_vars = (var.strip('= ') for var in any_vars)
-        for var_name in any_vars:
-            if var_name in locals():
-                setattr(self, var_name, locals()[var_name])
-                if var_name not in self.variables: self.variables.append(var_name)
+        for var_name in vars:
+            setattr(self, var_name, vars[var_name])
+            if var_name not in self.variables: self.variables.append(var_name)
 
     def parse_python_cmd(self, line):
         """
@@ -1443,7 +1447,7 @@ class INP_File(object):
 
         py_script = '\n'.join(py_script)
 
-        self.exec_python_script(Z_z_SDslkajdsASDnmsd=py_script)
+        self.exec_python_script(script_txt=py_script)
 
         self.line_num = end_line
 

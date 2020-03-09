@@ -1,0 +1,32 @@
+folder="/temp/mellis/Final_Melt_Quench_50ps_quench/xyz_md"
+filepath="$folder/snapshot2250000.dat"
+
+
+read $filepath lammps_dump as final_snapshot
+final_snapshot['coordinate_wrapping'] = "wrapped"
+num_at_per_mol = 36
+
+# Will get the decomp mols and other useful info
+python {
+   import numpy as np
+
+   final_snapshot.data.set_xyz_data()
+   xyz = final_snapshot.data.xyz_data[0]
+
+   z_range = np.max(xyz[:, 2]) - np.min(xyz[:, 2])
+   layer_width = (z_range / 15.) * 0.9
+   mid_z = np.mean(xyz[:, 2])
+   layer_start, layer_end = mid_z - layer_width, mid_z + layer_width
+   
+   from src.calc import molecule_utils as mol_utils
+   mol_crds = mol_utils.atoms_to_mols(xyz, num_at_per_mol.data)
+
+   bool_arr = (mol_crds[:, :, 2] > layer_start) & (mol_crds[:, :, 2] < layer_end)
+   mols_in_layer = np.any(bool_arr, axis=1)
+
+   decomp_mols = np.arange(len(mol_crds))[mols_in_layer]
+   n_active_mol = len(decomp_mols)
+   n_active_atoms = len(decomp_mols) * num_at_per_mol
+}
+
+

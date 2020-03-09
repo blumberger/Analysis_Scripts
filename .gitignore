@@ -11,3 +11,4 @@ snapshots/
 ./*.inp
 
 bin/
+core.[0-9]*

@@ -1056,7 +1056,7 @@ class INP_File(object):
         words = self.fix_words(words)
 
         # Read the data
-        _, fpath, dtype, _, data_name = words
+        _, fpath, dtype, _, var_name = words
         fpath = gen_parse.rm_quotation_marks(fpath)
         fpath = gen_io.get_abs_path(fpath)
 
@@ -1069,13 +1069,30 @@ class INP_File(object):
             if key not in metadata: metadata[key] = Loaded_Data.metadata[key]
 
         if words[3] == 'into':
-            if data_name not in self.variables:
-                self.set_var(data_name, [Loaded_Data], metadata)
-            else:
-                vars = getattr(self, data_name)
-                vars.append(Loaded_Data)
+            self.load_var_into(Loaded_Data, var_name, metadata)
         elif words[3] == "as":
-            self.set_var(data_name, Loaded_Data, metadata)
+            self.set_var(var_name, Loaded_Data, metadata)
+
+    def load_var_into(self, Data_To_Append, var_name, metadata={}):
+        """
+        Will load a data variable and set it as a Variable type.
+
+        Inputs:
+            * Data_To_Append <*> => The object containing the loaded data.
+            * var_name <str> => The name of the variable
+            * metadata <dict> OPTIONAL => The metadata for the variable.
+        """
+        if var_name not in self.variables:
+            self.set_var(var_name, Data_To_Append, metadata)
+        else:
+            Var = getattr(self, var_name)
+
+            # Combine metadata (replace old with new)
+            for i in metadata:
+                Var.metadata[i] = metadata[i]
+
+            # Append the new variable
+            Var.append(Data_To_Append)
 
     def parse_write_cmd(self, line):
         """

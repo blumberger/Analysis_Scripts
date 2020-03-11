@@ -49,7 +49,7 @@ then
 fi
 
 # Compile any C programs that need compiling
-./scripts/compile_C_progs.sh
+#./scripts/compile_C_progs.sh
 
 # Let the script know we don't need to install things next time.
 echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE

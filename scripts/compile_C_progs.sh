@@ -14,34 +14,41 @@
 #  increase the NPROGRS variable.
 ###############################
 
-CALC_DIR="src/calc"
+CALC_DIR="$PWD/src/calc"
+BIN_DIR="$PWD/bin"
 # Declare the programs that need compiling and the necessary compilation flags
 
 # Don't put the .c extension on this
 declare -a C_DIR=($CALC_DIR)
-declare -a C_PROGRAMS=("RDF_inter")
+declare -a C_PROGRAMS=("RDF2_inter_tri")
 declare -a LIBS=("-lm")
 declare -a INCLUDES=("")
-declare -a CFLAGS=("-O3 -Wall")
+declare -a CFLAGS=("-w -O3")
 declare -a EXE_NAME=("RDF_inter")
 
 NPROGS="${#C_PROGRAMS[@]}"
 
 source $CONFIG_VAR_FILE
 
+# Create the bin directory (if it doesn't exist)
+if ! [ -d "$BIN_DIR" ]
+then
+    mkdir $BIN_DIR
+fi
+
+# Loop over all programs and compile 
 for (( i=0; i<$NPROGS; i++ ));
 do
-   exe_file="bin/${EXE_NAME[$i]}"
+   exe_file="$BIN_DIR/${EXE_NAME[$i]}"
    C_file="${C_DIR[$i]}/${C_PROGRAMS[$i]}.c"
    last_change_var_name="${C_PROGRAMS[$i]}"
    last_change=$(stat $C_file --printf=%Z)
 
-   compile_cmd="${CFLAGS[$i]} ${INCLUDES[$i]} -o $exe_file ${LIBS[$i]} $C_file"
-
+   compile_cmd="${CFLAGS[$i]} ${INCLUDES[$i]} -o $exe_file $C_file ${LIBS[$i]}"
 
    if ! [ -f $exe_file ]
    then
-      gcc $compile_cmd
+      exit_code=`gcc $compile_cmd`
       echo "Compiled ${C_PROGRAMS[$i]}" 
 
    else

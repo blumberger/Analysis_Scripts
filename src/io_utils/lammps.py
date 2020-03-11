@@ -583,3 +583,22 @@ class Lammps_Dump(gen_io.DataFileStorage):
         self.timesteps = np.array([0])
         if 'timestep' in self.metadata:
             self.timesteps = np.array([self.metadata['timestep']])
+
+    def append(self, val):
+        """
+        Will append a value to the csv_data.
+        """
+        if 'csv_data' in dir(val):
+            self.csv_data = self.csv_data.append(val.csv_data)
+        elif type(val) == pd.DataFrame:
+            self.csv_data = self.csv_data.append(val)
+        elif 'xyz_data' in dir(val) and 'cols' in dir(val):
+            self.csv_data = self.csv_data.append(
+                                          pd.DataFrame({'x': val.xyz_data[:, 0],
+                                                        'y': val.xyz_data[:, 1],
+                                                        'z': val.xyz_data[:, 2],
+                                                        'type': val.cols, }))
+        else:
+            raise TypeError(f"Can't append {val} which is of type {type(val)} to {self}")
+
+        self.csv_data.index = range(len(self.csv_data))

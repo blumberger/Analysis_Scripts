@@ -117,7 +117,7 @@ class Angular_Dist(gen_type.Calc_Type):
 
         dots = np.sum(vecA * vecs, axis=1)
         mags = magA * mags
-        angles = dots/mags# * 180/np.pi
+        angles = dots/mags #) * 180/np.pi
 
         return angles
 
@@ -210,9 +210,9 @@ class Angular_Dist(gen_type.Calc_Type):
         #bars = axis.bar(bin_edges[:-1], counts, width=np.diff(bin_edges),
         #                label=label, alpha=0.7)
         min_bin, max_bin = min(bin_edges), max(bin_edges)
-        axis.plot([-1, min_bin], [0, 0], 'k-')
-        axis.plot([max_bin, 1], [0, 0], 'k-')
-        line, = axis.plot(bin_edges[:-1], counts, 'k-')
+        #axis.plot([-1, min_bin], [0, 0], 'k-')
+        #axis.plot([max_bin, 1], [0, 0], 'k-')
+        line, = axis.plot(bin_edges[:-1], counts, '-', label=label)
         return line, axis
 
     def plot(self, axes=False, label=""):
@@ -250,8 +250,9 @@ class Angular_Dist(gen_type.Calc_Type):
 
         if label:
             axes[0].legend(fontsize=16)
-        for i, ax in enumerate(axes):
-            ax.set_xlim([-1, 1])
+
+        #for i, ax in enumerate(axes):
+        #    ax.set_xlim([-1.05, 1.05])
         plt.tight_layout()
 
         return axes

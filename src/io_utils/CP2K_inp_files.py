@@ -215,7 +215,12 @@ def find_section_end(parsed_inp_lines, section, curr_line):
     for line_num, line in enumerate(parsed_inp_lines[curr_line:]):
         if line.is_section and line.is_section_start and line.section == section:
             curr_line = curr_line + line_num + 1
+            break
 
+    # if section == 'KIND':
+    #     print(curr_line)
+    #     [print(i) for i in parsed_inp_lines[curr_line:]]
+    #     raise SystemExit("BREAK")
     # Now find the section end
     # Sect num is used to keep track of how many sections have been started and ended
     sect_num = -1
@@ -231,7 +236,7 @@ def find_section_end(parsed_inp_lines, section, curr_line):
             line.section = section
             return line_num + curr_line
     else:
-      raise SystemError("Can't find the end of the section '%s'" % section)
+        raise SystemError("Can't find the end of the section '%s'" % section)
 
 
 def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=False):
@@ -279,37 +284,43 @@ def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=Fal
         # Handle the parsing of sections
         if curr_line.is_section:
             if curr_line.is_section_start:
-               # Create new section dicts
-               section = curr_line.section.upper()
-               if section not in inp_dict:   # If the section doesn't already exist
-                   new_inp_dict = inp_dict.setdefault(section, {})
-                   new_full_data_dict = full_data_dict.setdefault(section, {'': curr_line})
-               else:                         # If the section is repeated pop it in a list
-                   if type(inp_dict[section]) != list: inp_dict[section] = [inp_dict[section]]
-                   if type(full_data_dict[section]) != list: full_data_dict[section] = [full_data_dict[section]]
-                   inp_dict[section].append({})
-                   full_data_dict[section].append({})
-                   new_inp_dict = inp_dict[section][-1]
-                   new_full_data_dict = full_data_dict[section][-1]
+                # Create new section dicts
+                section = curr_line.section.upper()
+                if section not in inp_dict:   # If the section doesn't already exist
+                    new_inp_dict = inp_dict.setdefault(section, {})
+                    new_full_data_dict = full_data_dict.setdefault(section, {'': curr_line})
+                else:                         # If the section is repeated pop it in a list
+                    if type(inp_dict[section]) != list: inp_dict[section] = [inp_dict[section]]
+                    if type(full_data_dict[section]) != list: full_data_dict[section] = [full_data_dict[section]]
+                    inp_dict[section].append({})
+                    full_data_dict[section].append({})
+                    new_inp_dict = inp_dict[section][-1]
+                    new_full_data_dict = full_data_dict[section][-1]
 
-               # Find the end of the section
-               end_ind = find_section_end(all_lines, curr_line.section, line_num)
-               new_inp_file = inp_file[line_num+1: end_ind]
+                # Find the end of the section
+                end_ind = find_section_end(all_lines, curr_line.section, line_num)
+                new_inp_file = inp_file[line_num+1: end_ind]
 
-               # Parse the section
-               parse_inp_file(new_inp_file, new_inp_dict, all_lines[line_num+1:end_ind], new_full_data_dict)
+                # Parse the section
+                parse_inp_file(new_inp_file, new_inp_dict,
+                               all_lines[line_num+1:end_ind],
+                               new_full_data_dict)
 
-               # Skip past the section as it is being parsed by the line above
-               line_num += (end_ind - line_num)   # This also ignores the unecessary END ... line
+                # Skip past the section as it is being parsed by the line above
+                line_num += (end_ind - line_num)   # This also ignores the unecessary END ... line
 
         # Handle the parsing of paramters
         elif curr_line.is_parameter:
-             inp_dict[curr_line.parameter.upper()] = curr_line.value
-             full_data_dict[curr_line.parameter.upper()] = curr_line
+            inp_dict[curr_line.parameter.upper()] = curr_line.value
+            full_data_dict[curr_line.parameter.upper()] = curr_line
 
         elif curr_line.is_include:
              inp_dict.setdefault('INCLUDE', []).append(curr_line.include_file)
              full_data_dict.setdefault('INCLUDE', []).append(curr_line)
+
+        else:
+            if curr_line.edit_line:
+                full_data_dict.setdefault("LINES", []).append(curr_line)
 
         line_num += 1
 

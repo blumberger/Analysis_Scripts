@@ -1,0 +1,52 @@
+folder_crys = "/home/oem/Data/Pentacene_Crystal_Melt"
+folder_50ps = "/home/oem/Data/Final_Melt_Quench_50ps_quench"
+folder_1ns = "/home/oem/Data/Final_Pentacene_1ns_Quench"
+
+
+## Crystal and Liquid
+load "$folder_crys/log.lammps" lammps_log as crystal_data
+set system crystal_data to pentacene
+calc density from crystal_data as dens_crystal
+
+
+## 50ps
+load "$folder_50ps/log.lammps" lammps_log as data_50ps
+set system data_50ps to pentacene
+calc density from data_50ps as dens_50ps
+
+## 1ns
+load "$folder_1ns/log.lammps" lammps_log as data_1ns
+set system data_1ns to pentacene
+calc density from data_1ns as dens_1ns
+
+## Plotting
+python {
+    import matplotlib.pyplot as plt
+
+    # Append all the CSVs into fewer of them
+    dens_crystal.data.append_csvs()
+    dens_50ps.data.append_csvs()
+    dens_1ns.data.append_csvs()
+
+    # Get the densities
+    crystal_density = float(dens_crystal.data.collected_csv_data[0]['Density'][250:2500].mean())
+    liquid_density = float(dens_crystal.data.collected_csv_data[0]['Density'][5500:6000].mean())
+    density_50ps = float(dens_50ps.data.collected_csv_data[0]['Density'][-1:])
+    density_1ns = float(dens_1ns.data.collected_csv_data[0]['Density'][-1:])
+
+    all_data = [crystal_density, liquid_density, density_50ps, density_1ns]
+
+    plt.bar(range(len(all_data)), all_data, width=1)
+
+    max_yval = max(all_data)
+    for i, val in enumerate(all_data):
+        plt.annotate(r"%.2f [g cm$^{-3}$]" % val, (i, val + 0.05*(max_yval)), fontsize=20, ha="center")
+
+    plt.axhline(0.87*crystal_density, color='r', ls='--')
+    plt.annotate("Amorphous Density", (-0.625, 0.87*crystal_density), fontsize=20, va="bottom")
+
+    plt.xticks(range(len(all_data)), ["Crystal", "Liquid", "50ps Quench", "1ns_Quench"])
+    plt.ylabel(r"Density [g cm$^{-3}$]")
+    plt.legend()
+    plt.show()
+}

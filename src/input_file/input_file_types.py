@@ -51,16 +51,37 @@ class Variable(object):
         except AttributeError:
             pass
 
+    def set_data_var(self):
+        """
+        A function to find what sort of data variable the data holds
+        """
+        for var_name in dir(self.data):
+            attr = getattr(self.data, var_name)
+            if 'data' in var_name and not callable(attr):
+                if 'meta' in var_name or '_' == var_name[0]:
+                    continue
+                elif isinstance(attr, (int, float)):
+                    continue
+                elif type(attr) == str and len(attr) < 10:
+                    continue
+                else:
+                    self.data.data = attr
+
     # Overload appending
     def append(self, val):
         """
         Check the data is a list, if not don't append
         """
-        if type(self.data) == list:
+        if isinstance(self.data, (int, str, float, tuple)):
+            raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
+
+        elif type(self.data) == dict:
+            self.data.setdefault('appended_vals', []).append(self.data)
+
+        else:
             self.data.append(val)
             return self
-        else:
-            raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
+
 
     def __len__(self):
         """

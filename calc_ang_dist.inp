@@ -1,0 +1,43 @@
+folder_crys = "/home/oem/Data/Pentacene_Crystal_Melt/xyz_md"
+folder_50ps = "/home/oem/Data/Final_Melt_Quench_50ps_quench/xyz_md"
+folder_1ns = "/home/oem/Data/Final_Pentacene_1ns_Quench"
+
+
+## Crystal
+load "$folder_crys/snapshot5000.dat" lammps_dump as crystal_data
+set system crystal_data to pentacene
+calc angular_dist from crystal_data as ang_crystal
+
+
+## Liquid
+load "$folder_crys/snapshot1000000.dat" lammps_dump as liquid_data
+set system liquid_data to pentacene
+calc angular_dist from liquid_data as ang_liquid
+
+
+## 50ps
+load "$folder_50ps/snapshot2250000.dat" lammps_dump as data_50ps
+set system data_50ps to pentacene
+calc angular_dist from data_50ps as ang_50ps
+
+
+## 1ns
+load "$folder_1ns/snapshot3225000.dat" lammps_dump as data_1ns
+set system data_1ns to pentacene
+calc angular_dist from data_1ns as ang_1ns
+
+
+
+
+python {
+    import matplotlib.pyplot as plt
+
+    ax = ang_crystal.data.plot(label="Crystal")
+#    other_ax = [a.twinx() for a in ax]
+    other_ax = ang_liquid.data.plot(axes=ax, label="Liquid")
+    other_ax = ang_50ps.data.plot(axes=other_ax, label="50ps")
+    other_ax = ang_1ns.data.plot(axes=other_ax, label="1ns")
+
+    plt.legend()
+    plt.show()
+}

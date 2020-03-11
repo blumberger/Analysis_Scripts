@@ -1,0 +1,25 @@
+filepath = "./subsys-eq.include"
+
+# Read the file
+read $filepath cp2k_inp as data
+
+
+adjust_coords = 2
+
+
+# Now adjust the parameters in it
+python {
+    import numpy as np
+
+    # Adjust coords info from the parsed file.
+    for line in data.data.all_data['full_data']['SUBSYS']['COORD']['LINES']:
+        line.coords = np.array(line.coords) * adjust_coords.data
+
+    # Adjust the cell vecs info
+    for i in data.data.all_data['full_data']['SUBSYS']['CELL']['LINES']:
+        i.coords = np.array(i.coords) * adjust_coords.data
+
+}
+
+write data "test.inp"
+

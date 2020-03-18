@@ -110,7 +110,12 @@ all_example_tests = {
                                      'test_func': check_stdout,
                                      'inp_file' : 'run_script.inp',
                                      'out_file' : False,
-                                   },
+                                 },
+                      'create_psf_file_from_xyz':  {
+                                                    'test_func': check_stdout,
+                                                    'inp_file': 'create_psf_from_xyz.inp',
+                                                    'out_file': "test.psf",
+                                                   },
                       'inline_python_script': {
                                      'test_func': check_stdout,
                                      'inp_file' : 'run.inp',

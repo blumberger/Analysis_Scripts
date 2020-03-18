@@ -22,4 +22,4 @@ calc RDF from data as rdf_data
 
 # Plot the data with a little script
 inp_folder = "examples/calc_RDF"
-script "$inp_folder/plot_script.py"
+#script "$inp_folder/plot_script.py"

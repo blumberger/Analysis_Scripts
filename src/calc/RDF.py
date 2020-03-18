@@ -162,11 +162,11 @@ class RDF(gen_type.Calc_Type):
             C, bin_edges = np.histogram(dist, bins=self.radii)
             self.RDF += C *self.norm
 
-        print(self.radii)
-        print("\r                                               ", end="\r")
-        import matplotlib.pyplot as plt
-        plt.plot(self.radii[:-1], self.RDF)
-        plt.show()
+        #print(self.radii)
+        #print("\r                                               ", end="\r")
+        #import matplotlib.pyplot as plt
+        #plt.plot(self.radii[:-1], self.RDF)
+        #plt.show()
 
 
 

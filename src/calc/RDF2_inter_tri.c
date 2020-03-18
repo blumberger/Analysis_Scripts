@@ -1,48 +1,587 @@
 //
+// Compile with command:
+//     gcc -O3 -w RDF_inter_tri.c -o RDF_inter -lm
 //----------------------------------------------------------------------
 #define cmax_length 1000
 #define species_length 4
 #define pi 3.14159265
-#include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <math.h>
 
 
 /*
-    Calculate cos(angle) between vecs
-*/
-double proj(double Ax,double Ay,double Az,double Bx,double By,double Bz);
-double proj(double Ax,double Ay,double Az,double Bx,double By,double Bz)
-{
-	double dot,norm,res;
-	dot = Ax*Bx + Ay*By + Az*Bz;
-	norm = Ax*Ax + Ay*Ay + Az*Az;
-	res = dot/norm;
-	return res;
-}
-
-/*
-    A type to hold position data
+    A type to hold position file_data
 */
 struct Pos {
 	double *x, *y, *z;
 };
 
 /*
-    A type to hold all the data from a lammps file.
+	A type to hold 1 position.
 */
-struct Lammps_File {
+struct Single_Pos {
+	double x, y, z;
+};
+
+/*
+ 	A convienient way to hold the cell vectors
+*/
+struct Matrix {
+	struct Single_Pos a;
+	struct Single_Pos b;
+	struct Single_Pos c;
+};
+
+/*
+    A type to hold all the file_data from a lammps file.
+*/
+struct Lammps_Dump {
     struct Pos R;
     struct Pos sR;
     int *mol, *type;
     int nx, ny, nz;
     int natom;
-    int dt;
+    int timestep;
     double xlo, xhi, ylo, yhi, zlo, zhi;
     double xlo_bound, xhi_bound, ylo_bound, yhi_bound, zlo_bound, zhi_bound;
+    int is_triclinic;
     double xy, xz, yz;
+    int exit_code;
 };
+
+/*
+	A struct to store the data from each type section in from the config file
+*/
+struct Config_File_Type_Section {
+	int N, *type_list;
+};
+
+/*
+	A type to hold the config file data
+*/
+struct Config_File {
+	struct Config_File_Type_Section type_1;
+	struct Config_File_Type_Section type_2;
+	int exit_code;
+};
+
+/*
+	A type to contain which atoms belong to which lists.
+*/
+struct belongs_to_lists {
+	int *list1, *list2;
+    int N1, N2;
+};
+
+/*
+    Calculate cos(angle) between vecs
+*/
+double proj(struct Single_Pos a, struct Single_Pos b);
+double proj(struct Single_Pos a, struct Single_Pos b)
+{
+	double dot,norm,res;
+	dot =  (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+	norm = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);
+	return dot / norm;
+}
+
+
+/*
+Will compare 2 doubles and return an int depending on which is bigger.
+
+This function has been declared to be used in the qsort method (quick sort).
+
+Inputs:
+    * a <double> => First double to compare
+    * b <double> => Second double to compare
+Outputs:
+    <-1, 0, 1> -1 if a < b; 0 if a == b; 1 if a > b
+*/
+int compare_double(const double a, const double b) {
+    if (a == b)  return 0;
+    else if (a < b) return -1;
+    else return 1;
+}
+
+/*
+Will normalise a vector.
+
+Inputs:
+	* vec <struct Single_Pos*> => The vector struct to normalise.
+Outputs:
+	<struct Single_Pos*> normalised vector
+*/
+struct Single_Pos normalise_vec( struct Single_Pos vec) {
+	double norm = sqrt( (vec.x*vec.x) + (vec.y*vec.y) + (vec.z*vec.z) );
+	
+	struct Single_Pos normed_vec;
+
+	normed_vec.x = vec.x / norm;
+	normed_vec.y = vec.y / norm;
+	normed_vec.z = vec.z / norm;
+
+	return normed_vec;
+}
+
+/*
+Will calculate the cell vectors from the dump data.
+
+This will take the cell vector info from the lammps dump file
+and calculate the ABC vectors for the cell with it.
+
+Inputs
+	* file_data <struct Lammps_Dump*> => The data from the file.
+Outputs
+	<struct Matrix> The ABC cell vectors.
+*/
+struct Matrix get_cell_vecs(struct Lammps_Dump *file_data) {
+	struct Matrix ABC;
+
+	// Get oblique supercell vectors
+	ABC.a.x = file_data->xhi - file_data->xlo;
+	ABC.a.y = 0.0; ABC.a.z = 0.0; 
+
+	ABC.b.x = file_data->xy;
+	ABC.b.y = file_data->yhi - file_data->ylo;
+	ABC.b.z = 0.0;
+
+	ABC.c.x = file_data->xz;
+	ABC.c.y = file_data->yz;
+	ABC.c.z = file_data->zhi - file_data->zlo;
+
+	return ABC;
+}
+
+/*
+Will check if a file exists
+
+Inputs:
+	* filepath <char[]> => The path to the file that needs checking.
+Outputs:
+	<int> 1 if the file exists, 0 if not.
+*/
+int file_exists (char filepath[]) {
+	FILE *file_obj = fopen(filepath, "r");
+
+	if (file_obj == NULL) {
+		return 0;
+	} else {
+		fclose(file_obj);
+		return 1;
+	}
+}
+
+/*
+	Will read a config file.
+
+	The config file has parameters telling the code what atom types we want to find the rdf from.
+
+	It has 2 sections: type_1 and type_2.
+	
+	In each section we declare a number on each line. The first number gives the number of types
+	we would like to declare. On the next N lines we should give the types that we would like to
+	declare.
+
+	The format is something like:
+	`
+	type_1
+	1     # num types
+	1     # type 1
+	type_2
+	2     # 2 types
+	1     # type 1
+	2     # type 2
+	`
+	This would mean that we have 1 type (1) in type_1 and 2 types (1, 2) in type_2.
+
+	Inputs:
+		* file_path <char[]> => The path to the config file
+		* config_file <Config_File*> => The struct holding all the data from the file.
+	Outputs:
+		<int> exit_code... Non-zero means there's been an error.
+*/
+struct Config_File read_config ( char file_path[]) {
+
+	FILE *file_obj;
+	struct Config_File config_file;
+	char buffer[cmax_length];
+	int i = 0;
+
+	config_file.exit_code = 0;
+
+	// Some error checking and open file.
+	if (file_exists(file_path) == 0) {
+		printf("\n\nCan't find file: '%s'\n", file_path);
+		config_file.exit_code = 1;
+		fclose(file_obj);
+		return config_file;
+ 	}
+ 	file_obj = fopen(file_path, "r");
+
+	/*
+		Get info for type 1 
+	*/
+	// First find the start of type_1
+	int found_type = 0;
+	while( fgets(buffer, cmax_length, file_obj) != NULL) {
+        if ( strcmp(buffer, "type_1\n") == 0 )
+        	found_type = 1;
+            break;
+    }
+    // Check we found the required section.
+    if (found_type == 0) { 
+    	printf("\n\nCan't find type_1 section\n");
+    	config_file.exit_code = 2;
+    	fclose(file_obj);
+     	return config_file;
+    }
+
+	// Get number of types
+	fgets(buffer, cmax_length, file_obj);
+    sscanf(buffer,"%d",&config_file.type_1.N);
+	config_file.type_1.type_list = (int*) malloc(config_file.type_1.N * sizeof(int));
+
+
+	// Loop over the next N lines to get each type.
+	for(i=0; i < config_file.type_1.N; ++i)
+	{
+		fgets(buffer, cmax_length, file_obj);
+        sscanf(buffer, "%d", &config_file.type_1.type_list[i]);
+	}
+	rewind(file_obj);
+
+	/*
+		Get info for type 2
+	*/
+	// Find start of type_2 section
+	found_type = 0;
+	while(fgets(buffer, cmax_length, file_obj) != NULL) {
+        if( strcmp(buffer,"type_2\n") == 0 ) {
+        	found_type = 1;
+            break;
+       	}
+    }
+    // Check we found the required section.
+    if (found_type == 0) { 
+    	printf("\n\nCan't find type_2 section\n");
+    	config_file.exit_code = 2;
+    	fclose(file_obj);
+     	return config_file;
+ 	}
+
+	fgets(buffer, cmax_length, file_obj);
+    sscanf(buffer, "%d", &config_file.type_2.N);
+	config_file.type_2.type_list = (int*) malloc(config_file.type_2.N * sizeof(int));
+	for(i = 0;i<config_file.type_2.N;++i)
+	{
+		fgets(buffer, cmax_length, file_obj);
+        sscanf(buffer, "%d", &config_file.type_2.type_list[i]);
+	}
+	fclose(file_obj);
+
+	return config_file;
+}
+
+/*
+Will read a lammps file from a filepath and return a Lammps_Dump object
+
+This will simply iterate over all lines and call fgets on each one to parse
+them.
+The unit cell vectors will also be calculated and stored in the Lammps_Dump
+struct.
+
+Nothing is returned, the second (pointer) argument, file_data, is passed as 
+a pointer and modified within the function
+
+Inputs:
+    * filepath <char[]> => The path pointing towards the lammps file.
+    * file_data <struct Lammps_Dump*> => The struct object to hold the file data.
+Outputs:
+    <Lammps_Dump> The struct holding all the lammps file file_data.
+*/
+struct Lammps_Dump read_lammps_dump(char filepath[]) {
+    char buffer[cmax_length];
+    double S[4], min_x, max_x, min_y, max_y;
+    int int_buffer, i;
+    struct Lammps_Dump file_data;
+    FILE *Fin;
+    file_data.exit_code = 0;
+
+    // Create the file object
+    Fin = fopen(filepath, "r");
+
+    //Check the file exists
+    if (Fin == NULL) {
+        printf("\n\nCan't find file: '%s'\n", filepath);
+        file_data.exit_code = 1;
+        fclose(Fin);
+        return file_data;
+    }
+
+    /*
+    	Loop over all lines and extract info from each one.
+
+    	This is saved in the file_data struct (a Lammps_Dump object).
+    */
+    // Get step num and natom
+    fgets(buffer, cmax_length, Fin);
+    fgets(buffer, cmax_length, Fin);
+  	sscanf(buffer, "%d", &file_data.timestep);
+  	fgets(buffer, cmax_length, Fin);
+  	fgets(buffer, cmax_length, Fin);
+  	sscanf(buffer, "%d", &file_data.natom);
+
+    // Get cell vec parameters
+    fgets(buffer, cmax_length, Fin);
+    fgets(buffer, cmax_length, Fin);
+    sscanf(buffer, "%lf\t%lf\t%lf", &file_data.xlo_bound, &file_data.xhi_bound, &file_data.xy);
+    fgets(buffer, cmax_length, Fin);
+    sscanf(buffer, "%lf\t%lf\t%lf", &file_data.ylo_bound, &file_data.yhi_bound, &file_data.xz);
+    fgets(buffer, cmax_length, Fin);
+    sscanf(buffer, "%lf\t%lf\t%lf", &file_data.zlo_bound, &file_data.zhi_bound, &file_data.yz);
+
+    // If there are no xy, xz, yz vecs then our system isn't triclinic
+    if (file_data.xy == 0) {
+    	file_data.is_triclinic = 0;
+    }
+
+    // Get minimum and maximum x
+    S[0] = 0.0;
+    S[1] = file_data.xy;
+    S[2] = file_data.xz;
+    S[3] = file_data.xy + file_data.xz;
+
+    min_x = S[0];
+    max_x = S[0];
+    for (int i=1; i<4; i++) {
+    	if (S[i] < min_x) { min_x = S[i]; }
+    	if (S[i] > max_x) { max_x = S[i]; }
+    }
+
+    if(file_data.yz<0.0) { min_y = file_data.yz; } else { min_y = 0.0; }
+	if(file_data.yz>0.0) { max_y = file_data.yz; } else { max_y = 0.0; }
+
+	file_data.xlo = file_data.xlo_bound - min_x;
+	file_data.xhi = file_data.xhi_bound - max_x;
+	file_data.ylo = file_data.ylo_bound - min_y;
+	file_data.yhi = file_data.yhi_bound - max_y;
+	file_data.zlo = file_data.zlo_bound;
+	file_data.zhi = file_data.zhi_bound;
+
+    // Allocate memory
+    // All positions
+    file_data.R.x = (double*) malloc( file_data.natom * sizeof(double) );
+    file_data.R.y = (double*) malloc( file_data.natom * sizeof(double) );
+    file_data.R.z = (double*) malloc( file_data.natom * sizeof(double) );
+    // All scaled positions
+    file_data.sR.x = (double*) malloc( file_data.natom * sizeof(double) );
+    file_data.sR.y = (double*) malloc( file_data.natom * sizeof(double) );
+    file_data.sR.z = (double*) malloc( file_data.natom * sizeof(double) );
+    // The molecule number and atom type
+    file_data.mol = (int*) malloc( file_data.natom * sizeof(int) );
+    file_data.type = (int*) malloc( file_data.natom * sizeof(int) );
+
+    // Read the data
+	for(i = 0; i<file_data.natom; ++i) {
+		// read
+		fgets(buffer, cmax_length, Fin);
+        sscanf(buffer,"%d\t%d\t%d\t%lf\t%lf\t%lf\t%d\t%d\t%d",
+        			  &int_buffer, &file_data.mol[i], &file_data.type[i], 
+                      &file_data.R.x[i], &file_data.R.y[i], &file_data.R.z[i],
+                      &file_data.nx, &file_data.nz, &file_data.nz);
+	} 
+
+	fclose(Fin);
+	return file_data;
+}
+
+/*
+Will get the numbers of atoms that belong to the types in the config file.
+
+Inputs:
+	* file_data <struct Lammps_Dump*> => The data from Lammps dump file.
+	* config_file <struct Config_File*> => The params from the config file
+Outputs:
+	<struct belongs_to_lists> The number of atoms of each type and which ones.
+*/
+struct belongs_to_lists get_belongs_to (struct Lammps_Dump *file_data,
+									    struct Config_File *config_file) {
+
+	struct belongs_to_lists belongs_to;
+	size_t arr_size = file_data->natom * sizeof(int);
+
+	belongs_to.N1 = 0;
+	belongs_to.N2 = 0;
+	belongs_to.list1 = (int*)  malloc(arr_size);
+	belongs_to.list2 = (int*)  malloc(arr_size);
+
+	// Loop over all atoms
+	for (int i=0; i<file_data->natom; i++) {
+		// Initialise the arrays
+		belongs_to.list1[i] = 0;
+		belongs_to.list2[i] = 0;
+
+		// Check if the atom is in any type1 asked about
+		for (int j=0; j<config_file->type_1.N; j++) {
+
+			if ( file_data->type[i] == config_file->type_1.type_list[j] ) {
+				belongs_to.N1++;
+				belongs_to.list1[i] = 1;
+				break;
+			}
+		}
+		// Check if the atom is in any type2 asked about
+		for (int j=0; j<config_file->type_2.N; j++) {
+
+			if ( file_data->type[i] == config_file->type_2.type_list[j] ) {
+				belongs_to.N2++;
+				belongs_to.list2[i] = 1;
+				break;
+			}
+		}
+	}
+
+	return belongs_to;
+}
+
+/*
+A huge (somewhat ugly) function to wrap the coordinates back into the simulation box.
+
+This will calculate the cell vectors and use them to wrap the coordinates.
+
+Inputs:
+	* file_data <struct Lammps_Dump*> => The lammps dump file
+Outputs:
+	<void> No output, will change the coords within the file_data input.
+*/
+void wrap_coords(struct Lammps_Dump *file_data) {
+
+	double norm, projaa0, projab0, projac0,
+			     projba0, projbb0, projbc0,
+		   		 projca0, projcb0, projcc0;
+	double denom, a_norm_REF, b_norm_REF, c_norm_REF;
+	double ih_11, ih_12, ih_13, ih_22, ih_23, ih_33;
+
+	struct Matrix ABC_hat;
+	struct Matrix ABC_hat_2;
+	struct Matrix Identity;
+	struct Matrix ABC = get_cell_vecs(file_data);
+
+	// Get unit vecs
+	ABC_hat.a = normalise_vec(ABC.a);
+	ABC_hat.b = normalise_vec(ABC.b);
+	ABC_hat.c = normalise_vec(ABC.c);
+
+	// Get squared unit vecs for later
+	ABC_hat_2.a.x = ABC_hat.a.x * ABC_hat.a.x;
+	ABC_hat_2.b.y = ABC_hat.b.y * ABC_hat.b.y;
+	ABC_hat_2.c.z = ABC_hat.c.z * ABC_hat.c.z;
+
+	// The identity matrix
+	Identity.a.x = 1.0, Identity.a.y = 0.0, Identity.a.z = 0.0;
+	Identity.b.x = 0.0, Identity.b.y = 1.0, Identity.b.z = 0.0;
+	Identity.c.x = 0.0, Identity.c.y = 0.0, Identity.c.z = 1.0;
+
+	// calculate projections onto the cartesian basis vectors.
+	projaa0 = proj(ABC_hat.a, Identity.a);
+	projab0 = proj(ABC_hat.a, Identity.b);
+	projac0 = proj(ABC_hat.a, Identity.c);
+	projba0 = proj(ABC_hat.b, Identity.a);
+	projbb0 = proj(ABC_hat.b, Identity.b);
+	projbc0 = proj(ABC_hat.b, Identity.c);
+	projca0 = proj(ABC_hat.c, Identity.a);
+	projcb0 = proj(ABC_hat.c, Identity.b);
+	projcc0 = proj(ABC_hat.c, Identity.c);
+
+	// projection denominator
+	denom = - (projac0 * projbb0 * projca0) \
+			+ (projab0 * projbc0 * projca0) \
+			+ (projac0 * projba0 * projcb0) \
+			- (projaa0 * projbc0 * projcb0) \
+			- (projab0 * projba0 * projcc0) \
+			+ (projaa0 * projbb0 * projcc0) ;
+
+	// oblique supercell vector lengths
+	a_norm_REF = sqrt( (ABC.a.x * ABC.a.x) + (ABC.a.y * ABC.a.y) + (ABC.a.z * ABC.a.z) );
+	b_norm_REF = sqrt( (ABC.b.x * ABC.b.x) + (ABC.b.y * ABC.b.y) + (ABC.b.z * ABC.b.z) );
+	c_norm_REF = sqrt( (ABC.c.x * ABC.c.x) + (ABC.c.y * ABC.c.y) + (ABC.c.z * ABC.c.z) );
+
+	// inverse box matrix h
+	ih_11 = 1.0 / ABC.a.x;
+    ih_12 = -ABC.b.x / ( ABC.a.x * ABC.b.y);
+    ih_13 = ((ABC.b.x * ABC.c.y) - (ABC.b.y * ABC.c.x)) / (ABC.a.x * ABC.b.y * ABC.c.z);
+    ih_22 = 1.0 / ABC.b.y;
+    ih_23 = -ABC.c.y / (ABC.b.y * ABC.c.z);
+	ih_33 = 1.0 / ABC.c.z;
+
+	// Loop over all atoms.
+	for(int j = 0;j<file_data->natom; ++j)
+	{
+		// projections
+		double nom1, nom2, nom3;
+		nom1 =  -1.0 * (  (projbc0 * projcb0 * file_data->R.x[j])  \
+					    - (projbb0 * projcc0 * file_data->R.x[j])  \
+					    - (projbc0 * projca0 * file_data->R.y[j])  \
+					    + (projba0 * projcc0 * file_data->R.y[j])  \
+					    + (projbb0 * projca0 * file_data->R.z[j])  \
+					    - (projba0 * projcb0 * file_data->R.z[j])  );
+
+		nom2 = (  (projac0 * projcb0 * file_data->R.x[j]) \
+			    - (projab0 * projcc0 * file_data->R.x[j]) \
+			    - (projac0 * projca0 * file_data->R.y[j]) \
+			    + (projaa0 * projcc0 * file_data->R.y[j]) \
+			    + (projab0 * projca0 * file_data->R.z[j]) \
+			    - (projaa0 * projcb0 * file_data->R.z[j]) );
+
+		nom3 =  - 1.0 * (  (projac0 * projbb0 * file_data->R.x[j]) \
+						 - (projab0 * projbc0 * file_data->R.x[j]) \
+						 - (projac0 * projba0 * file_data->R.y[j]) \
+						 + (projaa0 * projbc0 * file_data->R.y[j]) \
+						 + (projab0 * projba0 * file_data->R.z[j]) \
+						 - (projaa0 * projbb0 * file_data->R.z[j]) );
+
+		// coordinates with respect to oblique system
+		double a, b, c;
+		a = nom1 / denom;
+		b = nom2 / denom;
+		c = nom3 / denom;
+
+		// Squared values
+		double a2, b2, c2;
+		a2 = a*a; b2 = b*b; c2 = c*c;
+
+		//  + / -  direction
+		int a_sign, b_sign, c_sign;
+		if( (a * ABC_hat.a.x * ABC.a.x) < 0.0 ) { a_sign =  -1.0; } else { a_sign =  +1.0;}
+		if( (b * ABC_hat.b.x * ABC.b.x) + (b * ABC_hat.b.y * ABC.b.y) < 0.0 ) { b_sign =  -1.0; } else { b_sign =  +1.0; }
+		if( (c * ABC_hat.c.x * ABC.c.x) + (c * ABC_hat.c.y * ABC.c.y) + (c * ABC_hat.c.z * ABC.c.z) < 0.0 ) { c_sign =  -1.0; } else { c_sign =  +1.0; }
+
+		// image calculation
+		double a_norm, b_norm, c_norm;
+		a_norm = sqrt( (a2 * ABC_hat_2.a.x) + (a2 * ABC_hat_2.a.y) + (a2 * ABC_hat_2.a.z) );
+		b_norm = sqrt( (b2 * ABC_hat_2.b.x) + (b2 * ABC_hat_2.b.y) + (b2 * ABC_hat_2.b.z) );
+		c_norm = sqrt( (c2 * ABC_hat_2.c.x) + (c2 * ABC_hat_2.c.y) + (c2 * ABC_hat_2.c.z) );
+
+		file_data->nx = (int) floor( a_norm / a_norm_REF );
+		if (a_sign < 0.0) file_data->nx = -file_data->nx - 1;
+		file_data->nz = (int) floor( b_norm / b_norm_REF );
+		if (b_sign < 0.0) file_data->nz = -file_data->nz - 1;
+		int nz = (int) floor( c_norm / c_norm_REF );
+		if( c_sign < 0.0) nz =  -nz - 1;
+
+		// periodic wrapping
+		file_data->R.x[j] = file_data->R.x[j] - (file_data->nx * ABC.a.x) - (file_data->nz * ABC.b.x) - (nz * ABC.c.x);
+		file_data->R.y[j] = file_data->R.y[j] - (file_data->nz * ABC.b.y) - (nz * ABC.c.y);
+		file_data->R.z[j] = file_data->R.z[j] - (nz * ABC.c.z);
+
+		// scaled coordinates
+		file_data->sR.x[j] = (ih_11 * file_data->R.x[j]) + (ih_12 * file_data->R.y[j]) + (ih_13 * file_data->R.z[j]);
+		file_data->sR.y[j] = (ih_22 * file_data->R.y[j]) + (ih_23 * file_data->R.z[j]);
+		file_data->sR.z[j] = ih_33 * file_data->R.z[j];
+	}
+}
 
 /*
     Will get the histogram count.
@@ -52,45 +591,46 @@ struct Lammps_File {
     histogram.
     
     Inputs:
-        * data <Lammps_File> => The data from the snapshot file
+        * file_data <Lammps_Dump> => The file_data from the snapshot file
         * bin <int> => The number of bins
     Outputs:
         <int*> The bin counts
 */
-void get_histogram(struct Lammps_File data, int bins, int *counts, double dr, int atom_type) {
+void get_histogram(struct Lammps_Dump file_data, int bins, int *counts, double dr, struct belongs_to_lists belongs_to) {
     int diff_mol, correct_atom_type, bh, i, j;
     double dist, rx, ry, rz;
     double svectorx, svectory, svectorz;
+    struct Matrix ABC = get_cell_vecs(&file_data);
 
     // Init the histogram at the beginning of each step
     for (i = 0; i<bins; ++i){ counts[i] = 0; }
 
     // Loop over all pairs of atoms
-	for(j = 0; j<data.natom - 1; ++j) {
-        printf("%d/%d                   \r", j, data.natom - 1);
+	for(j = 0; j<file_data.natom-1; ++j) {
+        printf("\rAtom %d/%d                   \r", j, file_data.natom - 1);
 
-		for(i = j + 1;i<data.natom; ++i) {
+		for(i=j+1; i<file_data.natom; ++i) {
 
             // If the pair of atoms are the correct type and on different mols then count them
-            diff_mol = data.mol[i] != data.mol[j];
-            correct_atom_type = data.type[i] == atom_type && data.type[j] == atom_type;
+            diff_mol = file_data.mol[i] != file_data.mol[j];
+            correct_atom_type = (belongs_to.list1[i] && belongs_to.list2[j]) || (belongs_to.list1[j] && belongs_to.list2[i]);
 			if(diff_mol && correct_atom_type) {
 
                 // svectors are for the coordinate wrapping
-				svectorx = data.sR.x[j] - data.sR.x[i];
-				svectory = data.sR.y[j] - data.sR.y[i];
-				svectorz = data.sR.z[j] - data.sR.z[i];
+				svectorx = file_data.sR.x[j] - file_data.sR.x[i];
+				svectory = file_data.sR.y[j] - file_data.sR.y[i];
+				svectorz = file_data.sR.z[j] - file_data.sR.z[i];
 
 				svectorx = svectorx - rint(svectorx);
 				svectory = svectory - rint(svectory);
 				svectorz = svectorz - rint(svectorz);
 
                 // The actual displacement vectors
-				rx = (data.xhi - data.xlo) * svectorx + (data.xy) * svectory + (data.xz) * svectorz;
-				ry = (data.yhi - data.ylo) * svectory + (data.yz) * svectorz;
-				rz = (data.zhi - data.zlo) * svectorz;
+				rx = (ABC.a.x * svectorx) + (file_data.xy * svectory) + (file_data.xz * svectorz);
+				ry = (ABC.b.y * svectory) + (file_data.yz * svectorz);
+				rz = (ABC.c.z * svectorz);
 
-				dist = sqrt( rx*rx + ry*ry + rz*rz );
+				dist = sqrt( (rx*rx) + (ry*ry) + (rz*rz) );
 
                 // Add to the count
 				bh = floor(dist / dr);
@@ -100,11 +640,8 @@ void get_histogram(struct Lammps_File data, int bins, int *counts, double dr, in
 	}
 }
 
-
-FILE *fp,  *fout;
-
 // fp related
-char file_path[cmax_length];
+char file_path[cmax_length], config_filepath[cmax_length];
 char folder[cmax_length], name[cmax_length];
 
 // dummies
@@ -113,20 +650,20 @@ int int_buffer;
 double d_buffer;
 
 //
-int i, j, k;
+int i, j, k, istep;
 int start, step, stop;
-int atoms;
+int exit_code;
 
 // unwrap
 int nx, ny, nz;
 double xmin, xmax, ymin, ymax, zmin, zmax, Lx, Ly, Lz;
 
 //
-int dt;
+int nstep;
 int bins;
 int *hist;
 double re, dr;
-double *g, *rn;
+double *g, *radii;
 double xPBC, yPBC, zPBC, r2, r;
 
 int type_N_1, type_N_2, sub_atoms_1 = 0, sub_atoms_2 = 0;
@@ -139,43 +676,42 @@ double V;
 //
 int flag;
 double d_temp;
-double S[4];
-double MIN_x, MAX_x, MIN_y, MAX_y;
-
-double ax, ay, az, bx, by, bz, cx, cy, cz, norm;
-double ax_hat, ay_hat, az_hat, bx_hat, by_hat, bz_hat, cx_hat, cy_hat, cz_hat;
-double a0x_hat = 1.0, a0y_hat = 0.0, a0z_hat = 0.0;
-double b0x_hat = 0.0, b0y_hat = 1.0, b0z_hat = 0.0;
-double c0x_hat = 0.0, c0y_hat = 0.0, c0z_hat = 1.0;
-
-double projaa0;
-double projab0;
-double projac0;
-double projba0;
-double projbb0;
-double projbc0;
-double projca0;
-double projcb0;
-double projcc0;
-double nom1, nom2, nom3, denom;
-double a, b, c, a_sign, b_sign, c_sign, a_norm, b_norm, c_norm;
-double a_norm_REF, b_norm_REF, c_norm_REF;
-//int nx, ny, nz;
-
-double ih_11, ih_12, ih_13, ih_22, ih_23, ih_33, *sx, *sy, *sz;
-double svectorx, svectory, svectorz, rx, ry, rz;
 
 
 int main(int argc, char *argv[])
 {
 	int bh;
 
-	//double dr,re,*g,*rn;
-	//------------------------------------------------------------------
-    if(argc == 1)
-    {
-        printf("\n./RDF2 <folder> <name> <start> <step> <stop> <dr> <re> <type_list>\n\n");exit(-1);
+
+	/*
+		Handle the parsing of arguments.
+
+		In this section we initialise the code and handle the parsing of any arguments
+		that need parsing. We will also do some basic error checking like checking which
+		files to read etc...
+	*/
+
+	// Check we have the correct number of arguments
+    if(argc == 1 || (argc != 10 && argc != 9)) {
+    	printf("\n\n%d arguments supplied. This utility take 8 or 9.", argc);
+    	printf("\nYou should pass them as below:\n");
+        printf("\n./RDF2 <folder> <file_prefix> <start> <step> <stop> <dr> <cutoff> <type_list> <scale>\n\n");
+        printf("\n    folder      = folder holding the data files to analyse.");
+        printf("\n    file_prefix = String that starts the data file");
+        printf("\n                  (e.g. for snapshot0.dat 'snapshot' would be the prefix.");
+        printf("\n    start       = Start step for looping over files.");
+        printf("\n    step        = Step for looping over files.");
+        printf("\n    stop        = Last step for looping over files.");
+        printf("\n    dr          = Bin spacing to use.");
+        printf("\n    cutoff      = Cutoff for calculating the RDF.");
+        printf("\n    type_list   = Which atomic types to calculate RDF for.");
+        printf("\n    scale       = A scaling factor to apply to the RDF (optional).\n\n");
+        exit(-1);
+    } else {
+    	printf("\n\nRDF Utility\n");
+    	printf("___________\n");
     }
+
 
 	// read arguments
 	sprintf(folder, "%s", argv[1]);
@@ -186,442 +722,180 @@ int main(int argc, char *argv[])
     dr = atof(argv[6]);
     re = atof(argv[7]);
 
-    dt = ((stop - start) / step) + 1;
+	// // read type config
+	sprintf(config_filepath, "%s", argv[8]); 
+	if (argc == 10) { scale = atoi(argv[9]); }  else { scale = 1.0; }
+
+	// Handle the which files we loop over
+	if (start > stop) {
+		printf("\n\nYour end step is smaller than your start step. Please ammend\n\n");
+	} else if ( step == 0) {
+		nstep = 1;
+		step = 1;
+	} else if ( start == stop ) {
+		step = 1;
+		nstep = 1;
+	} else {
+		nstep = ((stop - start) / step) + 1;
+	}
+
+	// Check all the possible files exist
+	if (file_exists(folder) == 0) {
+		printf("\nCan't find folder '%s'\n\n", folder);
+		exit(1);
+	}
+	int nFiles = 0;
+	for (k=start; k<=stop; k=k+step) {
+		sprintf(file_path, "%s/%s%d.dat", folder, name, k);
+		if (file_exists(file_path) == 1) { nFiles++; }
+	}
+	char all_files[nFiles][cmax_length];
+	printf("\nNum Files to read: %d\n", nFiles);
+
+	nFiles = 0;
+	for (k=start; k<=stop; k=k+step) {
+		sprintf(file_path, "%s/%s%d.dat", folder, name, k);
+		if (file_exists(file_path) == 1) {
+			sprintf(all_files[nFiles], file_path);
+			nFiles++;
+		}
+	}
+
+	// Pretty print the files to be read
+	if (nFiles > 5) {
+		printf("\n     File 1] %s", all_files[0]);
+		printf("\n       .");
+		printf("\n       .");
+		printf("\n       .");
+		printf("\n     File %d] %s\n\n", nFiles, all_files[nFiles-1]);
+	} else {
+		for (int k=0; k<nFiles; k++) {
+			printf("\n     File %d] %s", k, all_files[k]);
+		} printf("\n\n");
+	}
+
+	// nstep is the number of files we are reading and looping over.
+	nstep = nFiles;
+
 
     // rdf initialization
 	// number of bins
 	bins = floor( (re / dr) + 0.5);
+
 	// bin count array
 	// RDF
 	g = (double*)  malloc( bins * sizeof(double) );
 	// shell radius
-	rn = (double*)  malloc( bins*sizeof(double) );
+	radii = (double*)  malloc( bins*sizeof(double) );
 	hist = (int*) malloc( bins * sizeof(int) );
     
+
 	for (i=0; i<bins; ++i) {
-        rn[i] = (i + 0.5) * dr;
+        radii[i] = (i + 0.5) * dr;
         g[i] = 0.0;
     }
 
-	// read type config
-	sprintf(file_path, "%s", argv[8]);
 
-    // Check if the folder exists
-	fp = fopen(file_path, "r");
-	if(fp == NULL){
-        printf("Cannot locate %s\n", file_path);
-        exit(-1);
-    }
-
-	// locate group 1
-	while( fgets(buffer, cmax_length, fp) != NULL) {
-        if(strcmp(buffer, "type_1\n") == 0)
-            break;
-    }
-	fgets(buffer, cmax_length, fp);
-    sscanf(buffer,"%d",&type_N_1);
-	type_list_1 = (int*) malloc(type_N_1 * sizeof(int));
-	for(i=0; i<type_N_1; ++i)
-	{
-		fgets(buffer, cmax_length, fp);
-        sscanf(buffer, "%d", &type_list_1[i]);
+	struct Config_File config_file;
+	config_file = read_config(config_filepath);
+	if (config_file.exit_code != 0) {
+		printf("\n\nCouldn't read config file '%s'.\n\nExitting\n", config_filepath);
+		exit(1);
 	}
-	rewind(fp);
 
-	// locate group 2
-	while(fgets(buffer, cmax_length, fp) != NULL) {
-        if(strcmp(buffer,"type_2\n") == 0)
-            break;
-    }
-	fgets(buffer, cmax_length, fp);
-    sscanf(buffer, "%d", &type_N_2);
-	type_list_2 = (int*) malloc(type_N_2 * sizeof(int));
-	for(i = 0;i<type_N_2;++i)
+	/*		
+		Loop over all the requested files. Read them then calculate the RDF from them.
+
+		This is where the work is actually done.
+	*/
+	for(istep=0; istep<nstep; istep++)
 	{
-		fgets(buffer, cmax_length, fp);
-        sscanf(buffer, "%d", &type_list_2[i]);
-	}
-	fclose(fp);
+		// Read the Lammps dump data
+		// printf("\nStep %d) ", istep);
+	    struct Lammps_Dump file_data = read_lammps_dump(all_files[istep]);
+		if (file_data.exit_code != 0) { printf("Lammps dump file read error!"); exit(2); }
 
-	// scale
-	scale = atoi(argv[9]);
-
-	// read each proposed dump file to check if they exist
-    for (k=start; k<=stop; k=k+step) {
-    	sprintf(file_path, "%s/%s%d.dat", folder, name, k);
-    	fp = fopen(file_path, "r");
-    	if(fp == NULL){
-            printf("Cannot locate %s\n", file_path);
-            exit(-1); 
-        }
-    }
-
-	for(i=0; i<3; ++i) {
-        fgets(buffer, cmax_length, fp);
-    }
-	fgets(buffer, cmax_length, fp);
-    sscanf(buffer, "%d", &atoms);
-	fclose(fp);
-
-    //////////////////////////////////////////////
-    //                                          //
-    // Init the Lammps File -this holds all the //
-    //                       Lammps File data.  //
-    //                                          //
-    //////////////////////////////////////////////
-    struct Lammps_File data;
-    // All positions
-    data.R.x = (double*) malloc( atoms * sizeof(double) );
-    data.R.y = (double*) malloc( atoms * sizeof(double) );
-    data.R.z = (double*) malloc( atoms * sizeof(double) );
-    // All scaled positions
-    data.sR.x = (double*) malloc( atoms * sizeof(double) );
-    data.sR.y = (double*) malloc( atoms * sizeof(double) );
-    data.sR.z = (double*) malloc( atoms * sizeof(double) );
-    // The molecule number and atom type
-    data.mol = (int*) malloc( atoms * sizeof(int) );
-    data.type = (int*) malloc( atoms * sizeof(int) );
-    data.natom = atoms;
-
-    
-    // Whether the atom is of type 1 or 2 -init arrays
-    belongs_to_type_list_1 = (int*) malloc( atoms * sizeof(int) );
-    for(i = 0; i<atoms; ++i)  belongs_to_type_list_1[i] = 0;
-    belongs_to_type_list_2 = (int*) malloc( atoms * sizeof(int) );
-    for(i = 0; i<atoms; ++i)  belongs_to_type_list_2[i] = 0;
-
-
-    
-
-	// start reading the dump files
-	for(k=start; k<=stop; k = k + step)
-	{
-        /*
-        Will compare 2 doubles and return an int depending on which is bigger
-
-        Inputs:
-            * a <double> => First double to compare
-            * b <double> => Second double to compare
-        Outputs:
-            <-1, 0, 1> -1 if a < b; 0 if a == b; 1 if a > b
-        */
-        int compare_double(const double a, const double b) {
-            if (a == b)  return 0;
-            else if (a < b) return -1;
-            else return 1;
-        }
-
-
-        /*
-        Will read a lammps file from a filepath and return a Lammps_File object
-
-        This will simple iterate over all lines and call fgets on each one to parse
-        them.
-        The unit cell vectors will also be calculated and stored in the Lammps_File
-        struct.
-
-        Inputs:
-            * filepath <char[]> => The path pointing towards the lammps file.
-        Outputs:
-            <Lammps_File> The struct holding all the lammps file data.
-        */
-        Lammps_File read_lammps_file(char filepath[]) {
-            struct Lammps_File data;
-            char buffer[cmax_length];
-            double S[4];
-
-            
-            // Create the filepath
-            fp = fopen(filepath, "r");
-
-            //Check the file exists
-            if (fp == NULL) {
-                printf("Cannot Locate %s\n", filepath);
-                exit(-1);
-            }
-            // Read line by line
-            //
-            // Get step num and natom
-            fgets(buffer, cmax_length, fp);
-            fgets(buffer, "%d", &data.dt);
-            fgets(buffer, cmax_length, fp);
-            fgets(buffer, "%d", &data.natom);
-            //
-            // Get cell vec parameters
-		    fgets(buffer, cmax_length, fp);
-            sscanf(buffer, "%lf\t%lf\t%lf", &data.xlo_bound, &data.xhi_bound, &data.xy);
-		    fgets(buffer, cmax_length, fp);
-            sscanf(buffer, "%lf\t%lf\t%lf", &data.ylo_bound, &data.yhi_bound, &data.xz);
-		    fgets(buffer, cmax_length, fp);
-            sscanf(buffer, "%lf\t%lf\t%lf", &data.zlo_bound, &data.zhi_bound, &data.yz);
-
-            // Calc vecs from parameters
-            S[0] = 0.0;
-		    S[1] = data.xy;
-		    S[2] = data.xz;
-		    S[3] = data.xy + data.xz;
-
-            qsort(S, 4, sizeof(double), compare);
-
-		    MIN_x = S[0];
-            MAX_x = S[3];
-
-            // Read atoms
-
-
-
-
-        }
-        // Create the filepath string
-		sprintf(file_path, "%s/%s%d.dat", folder, name, k);
-		// open dump file
-		fp = fopen(file_path, "r");
-
-        // Check if the file is there
-		if(fp == NULL){
-            printf("Cannot locate %s\n", file_path);
-            exit(-1);
-        }
-
-        // Will read the header
-		for(i=0; i<3; ++i){
-            fgets(buffer, cmax_length, fp);
-        }
-
-		fgets(buffer, cmax_length, fp);
-		fgets(buffer, cmax_length, fp);
-
-		fgets(buffer, cmax_length, fp); 
-        sscanf(buffer, "%lf\t%lf\t%lf", &data.xlo_bound, &data.xhi_bound, &data.xy);
-		fgets(buffer, cmax_length, fp);
-        sscanf(buffer, "%lf\t%lf\t%lf", &data.ylo_bound, &data.yhi_bound, &data.xz);
-		fgets(buffer, cmax_length, fp);
-        sscanf(buffer, "%lf\t%lf\t%lf", &data.zlo_bound, &data.zhi_bound, &data.yz);
-
-		fgets(buffer, cmax_length, fp);
-
-        void function(Lammps_File *data) {
-            double S[4];
-
-            // supecell
-            //  
-            S[0] = 0.0;
-            S[1] = data.xy;
-            S[2] = data.xz;
-            S[3] = data.xy + data.xz;
-
-        }
-		// supecell
-		//
-		S[0] = 0.0;
-		S[1] = data.xy;
-		S[2] = data.xz;
-		S[3] = data.xy + data.xz;
-
-		// bubble sort
-		flag = 1;
-		while(flag == 1)
+		// Shift so xmin, ymin, zmin are at the orign.
+		for(j = 0;j<file_data.natom;++j)
 		{
-            flag = 0;
-			for(j=1; j<4; ++j)
-			{
-                if(S[j] < S[j-1])
-				{
-                    d_temp = S[j-1];
-                    S[j-1] = S[j];
-                    S[j] = d_temp;
-					flag = 1;
-                }
-			}
+			file_data.R.x[j] = file_data.R.x[j] - file_data.xlo;
+			file_data.R.y[j] = file_data.R.y[j] - file_data.ylo;
+			file_data.R.z[j] = file_data.R.z[j] - file_data.zlo;
 		}
-		MIN_x = S[0];
-        MAX_x = S[3];
+	
+		// Get volume
+		struct Matrix ABC = get_cell_vecs(&file_data);
+		V = ABC.a.x * ABC.b.y * ABC.c.z;
 
-		if(data.yz<0.0){ MIN_y = data.yz; } else { MIN_y = 0.0; }
-		if(data.yz>0.0){ MAX_y = data.yz; } else { MAX_y = 0.0; }
+		// Wrap coordinates
+		wrap_coords(&file_data);
 
-		data.xlo = data.xlo_bound - MIN_x;
-		data.xhi = data.xhi_bound - MAX_x;
-		data.ylo = data.ylo_bound - MIN_y;
-		data.yhi = data.yhi_bound - MAX_y;
-		data.zlo = data.zlo_bound;
-		data.zhi = data.zhi_bound;
-		
-		// read atoms
-		for(i = 0;i<atoms;++i)
-		{
-			// read
-			fgets(buffer, cmax_length, fp);
-            sscanf(buffer,"%d\t%d\t%d\t%lf\t%lf\t%lf\t%d\t%d\t%d", &int_buffer, &data.mol[i], &data.type[i], 
-                                                                   &data.R.x[i], &data.R.y[i], &data.R.z[i],
-                                                                   &data.nx, &data.nz, &nz);
-		}
+		// Get which atoms belong to which type and how many
+		struct belongs_to_lists belongs_to = get_belongs_to( &file_data, &config_file );
 
-		// check once
-		if(k == start)
-		{
-			for(i=0; i<atoms; ++i)
-			{
-				for(j=0; j<type_N_1; ++j)
-				{
-					if(data.type[i] == type_list_1[j]) {
-                        belongs_to_type_list_1[i] = 1;
-                        ++sub_atoms_1;
-                        break;
-                    }
-				}
-				for(j=0; j<type_N_2; ++j)
-				{
-					if(data.type[i] == type_list_2[j]) {
-                        belongs_to_type_list_2[i]=1;
-                        ++sub_atoms_2;
-                        break;
-                    }
-				}
-			}
-		}
-
-		// shift
-		for(j = 0;j<atoms;++j)
-		{
-			data.R.x[j] = data.R.x[j]-data.xlo;data.R.y[j] = data.R.y[j]-data.ylo;data.R.z[j] = data.R.z[j]-data.zlo;
-		}
-
-		// oblique supercell vectors
-		ax = (data.xhi - data.xlo);// - (0.0);
-		ay = (0.0)    ;// - (0.0);
-		az = (0.0)    ;// - (0.0);
-
-		bx = (data.xy)     ;// - (0.0);
-		by = (data.yhi - data.ylo);// - (0.0);
-		bz = (0.0)    ;// - (0.0);
-
-		cx = (data.xz)     ;// - (0.0);
-		cy = (data.yz)     ;// - (0.0);
-		cz = (data.zhi - data.zlo);// - (0.0);
-
-		V = ax * by * cz;
-
-		// normalize
-		norm = sqrt(ax * ax + ay * ay + az * az);
-		ax_hat = ax/norm;
-		ay_hat = ay/norm;
-		az_hat = az/norm;
-
-		norm = sqrt(bx * bx + by * by + bz * bz);
-		bx_hat = bx/norm;
-		by_hat = by/norm;
-		bz_hat = bz/norm;
-
-		norm = sqrt(cx * cx + cy * cy + cz * cz);
-		cx_hat = cx/norm;
-		cy_hat = cy/norm;
-		cz_hat = cz/norm;
-
-		// calculate projections
-		projaa0 = proj(ax_hat, ay_hat, az_hat, a0x_hat, a0y_hat, a0z_hat);
-		projab0 = proj(ax_hat, ay_hat, az_hat, b0x_hat, b0y_hat, b0z_hat);
-		projac0 = proj(ax_hat, ay_hat, az_hat, c0x_hat, c0y_hat, c0z_hat);
-		projba0 = proj(bx_hat, by_hat, bz_hat, a0x_hat, a0y_hat, a0z_hat);
-		projbb0 = proj(bx_hat, by_hat, bz_hat, b0x_hat, b0y_hat, b0z_hat);
-		projbc0 = proj(bx_hat, by_hat, bz_hat, c0x_hat, c0y_hat, c0z_hat);
-		projca0 = proj(cx_hat, cy_hat, cz_hat, a0x_hat, a0y_hat, a0z_hat);
-		projcb0 = proj(cx_hat, cy_hat, cz_hat, b0x_hat, b0y_hat, b0z_hat);
-		projcc0 = proj(cx_hat, cy_hat, cz_hat, c0x_hat, c0y_hat, c0z_hat);
-
-		// projection denominator
-		denom = (-projac0 * projbb0 * projca0+projab0 * projbc0 * projca0+projac0 * projba0 * projcb0-projaa0 * projbc0 * projcb0-projab0 * projba0 * projcc0+projaa0 * projbb0 * projcc0);
-
-		// oblique supercell vector lengths
-		a_norm_REF = sqrt( (data.xhi - data.xlo)  *  (data.xhi - data.xlo) );
-		b_norm_REF = sqrt( data.xy  *  data.xy + (data.yhi - data.ylo)  *  (data.yhi - data.ylo) );
-		c_norm_REF = sqrt( data.xz  *  data.xz + data.yz  *  data.yz + (data.zhi - data.zlo)  *  (data.zhi - data.zlo) );
-
-		// inverse box matrix h
-		ih_11 = 1.0 / (data.xhi - data.xlo);
-        ih_12 = -data.xy / ( (data.xhi - data.xlo)  *  (data.yhi - data.ylo));
-        ih_13 = (data.xy  *  data.yz - (data.yhi - data.ylo)  *  data.xz) / ((data.xhi - data.xlo)  *  (data.yhi - data.ylo)  *  (data.zhi - data.zlo));
-		ih_22 = 1.0 / (data.yhi - data.ylo);
-        ih_23 = -data.yz / ((data.yhi - data.ylo)  *  (data.zhi - data.zlo));
-		ih_33 = 1.0/(data.zhi - data.zlo);
-		for(j = 0;j<atoms; ++j)
-		{
-
-			// projections
-			nom1 =  -1.0  *  (projbc0 * projcb0 * data.R.x[j] - projbb0 * projcc0 * data.R.x[j] - projbc0 * projca0 * data.R.y[j] + projba0 * projcc0 * data.R.y[j] + projbb0 * projca0 * data.R.z[j] - projba0 * projcb0 * data.R.z[j]);
-			nom2 = (projac0 * projcb0 * data.R.x[j] - projab0 * projcc0 * data.R.x[j] - projac0 * projca0 * data.R.y[j] + projaa0 * projcc0 * data.R.y[j] + projab0 * projca0 * data.R.z[j] - projaa0 * projcb0 * data.R.z[j]);
-			nom3 =  - 1.0 * (projac0 * projbb0 * data.R.x[j] - projab0 * projbc0 * data.R.x[j] - projac0 * projba0 * data.R.y[j] + projaa0 * projbc0 * data.R.y[j] + projab0 * projba0 * data.R.z[j] - projaa0 * projbb0 * data.R.z[j]);
-
-			// coordinates with respect to oblique system
-			a = nom1/denom;
-			b = nom2/denom;
-			c = nom3/denom;
-
-			//  + / -  direction
-			if((a * ax_hat - 0.0) * (data.xhi - data.xlo - 0.0) + (a * ay_hat - 0.0) * (0.0 - 0.0) + (a * az_hat - 0.0) * (0.0 - 0.0) < 0.0 ){a_sign =  - 1.0;}else{a_sign =  + 1.0;}
-			if((b * bx_hat - 0.0) * (data.xy - 0.0) + (b * by_hat - 0.0) * (data.yhi - data.ylo - 0.0) + (b * bz_hat - 0.0) * (0.0 - 0.0) < 0.0 ){b_sign =  - 1.0;}else{b_sign =  + 1.0;}
-			if((c * cx_hat - 0.0) * (data.xz - 0.0) + (c * cy_hat - 0.0) * (data.yz - 0.0) + (c * cz_hat - 0.0) * (data.zhi - data.zlo - 0.0) < 0.0 ){c_sign =  - 1.0;}else{c_sign =  + 1.0;}
-
-			// image calculation
-			a_norm = (a * ax_hat) * (a * ax_hat) + (a * ay_hat) * (a * ay_hat) + (a * az_hat) * (a * az_hat);a_norm = sqrt(a_norm);
-			b_norm = (b * bx_hat) * (b * bx_hat) + (b * by_hat) * (b * by_hat) + (b * bz_hat) * (b * bz_hat);b_norm = sqrt(b_norm);
-			c_norm = (c * cx_hat) * (c * cx_hat) + (c * cy_hat) * (c * cy_hat) + (c * cz_hat) * (c * cz_hat);c_norm = sqrt(c_norm);
-			data.nx = (int)floor(a_norm/a_norm_REF);if(a_sign<0.0)data.nx =  - data.nx - 1;
-			data.nz = (int)floor(b_norm/b_norm_REF);if(b_sign<0.0)data.nz =  - data.nz - 1;
-			nz = (int)floor(c_norm/c_norm_REF);if(c_sign<0.0)nz =  - nz - 1;
-
-			// periodic wrapping
-			data.R.x[j] = data.R.x[j] - data.nx * (data.xhi - data.xlo) - data.nz * (data.xy) - nz * (data.xz);
-			data.R.y[j] = data.R.y[j] - data.nx * (0.0) - data.nz * (data.yhi - data.ylo) - nz * (data.yz);
-			data.R.z[j] = data.R.z[j] - data.nx * (0.0) - data.nz * (0.0) - nz * (data.zhi - data.zlo);
-
-			// scaled coordinates
-			data.sR.x[j] = ih_11 * data.R.x[j] + ih_12 * data.R.y[j] + ih_13 * data.R.z[j];
-			data.sR.y[j] = ih_22 * data.R.y[j] + ih_23 * data.R.z[j];
-			data.sR.z[j] = ih_33 * data.R.z[j];
-		}
-
-        get_histogram(data, bins, hist, dr, 1);
+		// Get histogram
+		get_histogram(file_data, bins, hist, dr, belongs_to);
 
         // rdf calculation
-		for(i = 0;i<bins; ++i)
-		{
-			g[i] = g[i] + (hist[i] * V)/(4.0 * pi * sub_atoms_1 * sub_atoms_2 * scale * dr * rn[i] * rn[i]);
+        double norm = V / (4.0 * pi * belongs_to.N1 * belongs_to.N2 * scale * dr);
+		for(i=0; i<bins; i++) {
+			g[i] = g[i] + (hist[i] * norm) / (radii[i] * radii[i]);
 		}
+	
 
-		fclose(fp);
+		// Free the Lammps Data
+		free(file_data.R.x);
+    	free(file_data.R.y);
+    	free(file_data.R.z);
+    	free(file_data.mol);
+	    free(file_data.type);
+	    free(file_data.sR.x);
+		free(file_data.sR.y);
+		free(file_data.sR.z);
+
+		// Free the belongs to data
+		free(belongs_to.list1);
+		free(belongs_to.list2);
+	}
+	// Create a unique filepath
+	FILE *fout;
+	char out_filepath[cmax_length] = "rdf.csv";
+	int count = 0;
+	while (file_exists(out_filepath) == 1) {
+		sprintf(out_filepath, "rdf_%d.csv", count);
+		count++;
 	}
 
-    fout = fopen("./rdf.dat", "w + ");
+	// Write the csv header
+	fout = fopen(out_filepath, "w + ");
     fputs("radius,rdf\n", fout);
-    // rdf calculation
+
+    // Write each bin
 	for(i = 0;i<bins; ++i)
 	{
-		g[i] = g[i]/dt;
-		//printf("\r%lf\t%lf\n",rn[i],g[i]);
-        fprintf(fout, "%lf,%lf\n",rn[i],g[i]);
-	}
-    fclose(fout);
-
-    printf("\r                                \nAll Done!");
+		// Average over files
+		g[i] = g[i] / nstep;
+        fprintf(fout, "%lf,%lf\n",radii[i],g[i]);
+	} fclose(fout);
 
 
+	printf("\nComplete                              \n\n");
+  
 
-	//------------------------------------------------------------------
-	// free memory
+	// //------------------------------------------------------------------
+	// // free memory
 
-	free(g);free(rn);free(hist);
-    free(data.R.x);free(data.R.y);free(data.R.z);
-
-    free(data.mol);
+	free(g);
+	free(radii);
+	free(hist);
 
     free(type_list_1);
     free(type_list_2);
-    free(data.type);
+
     free(belongs_to_type_list_1);
     free(belongs_to_type_list_2);
 
-	free(data.sR.x);free(data.sR.y);free(data.sR.z);
+
 
 	return 0;
 }

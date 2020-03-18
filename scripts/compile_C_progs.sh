@@ -48,9 +48,13 @@ do
 
    if ! [ -f $exe_file ]
    then
-      exit_code=`gcc $compile_cmd`
-      echo "Compiled ${C_PROGRAMS[$i]}" 
-
+      if gcc $compile_cmd;
+      then
+         echo "Compiled ${C_PROGRAMS[$i]}" 
+         sed -i s/"$last_change_var_name=.*"/"$last_change_var_name=$last_change"/ $CONFIG_VAR_FILE
+      else
+         exit
+      fi
    else
       # Check if the last compile time is available to us
       is_there=`grep -E "$last_change_var_name=[0-9]+" $CONFIG_VAR_FILE`
@@ -66,11 +70,16 @@ do
          last_change_prev="${!last_change_var_name}"
          if [ "$last_change_prev" != "$last_change" ]
          then
-            gcc $compile_cmd
-            echo "Compiled ${C_PROGRAMS[$i]}" 
+            if gcc $compile_cmd;
+            then
+               echo "Compiled ${C_PROGRAMS[$i]}" 
+               sed -i s/"$last_change_var_name=.*"/"$last_change_var_name=$last_change"/ $CONFIG_VAR_FILE
+            else
+               exit
+            fi
          fi
       fi
    fi
 
-   sed -i s/"$last_change_var_name=.*"/"$last_change_var_name=$last_change"/ $CONFIG_VAR_FILE
+   
 done

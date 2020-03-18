@@ -38,6 +38,9 @@ python {
     other_ax = ang_50ps.data.plot(axes=other_ax, label="50ps")
     other_ax = ang_1ns.data.plot(axes=other_ax, label="1ns")
 
+    for ax in other_ax:
+        ax.set_ylim([0, 4])
+
     plt.legend()
     plt.show()
 }

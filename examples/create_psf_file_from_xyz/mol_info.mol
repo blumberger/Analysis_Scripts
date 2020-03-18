@@ -1,0 +1,16 @@
+ATOM_TYPES:
+CA = C
+HA = H
+
+BONDS:
+1 = CA CA
+2 = CA HA
+
+ANGLES:
+1 = CA CA CA
+2 = CA CA HA
+
+DIHEDRALS:
+1 = CA CA CA CA
+2 = CA CA CA HA
+3 = HA CA CA HA

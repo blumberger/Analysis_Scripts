@@ -8,6 +8,10 @@ reshaping atomic coords to molecular coords etc...
 import numpy as np
 
 from src.system import type_checking as type_check
+from src.io_utils import json_files as json
+
+PT = json.read_json("src/data/periodic_table.json")
+PT_abbrv = {PT[i]['abbreviation']: {**PT[i], **{'full_name': i}} for i in PT}
 
 
 def get_nmol(natom, natom_in_mol):
@@ -64,3 +68,155 @@ def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3, nstep=1):
                           + "It should either be (nstep, natom, 3) or"
                           + " (natom, 3)\n\n"
                           + f"Current shape = {crds.shape}")
+
+
+def get_K_nearest_neighbours(at, crds, K, dist=False):
+    """
+    Will get the K nearest neighbours for at.
+
+    Inputs:
+        * at <array 3> => The point to get the neighbours for
+        * crds <array> => The other points to check.
+        * K <int> => How many nearest neighbours to get
+        * dist <array> OPTIONAL => The distances of the atom in question with
+                                    other coords.
+    """
+    if dist is False:
+        dist = np.linalg.norm(crds - at, axis=1)
+
+    sorting = sorted(zip(dist, np.arange(len(dist))))[1: K+1]
+
+    return [i[1] for i in sorting]
+
+
+
+def get_bonding_info(all_mol_crds, bond_info, cols, types, NN=False, cutoff=5):
+    """
+    Will determine the bonding between crds in a molecule.
+
+    Inputs:
+        * al_mol_crds <array> => All the molecular coordinates (nmol, nat_per, 3)
+        * bond_info <dict> => Which atoms can bond to which key value pairs
+        * cols <array> => String with what type of atom it is
+        * types <array> => What element the atom is
+        * NN <array<tuple>> OPTIONAL => matrix of tuples with tuples containing
+                                        all (distances, at_nums, atom_type)
+        * cutoff <float> OPTIONAL => The max dist that 2 atoms can bond
+    Outputs:
+        <list<dict>> key = atom, value = all atoms it bonds with. Duplicates are included
+    """
+    all_bonds = []
+
+    # Get element types from the columns and types
+    elm = np.array([[types[j] for j in i] for i in cols])
+
+    # Loop over all molecules
+    for imol, mol_crds in enumerate(all_mol_crds):
+        at_bonds = {}
+
+        # Loop over all atoms in a molecule
+        for iat, at in enumerate(mol_crds):
+            # This atom won't bond with anything
+            if cols[imol, iat] not in bond_info:  continue
+
+            # Get the element of the atom
+            at_type = elm[imol, iat]
+
+            # Get which closest atoms (the atoms is most likely to be bonded to).
+            num_bonds = PT_abbrv[at_type]['number_bonds'][0]
+            sorting = NN[iat][1:]
+
+            inds = []
+            for dist, ind, a_type in sorting:
+                # If the elements are allowed to be bonded add them to the list
+                if a_type in bond_info[cols[imol, iat]] and float(dist) < cutoff:
+                    inds.append(int(ind))
+                if len(inds) == num_bonds: break
+
+            # Add the atoms to the bonding dict
+            at_bonds[iat+1] = inds
+
+        all_bonds.append(at_bonds)
+
+    return all_bonds
+
+
+def get_all_atom_chains(mol_crds, original_iat, chain, types, bond_info,
+                        chain_ind=0, inds=[], new_iat=False,
+                        all_inds=[]):
+    """
+    Will get all chains of bonded atoms that satisfy the pattern in 'chain'
+
+    Inputs:
+        * mol_crds <array> => All the coordinates of the molecule in question
+        * original_iat <int> => The atom to check for the chain
+        * chain <list> => A list of strings with what types of atoms are chained
+                          with others
+        * types <array> => The atom types for each atom in molecule
+        * bond_info <dict> => All bonds each atom can form
+    """
+    # Initialise
+    if new_iat is False:
+        # Lists are sticky so reset them
+        all_inds, inds = [], []
+        new_iat = original_iat
+
+    inds.append(new_iat)
+    if len(inds) == len(chain):
+        all_inds.append(inds)
+        return all_inds
+
+    # terminate if we violate the chain rule
+    # if chain_ind == len(chain):   return all_inds
+    if chain[chain_ind] != types[new_iat-1]:
+        return all_inds
+
+
+    # Loop over each atom that the current atom is bonded to
+    for iter_iat in bond_info[new_iat]:
+        # If the atoms follow the chain rule and haven't been visited before
+        if iter_iat in inds:  continue
+        if types[iter_iat-1] != chain[chain_ind+1]: continue
+
+        # Recursively call self to iterate through all atoms
+        all_inds = get_all_atom_chains(mol_crds, original_iat, chain, types,
+                                      bond_info, chain_ind+1, inds[:],
+                                      iter_iat, all_inds)
+    return all_inds
+
+
+
+def get_topo_info(all_mol_crds, angle_info, all_bonds, cols, types, NN=False):
+    """
+    Will determine the bonding between crds in a molecule.
+
+    Inputs:
+        * al_mol_crds <array> => All the molecular coordinates (nmol, nat_per, 3)
+        * angle_info <dict> => Which atoms can make angles to which
+        * all_bonds <dict> => Full bonding structure from 'get_b'
+        * cols <array> => String with what type of atom it is
+        * types <array> => What element the atom is
+        * NN <array<tuple>> OPTIONAL => matrix of tuples with tuples containing
+                                        all (distances, at_nums, atom_type)
+        * cutoff <float> OPTIONAL => The max dist that 2 atoms can bond
+    """
+    all_angs = []
+
+    # Get element types from the columns and types
+    elm = np.array([[types[j] for j in i] for i in cols])
+
+    # Loop over all molecules
+    for imol, mol_crds in enumerate(all_mol_crds):
+        at_angs = {iat: [] for iat in range(1, len(mol_crds)+1)}
+
+        # Loop over all atoms in a molecule
+        for iat, at in enumerate(mol_crds):
+            for iang in angle_info:
+                all_ang = get_all_atom_chains(mol_crds, iat+1, angle_info[iang],
+                                          cols[imol], all_bonds[imol])
+                for ang in all_ang:
+                    at_angs[iat+1].append(ang)
+
+        all_angs.append(at_angs)
+        
+    return all_angs

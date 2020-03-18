@@ -1,0 +1,38 @@
+#########################################
+#                                       #
+# This input file will attempt to       #
+# create a psf file from an xyz file.   #
+#                                       #
+# The bonding information will be       #
+# estimated by proximity and the number #
+# of bonds each element is allowed and  #
+# the input file mol_info.mol.          #
+#                                       #
+# This has only been tested on          #
+# pentacene (quite a simple mol) so     #
+# rely on it for more complex molecules #
+# it may need expanding.                #
+#########################################
+
+# Set some variables
+folder = "./examples/data"
+filepath = "$folder/monomer.xyz"
+this_files_folder = "examples/create_psf_file_from_xyz"
+
+# Read the xyz file
+read $filepath xyz as mol
+# Tell the code we are using pentacene
+set system mol to pentacene
+# Read the parameter file
+read "$this_files_folder/mol_info.mol" params as mol_prms
+# Set the parameters for calculating the angles, bonds, dihedrals etc..
+set params mol to mol_prms
+
+# Actually get the psf data
+calc psf_file from mol as psf
+
+# Write the psf file
+write psf "test.psf"
+
+
+

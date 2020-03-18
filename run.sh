@@ -46,10 +46,18 @@ if [ "$INSTALL_DEPS" == "true" ]
 then
     # From ./scripts/run_utils.sh
     install_deps
+    
+    if [ "$exit_code" != "0" ]
+    then
+       echo "Exiting gracefully"
+       exit
+    fi
 fi
 
 # Compile any C programs that need compiling
-#./scripts/compile_C_progs.sh
+./scripts/compile_C_progs.sh
+echo "Compiled C Modules";
+exit
 
 # Let the script know we don't need to install things next time.
 echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE

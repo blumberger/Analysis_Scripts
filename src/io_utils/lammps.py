@@ -566,10 +566,11 @@ class Lammps_Dump(gen_io.DataFileStorage):
 
         This doesn't affect the data it is only used for writing.
         """
+        print(self.metadata['coordinate_wrapping'])
         if self.metadata['coordinate_wrapping'] == 'unwrapped':
-            df = self.csv_data
+            df = self.unwrapped_csv
         else:
-            df = self.wrapped_csv
+           df = self.wrapped_csv
 
         # Set the xyz data
         self.xyz_data = np.array([df[['x', 'y', 'z']].to_numpy()])

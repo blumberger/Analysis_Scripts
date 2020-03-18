@@ -43,6 +43,7 @@ from src.io_utils import lammps
 from src.io_utils import json_files as json
 from src.io_utils import csv_files
 from src.io_utils import massif_files as M_files
+from src.io_utils import param_files
 
 # Parsing
 from src.parsing import general_parsing as gen_parse
@@ -54,6 +55,7 @@ from src.calc import NN
 from src.calc import angular_distribution as ang_dist
 from src.calc import density as dens
 from src.calc import RDF as rdf
+from src.calc import create_psf as psf_calc
 
 # Input file functions
 from src.input_file import input_file_types as inp_types
@@ -61,6 +63,7 @@ from src.input_file import input_file_types as inp_types
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
             'script', 'python', 'if')
 SET_FOLDERPATH = "src/data/set"
+SET_TYPES = ("params", "system")
 VALID_FOR_FUNCS = ("range", "filepath", "list")
 VALID_LOAD_WORDS = ("into", "as")
 VALID_SCRIPT_TYPES = {'python', 'C++', 'C'}
@@ -173,14 +176,17 @@ class INP_File(object):
                  'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
                  'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
                  'lammps_dump': lammps.Lammps_Dump, 'massif_file': M_files.Massif_File,
+                 'params': param_files.Params,
                 }
     write_fncs = {
                   'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
                   'json': json.write_json, 'csv': csv_files.Write_CSV,
+                  "psf": gen_io.Write_File,
                  }
     calc_fncs = {
                  'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,
                  'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
+                 'psf_file': psf_calc.Create_PSF,
                 }
 
     line_declarations = LINE_DECLARATIONS
@@ -395,11 +401,15 @@ class INP_File(object):
         err_msg += "\n\nor you could specify the type of file to write via:\n\n\t"
         err_msg += "write <data_name> <filepath> as <file_type>"
 
+        words = line.split()
+        if len(words) != 3 and len(words) != 5:
+            self.print_error(err_msg)
+        words[1] = words[1].lstrip('$')
+        line = ' '.join(words)
+
         line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
-        if len(words) != 3 and len(words) != 5:
-            self.print_error(err_msg)
 
         # Check the variable to be written actually exists
         if words[1] not in self.variables:
@@ -412,6 +422,8 @@ class INP_File(object):
                err_msg += "Please use one of:\n\t*"
                err_msg += "\n\t*".join(list(self.write_fncs.keys()))
                self.print_error(err_msg)
+
+        # Need to check requested filetype and if that isn't in write_fncs then raise Error
 
     def check_variable_line(self, line):
         """
@@ -539,16 +551,6 @@ class INP_File(object):
                                 + '\n\t* '
                                 + '\n\t* '.join(list(self.calc_fncs.keys())))
 
-        # Check the required metadata has been set
-        required_metadata = self.calc_fncs[calc_type].required_metadata
-        Var = getattr(self, var_name)
-        for attr in required_metadata:
-            if attr not in Var.metadata:
-                err_msg = f"'{attr}' required for calculation of '{calc_type}'"
-                err_msg += "\n\nPlease set it with the following syntax:\n\t"
-                err_msg += f"{var_name}['{attr}'] = <value>"
-                self.print_error(err_msg)
-
         # Check the required_calc data can be calculated
         required_calc = self.calc_fncs[calc_type].required_calc
         for calc in required_calc:
@@ -566,6 +568,9 @@ class INP_File(object):
         """
         Will check a set command line for errors.
 
+        The set command is a bit vague, it basically sets some metadata to a some
+        data without the user having to type it all out.
+
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
@@ -575,6 +580,7 @@ class INP_File(object):
 
         # Check syntax
         words = line.split()
+
         if len(words) != 5:
             self.print_error("Too many words found!\n\n" + err_msg)
 
@@ -1105,6 +1111,12 @@ class INP_File(object):
             * line <str> => A string containing the cleaned line from a input file.
         """
         self.E_str = "parse_write_cmd"
+
+        # Remove any dollar signs for the data variable
+        words = line.split()
+        words[1] = words[1].lstrip('$')
+        line = ' '.join(words)
+
         # Split the line by whitespace and get the values of any variables
         line, any_vars = self.find_vars_in_str(line)
         words = line.split()
@@ -1175,6 +1187,17 @@ class INP_File(object):
         # Get the variable to calculate the property with
         Var = getattr(self, var_name)
 
+        # Check the required metadata has been set
+        required_metadata = self.calc_fncs[calc_type].required_metadata
+        Var = getattr(self, var_name)
+        for attr in required_metadata:
+            if attr not in Var.metadata:
+                err_msg = f"'{attr}' required for calculation of '{calc_type}'"
+                err_msg += "\n\nPlease set it with the following syntax:\n\t"
+                err_msg += f"{var_name}['{attr}'] = <value>"
+                err_msg += f" or by using a set command."
+                self.print_error(err_msg)
+
         # Initialise the Calc_Obj
         Calc_Obj = self.calc_fncs[calc_type](Var)
 
@@ -1191,6 +1214,47 @@ class INP_File(object):
 
     def parse_set_cmd(self, line):
         """
+        Will parse a set command.
+
+        The set command is a bit vague, it basically sets some metadata to a some
+        data without the user having to type it all out.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        _, set_type, var_name, _, set_name = line.split()
+        if set_type not in SET_TYPES:
+            self.print_error(f"Currently can't set system '{set_type}'."
+                             + " Please choose from:\n\t* "
+                             + "\n\t* ".join(SET_TYPES)
+                             )
+        else:
+            set_fnc = f"parse_set_{set_type}"
+            if set_fnc not in dir(self):
+                self.print_error("BUG IN CODE! Tell Matt that he needs to "
+                                 + f"implement the function '{set_fnc}'")
+            getattr(self, set_fnc)(line)
+
+
+    def parse_set_params(self, line):
+        """
+        Will set parameter data to the metadata in a Variable.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        _, _, var_name, _, set_name = line.split()
+
+        Var = getattr(self, var_name)
+        set_data = getattr(self, set_name).data
+        if set_data == "^EMPTY^": return
+
+        # Get the variable and add metadata
+        for key in set_data.data:
+            Var[key] = set_data.data[key]
+
+    def parse_set_system(self, line):
+        """
         Will set system data to the metadata in a Variable.
 
         Inputs:
@@ -1206,13 +1270,6 @@ class INP_File(object):
         # Check folder exists and get its path
         set_folder = os.path.join(SET_FOLDERPATH, set_foldername)
         set_filepath = os.path.join(set_folder, set_name)
-        if not os.path.isdir(set_folder):
-            set_folders = os.listdir(SET_FOLDERPATH)
-            self.print_error(f"Currently can't set '{set_foldername}'."
-                             + " Please choose from:\n\t* "
-                             + "\n\t* ".join(set_folders)
-                             + "\n\n" + "Or create a file at {set_filepath}"
-                             )
 
         # Check the filepath
         if not os.path.isfile(set_filepath):

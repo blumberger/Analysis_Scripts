@@ -1,0 +1,13 @@
+folder = "/home/oem/Data/Final_Melt_Quench_50ps_quench/xyz_md"
+filepath = "$folder/snapshot2300000.dat"
+
+read $filepath lammps_dump as data
+
+write data "test.xyz" as xyz
+
+
+read "test.xyz" xyz as new_data
+
+new_data = new_data + 400
+
+write new_data "test.xyz" as xyz

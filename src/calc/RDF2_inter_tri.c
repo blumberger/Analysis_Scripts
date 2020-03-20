@@ -3,12 +3,13 @@
 //     gcc -O3 -w RDF_inter_tri.c -o RDF_inter -lm
 //----------------------------------------------------------------------
 #define cmax_length 1000
-#define species_length 4
 #define pi 3.14159265
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <string.h>
+
 
 
 /*
@@ -76,34 +77,30 @@ struct belongs_to_lists {
 };
 
 /*
+Will hold the parameters required to calculate the RDF
+*/
+struct Params {
+	double dr;
+	double scale;
+	double V;
+	int Nbins;
+	int *hist;
+	double re;
+	double *radii, *g;
+};
+
+/*
     Calculate cos(angle) between vecs
 */
 double proj(struct Single_Pos a, struct Single_Pos b);
 double proj(struct Single_Pos a, struct Single_Pos b)
 {
-	double dot,norm,res;
+	double dot,norm;
 	dot =  (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 	norm = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);
 	return dot / norm;
 }
 
-
-/*
-Will compare 2 doubles and return an int depending on which is bigger.
-
-This function has been declared to be used in the qsort method (quick sort).
-
-Inputs:
-    * a <double> => First double to compare
-    * b <double> => Second double to compare
-Outputs:
-    <-1, 0, 1> -1 if a < b; 0 if a == b; 1 if a > b
-*/
-int compare_double(const double a, const double b) {
-    if (a == b)  return 0;
-    else if (a < b) return -1;
-    else return 1;
-}
 
 /*
 Will normalise a vector.
@@ -206,7 +203,7 @@ struct Config_File read_config ( char file_path[]) {
 
 	FILE *file_obj;
 	struct Config_File config_file;
-	char buffer[cmax_length];
+	char buffer[cmax_length], *buff2;
 	int i = 0;
 
 	config_file.exit_code = 0;
@@ -215,7 +212,6 @@ struct Config_File read_config ( char file_path[]) {
 	if (file_exists(file_path) == 0) {
 		printf("\n\nCan't find file: '%s'\n", file_path);
 		config_file.exit_code = 1;
-		fclose(file_obj);
 		return config_file;
  	}
  	file_obj = fopen(file_path, "r");
@@ -239,7 +235,7 @@ struct Config_File read_config ( char file_path[]) {
     }
 
 	// Get number of types
-	fgets(buffer, cmax_length, file_obj);
+	buff2 = fgets(buffer, cmax_length, file_obj);
     sscanf(buffer,"%d",&config_file.type_1.N);
 	config_file.type_1.type_list = (int*) malloc(config_file.type_1.N * sizeof(int));
 
@@ -247,7 +243,7 @@ struct Config_File read_config ( char file_path[]) {
 	// Loop over the next N lines to get each type.
 	for(i=0; i < config_file.type_1.N; ++i)
 	{
-		fgets(buffer, cmax_length, file_obj);
+		buff2 = fgets(buffer, cmax_length, file_obj);
         sscanf(buffer, "%d", &config_file.type_1.type_list[i]);
 	}
 	rewind(file_obj);
@@ -257,7 +253,7 @@ struct Config_File read_config ( char file_path[]) {
 	*/
 	// Find start of type_2 section
 	found_type = 0;
-	while(fgets(buffer, cmax_length, file_obj) != NULL) {
+	while( fgets(buffer, cmax_length, file_obj) != NULL) {
         if( strcmp(buffer,"type_2\n") == 0 ) {
         	found_type = 1;
             break;
@@ -271,12 +267,12 @@ struct Config_File read_config ( char file_path[]) {
      	return config_file;
  	}
 
-	fgets(buffer, cmax_length, file_obj);
+	buff2 = fgets(buffer, cmax_length, file_obj);
     sscanf(buffer, "%d", &config_file.type_2.N);
 	config_file.type_2.type_list = (int*) malloc(config_file.type_2.N * sizeof(int));
-	for(i = 0;i<config_file.type_2.N;++i)
+	for(i = 0;i<=config_file.type_2.N;++i)
 	{
-		fgets(buffer, cmax_length, file_obj);
+		buff2 = fgets(buffer, cmax_length, file_obj);
         sscanf(buffer, "%d", &config_file.type_2.type_list[i]);
 	}
 	fclose(file_obj);
@@ -287,7 +283,7 @@ struct Config_File read_config ( char file_path[]) {
 /*
 Will read a lammps file from a filepath and return a Lammps_Dump object
 
-This will simply iterate over all lines and call fgets on each one to parse
+This will simply iterate over all lines and call buff2 = fgets on each one to parse
 them.
 The unit cell vectors will also be calculated and stored in the Lammps_Dump
 struct.
@@ -302,9 +298,9 @@ Outputs:
     <Lammps_Dump> The struct holding all the lammps file file_data.
 */
 struct Lammps_Dump read_lammps_dump(char filepath[]) {
-    char buffer[cmax_length];
+    char buffer[cmax_length], *buff2;
     double S[4], min_x, max_x, min_y, max_y;
-    int int_buffer, i;
+    int int_buffer, i, nx, ny, nz;
     struct Lammps_Dump file_data;
     FILE *Fin;
     file_data.exit_code = 0;
@@ -326,20 +322,20 @@ struct Lammps_Dump read_lammps_dump(char filepath[]) {
     	This is saved in the file_data struct (a Lammps_Dump object).
     */
     // Get step num and natom
-    fgets(buffer, cmax_length, Fin);
-    fgets(buffer, cmax_length, Fin);
+    buff2 = fgets(buffer, cmax_length, Fin);
+    buff2 = fgets(buffer, cmax_length, Fin);
   	sscanf(buffer, "%d", &file_data.timestep);
-  	fgets(buffer, cmax_length, Fin);
-  	fgets(buffer, cmax_length, Fin);
+  	buff2 = fgets(buffer, cmax_length, Fin);
+  	buff2 = fgets(buffer, cmax_length, Fin);
   	sscanf(buffer, "%d", &file_data.natom);
 
     // Get cell vec parameters
-    fgets(buffer, cmax_length, Fin);
-    fgets(buffer, cmax_length, Fin);
+    buff2 = fgets(buffer, cmax_length, Fin);
+    buff2 = fgets(buffer, cmax_length, Fin);
     sscanf(buffer, "%lf\t%lf\t%lf", &file_data.xlo_bound, &file_data.xhi_bound, &file_data.xy);
-    fgets(buffer, cmax_length, Fin);
+    buff2 = fgets(buffer, cmax_length, Fin);
     sscanf(buffer, "%lf\t%lf\t%lf", &file_data.ylo_bound, &file_data.yhi_bound, &file_data.xz);
-    fgets(buffer, cmax_length, Fin);
+    buff2 = fgets(buffer, cmax_length, Fin);
     sscanf(buffer, "%lf\t%lf\t%lf", &file_data.zlo_bound, &file_data.zhi_bound, &file_data.yz);
 
     // If there are no xy, xz, yz vecs then our system isn't triclinic
@@ -384,15 +380,20 @@ struct Lammps_Dump read_lammps_dump(char filepath[]) {
     file_data.type = (int*) malloc( file_data.natom * sizeof(int) );
 
     // Read the data
-	for(i = 0; i<file_data.natom; ++i) {
+	buff2 = fgets(buffer, cmax_length, Fin);
+	for(i=0; i<=file_data.natom; ++i) {
 		// read
-		fgets(buffer, cmax_length, Fin);
+		buff2 = fgets(buffer, cmax_length, Fin);
         sscanf(buffer,"%d\t%d\t%d\t%lf\t%lf\t%lf\t%d\t%d\t%d",
         			  &int_buffer, &file_data.mol[i], &file_data.type[i], 
                       &file_data.R.x[i], &file_data.R.y[i], &file_data.R.z[i],
-                      &file_data.nx, &file_data.nz, &file_data.nz);
+                      &nx, &ny, &nz);
 	} 
 
+	if (fgets(buffer, cmax_length, Fin)) {
+		printf("\n\n\nCorrupt Snapshot file. There's more to read at the bottom of the file.\n\n\n");
+		printf("\nThis may be OK, but beware of odd results!\n\n");
+	}
 	fclose(Fin);
 	return file_data;
 }
@@ -458,9 +459,9 @@ Outputs:
 */
 void wrap_coords(struct Lammps_Dump *file_data) {
 
-	double norm, projaa0, projab0, projac0,
-			     projba0, projbb0, projbc0,
-		   		 projca0, projcb0, projcc0;
+	double projaa0, projab0, projac0,
+		   projba0, projbb0, projbc0,
+		   projca0, projcb0, projcc0;
 	double denom, a_norm_REF, b_norm_REF, c_norm_REF;
 	double ih_11, ih_12, ih_13, ih_22, ih_23, ih_33;
 
@@ -476,7 +477,13 @@ void wrap_coords(struct Lammps_Dump *file_data) {
 
 	// Get squared unit vecs for later
 	ABC_hat_2.a.x = ABC_hat.a.x * ABC_hat.a.x;
+	ABC_hat_2.a.y = ABC_hat.a.y * ABC_hat.a.y;
+	ABC_hat_2.a.z = ABC_hat.a.z * ABC_hat.a.z;
+	ABC_hat_2.b.x = ABC_hat.b.x * ABC_hat.b.x;
 	ABC_hat_2.b.y = ABC_hat.b.y * ABC_hat.b.y;
+	ABC_hat_2.b.z = ABC_hat.b.z * ABC_hat.b.z;
+	ABC_hat_2.c.x = ABC_hat.c.x * ABC_hat.c.x;
+	ABC_hat_2.c.y = ABC_hat.c.y * ABC_hat.c.y;
 	ABC_hat_2.c.z = ABC_hat.c.z * ABC_hat.c.z;
 
 	// The identity matrix
@@ -614,6 +621,7 @@ void get_histogram(struct Lammps_Dump file_data, int bins, int *counts, double d
             // If the pair of atoms are the correct type and on different mols then count them
             diff_mol = file_data.mol[i] != file_data.mol[j];
             correct_atom_type = (belongs_to.list1[i] && belongs_to.list2[j]) || (belongs_to.list1[j] && belongs_to.list2[i]);
+            printf("%d, ", correct_atom_type);
 			if(diff_mol && correct_atom_type) {
 
                 // svectors are for the coordinate wrapping
@@ -640,49 +648,77 @@ void get_histogram(struct Lammps_Dump file_data, int bins, int *counts, double d
 	}
 }
 
+/*
+Will calculate the RDF from the inputted data.
+
+Inputs:
+	* file_data <struct Lammps_Dump> => The dump data from the lammps snapshot file.
+	* config_file <struct Config_File> => The config file data.
+	* params <struct Params*> => The parameters used to calculate the RDF.
+Outputs:
+	<double *> The RDF.
+*/
+void calc_RDF(struct Lammps_Dump file_data, struct Config_File config_file, struct Params *params) {
+
+	// Shift so xmin, ymin, zmin are at the orign.
+	for(int j = 0;j<file_data.natom;++j)
+	{
+		file_data.R.x[j] = file_data.R.x[j] - file_data.xlo;
+		file_data.R.y[j] = file_data.R.y[j] - file_data.ylo;
+		file_data.R.z[j] = file_data.R.z[j] - file_data.zlo;
+	}
+
+	// Get volume
+	struct Matrix ABC = get_cell_vecs(&file_data);
+	params->V = ABC.a.x * ABC.b.y * ABC.c.z;
+
+	// Wrap coordinates
+	wrap_coords(&file_data);
+
+	// Get which atoms belong to which type and how many
+	struct belongs_to_lists belongs_to = get_belongs_to( &file_data, &config_file );
+
+	// Get histogram
+
+	get_histogram(file_data, params->Nbins, params->hist, params->dr, belongs_to);
+
+    // rdf calculation
+    double norm = params->V / (4.0 * pi * belongs_to.N1 * belongs_to.N2 * params->scale * params->dr);
+	for(int i=0; i<params->Nbins; i++) {
+		params->g[i] = params->g[i] + (params->hist[i] * norm) / (params->radii[i] * params->radii[i]);
+	}
+
+	// Free the belongs to data
+	free(belongs_to.list1);
+	free(belongs_to.list2);
+	// Free the Lammps Data
+	free(file_data.R.x);
+	free(file_data.R.y);
+	free(file_data.R.z);
+	free(file_data.mol);
+    free(file_data.type);
+    free(file_data.sR.x);
+	free(file_data.sR.y);
+	free(file_data.sR.z);
+}
+
+
+
+
+
+
 // fp related
 char file_path[cmax_length], config_filepath[cmax_length];
 char folder[cmax_length], name[cmax_length];
 
-// dummies
-char buffer[cmax_length];
-int int_buffer;
-double d_buffer;
-
 //
-int i, j, k, istep;
 int start, step, stop;
-int exit_code;
-
-// unwrap
-int nx, ny, nz;
-double xmin, xmax, ymin, ymax, zmin, zmax, Lx, Ly, Lz;
-
-//
 int nstep;
-int bins;
-int *hist;
-double re, dr;
-double *g, *radii;
-double xPBC, yPBC, zPBC, r2, r;
 
-int type_N_1, type_N_2, sub_atoms_1 = 0, sub_atoms_2 = 0;
-int *type_list_1, *type_list_2, *type, *belongs_to_type_list_1, *belongs_to_type_list_2;
-int scale;
-
-//
-double V;
-
-//
-int flag;
-double d_temp;
 
 
 int main(int argc, char *argv[])
 {
-	int bh;
-
-
 	/*
 		Handle the parsing of arguments.
 
@@ -712,6 +748,7 @@ int main(int argc, char *argv[])
     	printf("___________\n");
     }
 
+    struct Params params;
 
 	// read arguments
 	sprintf(folder, "%s", argv[1]);
@@ -719,12 +756,12 @@ int main(int argc, char *argv[])
 	start = atoi(argv[3]);
 	step = atoi(argv[4]);
 	stop = atoi(argv[5]);
-    dr = atof(argv[6]);
-    re = atof(argv[7]);
+    params.dr = atof(argv[6]);
+    params.re = atof(argv[7]);
 
 	// // read type config
 	sprintf(config_filepath, "%s", argv[8]); 
-	if (argc == 10) { scale = atoi(argv[9]); }  else { scale = 1.0; }
+	if (argc == 10) { params.scale = atof(argv[9]); }  else { params.scale = 1.0; }
 
 	// Handle the which files we loop over
 	if (start > stop) {
@@ -745,15 +782,15 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	int nFiles = 0;
-	for (k=start; k<=stop; k=k+step) {
+	for (int k=start; k<=stop; k=k+step) {
 		sprintf(file_path, "%s/%s%d.dat", folder, name, k);
 		if (file_exists(file_path) == 1) { nFiles++; }
 	}
-	char all_files[nFiles][cmax_length];
+	char *all_files[nFiles];
 	printf("\nNum Files to read: %d\n", nFiles);
 
 	nFiles = 0;
-	for (k=start; k<=stop; k=k+step) {
+	for (int k=start; k<=stop; k=k+step) {
 		sprintf(file_path, "%s/%s%d.dat", folder, name, k);
 		if (file_exists(file_path) == 1) {
 			sprintf(all_files[nFiles], file_path);
@@ -780,19 +817,20 @@ int main(int argc, char *argv[])
 
     // rdf initialization
 	// number of bins
-	bins = floor( (re / dr) + 0.5);
+	params.Nbins = floor( (params.re / params.dr) + 0.5);
 
 	// bin count array
 	// RDF
-	g = (double*)  malloc( bins * sizeof(double) );
+	params.g = (double*)  malloc( params.Nbins * sizeof(double) );
+
 	// shell radius
-	radii = (double*)  malloc( bins*sizeof(double) );
-	hist = (int*) malloc( bins * sizeof(int) );
+	params.radii = (double*)  malloc( params.Nbins*sizeof(double) );
+	params.hist = (int*) malloc( params.Nbins * sizeof(int) );
     
 
-	for (i=0; i<bins; ++i) {
-        radii[i] = (i + 0.5) * dr;
-        g[i] = 0.0;
+	for (int i=0; i<params.Nbins; ++i) {
+        params.radii[i] = (i + 0.5) * params.dr;
+        params.g[i] = 0.0;
     }
 
 
@@ -803,59 +841,21 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+
 	/*		
 		Loop over all the requested files. Read them then calculate the RDF from them.
 
 		This is where the work is actually done.
 	*/
-	for(istep=0; istep<nstep; istep++)
+	for (int istep=0; istep<nstep; istep++)
 	{
 		// Read the Lammps dump data
 		// printf("\nStep %d) ", istep);
 	    struct Lammps_Dump file_data = read_lammps_dump(all_files[istep]);
 		if (file_data.exit_code != 0) { printf("Lammps dump file read error!"); exit(2); }
 
-		// Shift so xmin, ymin, zmin are at the orign.
-		for(j = 0;j<file_data.natom;++j)
-		{
-			file_data.R.x[j] = file_data.R.x[j] - file_data.xlo;
-			file_data.R.y[j] = file_data.R.y[j] - file_data.ylo;
-			file_data.R.z[j] = file_data.R.z[j] - file_data.zlo;
-		}
-	
-		// Get volume
-		struct Matrix ABC = get_cell_vecs(&file_data);
-		V = ABC.a.x * ABC.b.y * ABC.c.z;
+		calc_RDF(file_data, config_file, &params);
 
-		// Wrap coordinates
-		wrap_coords(&file_data);
-
-		// Get which atoms belong to which type and how many
-		struct belongs_to_lists belongs_to = get_belongs_to( &file_data, &config_file );
-
-		// Get histogram
-		get_histogram(file_data, bins, hist, dr, belongs_to);
-
-        // rdf calculation
-        double norm = V / (4.0 * pi * belongs_to.N1 * belongs_to.N2 * scale * dr);
-		for(i=0; i<bins; i++) {
-			g[i] = g[i] + (hist[i] * norm) / (radii[i] * radii[i]);
-		}
-	
-
-		// Free the Lammps Data
-		free(file_data.R.x);
-    	free(file_data.R.y);
-    	free(file_data.R.z);
-    	free(file_data.mol);
-	    free(file_data.type);
-	    free(file_data.sR.x);
-		free(file_data.sR.y);
-		free(file_data.sR.z);
-
-		// Free the belongs to data
-		free(belongs_to.list1);
-		free(belongs_to.list2);
 	}
 	// Create a unique filepath
 	FILE *fout;
@@ -871,11 +871,11 @@ int main(int argc, char *argv[])
     fputs("radius,rdf\n", fout);
 
     // Write each bin
-	for(i = 0;i<bins; ++i)
+	for(int i = 0;i<params.Nbins; ++i)
 	{
 		// Average over files
-		g[i] = g[i] / nstep;
-        fprintf(fout, "%lf,%lf\n",radii[i],g[i]);
+		params.g[i] = params.g[i] / nstep;
+        fprintf(fout, "%lf,%lf\n", params.radii[i], params.g[i]);
 	} fclose(fout);
 
 
@@ -885,16 +885,9 @@ int main(int argc, char *argv[])
 	// //------------------------------------------------------------------
 	// // free memory
 
-	free(g);
-	free(radii);
-	free(hist);
-
-    free(type_list_1);
-    free(type_list_2);
-
-    free(belongs_to_type_list_1);
-    free(belongs_to_type_list_2);
-
+	free(params.g);
+	free(params.radii);
+	free(params.hist);
 
 
 	return 0;

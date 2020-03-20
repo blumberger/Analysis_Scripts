@@ -1,16 +1,20 @@
 ATOM_TYPES:
 CA = C
 HA = H
+CB = C
+CK = C
+CT = C
+CM = C
 
 BONDS:
-1 = CA CA
-2 = CA HA
+1 = C C
+2 = C H
 
 ANGLES:
-1 = CA CA CA
-2 = CA CA HA
+1 = C C C
+2 = C C H
 
 DIHEDRALS:
-1 = CA CA CA CA
-2 = CA CA CA HA
-3 = HA CA CA HA
+1 = C C C C
+2 = C C C H
+3 = H C C H

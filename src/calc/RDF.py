@@ -10,11 +10,16 @@ import numpy as np
 import json
 from collections import Counter
 
+# Own C modules
+from src.wrappers import RDF_wrap as rdf
+
+# Own Python Modules
 from src.data import consts
 
 from src.calc import general_types as gen_type
 from src.calc import molecule_utils as mol_utils
 from src.calc import geometry as geom
+
 
 
 class RDF(gen_type.Calc_Type):
@@ -48,33 +53,27 @@ class RDF(gen_type.Calc_Type):
         Will calculate the radial distribution function for the system.
         """
         self.ats_per_mol = self.metadata['atoms_per_molecule']
-
-        # Grab the relevant data.
+        self.Var['coordinate_wrapping'] = 'wrapped'
         self.get_xyz_data()
         self.get_cols(self.metadata['number_each_atom'],
                       self.ats_per_mol)
 
-        # Reshape the data a bit to sort into different molecules
-        xyz = self.compute_data
-        mol_xyz = mol_utils.atoms_to_mols(xyz, self.ats_per_mol, nstep=len(xyz))
-        nmol = mol_xyz.shape[1]
-        mol_col = np.reshape(self.cols[0], (nmol, self.ats_per_mol))
-        mask = mol_col == "C"
+        # Set cell vecs in the required format
+        ABC = [ [self.Var['xlo'], self.Var['xhi'], self.Var['xy']],
+                [self.Var['ylo'], self.Var['yhi'], self.Var['xz']],
+                [self.Var['zlo'], self.Var['zhi'], self.Var['yz']] ]
 
-        # Will get the properties required to calculate the RDF
-        self.get_vitals(xyz)
+        # Set the atomic coords
+        at_crds = self.compute_data[0]
 
-        # Loop over all available steps and calc RDF for each
-        for step_xyz in mol_xyz:
-            just_carbons = step_xyz[mask]
-            self.N = len(just_carbons)   # Num all carbon atoms
+        # Get the atomic types
+        at_types = self.cols[0]
 
-            mol_inds, _ = np.mgrid[0:nmol,0:self.ats_per_mol]
-            mol_inds = mol_inds[mask]
-            self.calc_RDF(just_carbons, mol_inds,
-                          rdf_type=self.metadata['rdf_type'])
+        
+        self.radii, self.rdf = rdf.calc_RDF(self.compute_data[0], self.ats_per_mol, self.cols[0],
+                                            ABC, ['C'], ['C'], dr=0.01, cutoff=12.5)
 
-        self.RDF /= len(mol_xyz)
+        raise SystemExit("RDF calculator is still in progress!")
 
     def get_vitals(self, xyz):
         """

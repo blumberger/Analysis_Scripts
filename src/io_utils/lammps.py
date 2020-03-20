@@ -458,6 +458,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
 
         This depends on the metadata inputted.
         """
+        print(self.metadata['coordinate_wrapping'])
         if self.metadata['coordinate_wrapping'] == 'wrapped' or not self.unwrapped_avail:
             self.csv_data = self.wrapped_csv
         else:
@@ -487,11 +488,25 @@ class Lammps_Dump(gen_io.DataFileStorage):
             xlo, xhi, xy = (float(i) for i in item[1].split())
             ylo, yhi, xz = (float(i) for i in item[2].split())
             zlo, zhi, yz = (float(i) for i in item[3].split())
-            for name, val in (('xlo', xlo), ('xhi', xhi), ('xy', xy),
-                              ('ylo', ylo), ('yhi', yhi), ('xz', xz),
-                              ('zlo', zlo), ('zhi', zhi), ('yz', yz)):
+            
+            for name, val in (('xlo_bound', xlo), ('xhi_bound', xhi), ('xy', xy),
+                              ('ylo_bound', ylo), ('yhi_bound', yhi), ('xz', xz),
+                              ('zlo_bound', zlo), ('zhi_bound', zhi), ('yz', yz)):
                 self.metadata[name] = val
+
+            min_x = min([0, xy, xz, xy+xz])
+            max_x = max([0, xy, xz, xy+xz])
+            self.metadata['xlo'] = xlo - min_x
+            self.metadata['xhi'] = xhi - max_x
+
+            min_y, max_y = min((yz, 0)), max((yz, 0))
+            self.metadata['ylo'] = ylo - min_y
+            self.metadata['yhi'] = yhi - max_y
+
+            self.metadata['zlo'], self.metadata['zhi'] = zlo, zhi
+
             self.metadata['cell_type'] = "triclinic"
+
         else:
             xlo, xhi = (float(i) for i in item[1].split())
             ylo, yhi = (float(i) for i in item[2].split())

@@ -56,6 +56,7 @@ def is_float(Str):
              return True
     return False
 
+
 def is_int(num, msg=False):
     """
     Will check whether a parameter is a float or not.

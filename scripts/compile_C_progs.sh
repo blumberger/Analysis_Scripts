@@ -53,6 +53,8 @@ do
          echo "Compiled ${C_PROGRAMS[$i]}" 
          sed -i s/"$last_change_var_name=.*"/"$last_change_var_name=$last_change"/ $CONFIG_VAR_FILE
       else
+         exit_code=1
+         export exit_code
          exit
       fi
    else
@@ -75,11 +77,13 @@ do
                echo "Compiled ${C_PROGRAMS[$i]}" 
                sed -i s/"$last_change_var_name=.*"/"$last_change_var_name=$last_change"/ $CONFIG_VAR_FILE
             else
+               exit_code=1
+               export exit_code
                exit
             fi
          fi
       fi
    fi
 
-   
 done
+

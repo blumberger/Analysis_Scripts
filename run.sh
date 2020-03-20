@@ -10,10 +10,12 @@
 CONFIG_DIR="./config"
 CONFIG_VAR_FILE="$CONFIG_DIR/vars"
 PWD=`pwd`
+exit_code=0
 
 export CONFIG_DIR
 export CONFIG_VAR_FILE
 export PWD
+export exit_code
 
 source ./scripts/run_utils.sh
 
@@ -53,28 +55,38 @@ then
        exit
     fi
 fi
-
-# Compile any C programs that need compiling
-./scripts/compile_C_progs.sh
-echo "Compiled C Modules";
-exit
-
-# Let the script know we don't need to install things next time.
-echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE
     
 # Get the input file from the arguments
 INP_FILE=""
 TEST="false"
 HELP="true"
-while getopts "i:thu" arg
+COMPILE="false"
+while getopts "i:thuc" arg
 do
     case $arg in 
         i) INP_FILE=$OPTARG; HELP="false";;
         t) TEST="true"; HELP="false";;
         u) HELP="false"; install_deps;; # from ./scripts/run_utils.sh
+        c) COMPILE="true";;
         h) HELP="true";;
     esac
 done
+
+# Compile any C programs that need compiling
+./scripts/compile_C_progs.sh
+if [ "$exit_code" != "0" ]
+then
+    echo "Exit Code = $exit_code";
+    echo "Failed to compile all C programs!"
+    exit
+fi
+if [ "$COMPILE" == "true" ]
+then
+    exit
+fi
+
+# Let the script know we don't need to install things next time.
+echo "INSTALL_DEPS=\"false\"" &> $CONFIG_VAR_FILE
 
 if [ "$HELP" == "true" ]
 then

@@ -13,5 +13,7 @@ scipy = "*"
 argparse = "*"
 pyqt5 = "*"
 ipython = "*"
+setuptools = "*"
+rdf = {path = "./C_modules"}
 
 [requires]

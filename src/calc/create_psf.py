@@ -84,6 +84,7 @@ class Create_PSF(gen_type.Calc_Type):
             self.ndihedrals = len(self.dihedrals)
 
         self.plot_bond_structure()
+        print("\n\nINFO:\nTo see if the bonding looks correct open the bond_struct.png picture!\n\n")
 
 
     def remove_top_dict_dupes(self, top_dict):

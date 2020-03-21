@@ -4,7 +4,7 @@
 This module holds some utilities regarding molecular system manipulation such as
 reshaping atomic coords to molecular coords etc...
 """
-
+import re
 import numpy as np
 
 from src.system import type_checking as type_check
@@ -89,6 +89,20 @@ def get_K_nearest_neighbours(at, crds, K, dist=False):
     return [i[1] for i in sorting]
 
 
+def substring_is_in(substring, string):
+    """
+    A function to check whether a subtring (containing regex) can be found in another string.
+
+    Inputs:
+        * string <str> => The string to check
+        * substring <str> => The string to look for
+    Outputs:
+        <bool> Whether the substring is contained
+    """
+    matches = [i for i in re.findall(substring, string) if i]
+    if len(matches): return True
+    else: return False
+
 
 def get_bonding_info(all_mol_crds, bond_info, cols, types, NN=False, cutoff=5):
     """
@@ -115,12 +129,14 @@ def get_bonding_info(all_mol_crds, bond_info, cols, types, NN=False, cutoff=5):
         at_bonds = {}
 
         # Loop over all atoms in a molecule
-        for iat, at in enumerate(mol_crds):
-            # This atom won't bond with anything
-            if cols[imol, iat] not in bond_info:  continue
+        for iat in range(len(mol_crds)):
+
+            # # This atom won't bond with anything
+            # if elm[imol, iat] not in bond_info:  continue
 
             # Get the element of the atom
             at_type = elm[imol, iat]
+            at1_name = cols[imol, iat]
 
             # Get which closest atoms (the atoms is most likely to be bonded to).
             num_bonds = PT_abbrv[at_type]['number_bonds'][0]
@@ -128,10 +144,24 @@ def get_bonding_info(all_mol_crds, bond_info, cols, types, NN=False, cutoff=5):
 
             inds = []
             for dist, ind, a_type in sorting:
-                # If the elements are allowed to be bonded add them to the list
-                if a_type in bond_info[cols[imol, iat]] and float(dist) < cutoff:
-                    inds.append(int(ind))
+                # If we are full up then stop the loop
                 if len(inds) == num_bonds: break
+
+                # If the elements are allowed to be bonded we may add them to the list
+                if float(dist) < cutoff:
+
+                    # If the first atom doesn't match the regex then skip it
+                    for at1_regex in bond_info:    
+                        if substring_is_in(at1_regex, at1_name):
+                            break
+                    else:  continue
+
+                    # If the second atom doesn't match any regex then skip that
+                    for at2_regex in bond_info[at1_regex]:
+                        if substring_is_in(at2_regex, a_type):
+                            inds.append(int(ind))
+                            break                         
+
 
             # Add the atoms to the bonding dict
             at_bonds[iat+1] = inds
@@ -160,15 +190,15 @@ def get_all_atom_chains(mol_crds, original_iat, chain, types, bond_info,
         # Lists are sticky so reset them
         all_inds, inds = [], []
         new_iat = original_iat
-
     inds.append(new_iat)
+
     if len(inds) == len(chain):
         all_inds.append(inds)
         return all_inds
 
     # terminate if we violate the chain rule
     # if chain_ind == len(chain):   return all_inds
-    if chain[chain_ind] != types[new_iat-1]:
+    if not substring_is_in(chain[chain_ind], types[new_iat-1]):
         return all_inds
 
 
@@ -176,7 +206,7 @@ def get_all_atom_chains(mol_crds, original_iat, chain, types, bond_info,
     for iter_iat in bond_info[new_iat]:
         # If the atoms follow the chain rule and haven't been visited before
         if iter_iat in inds:  continue
-        if types[iter_iat-1] != chain[chain_ind+1]: continue
+        if not substring_is_in(chain[chain_ind+1], types[iter_iat-1]): continue
 
         # Recursively call self to iterate through all atoms
         all_inds = get_all_atom_chains(mol_crds, original_iat, chain, types,
@@ -213,7 +243,8 @@ def get_topo_info(all_mol_crds, angle_info, all_bonds, cols, types, NN=False):
         for iat, at in enumerate(mol_crds):
             for iang in angle_info:
                 all_ang = get_all_atom_chains(mol_crds, iat+1, angle_info[iang],
-                                          cols[imol], all_bonds[imol])
+                                              cols[imol], all_bonds[imol])
+
                 for ang in all_ang:
                     at_angs[iat+1].append(ang)
 

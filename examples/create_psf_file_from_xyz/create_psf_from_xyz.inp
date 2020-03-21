@@ -16,7 +16,7 @@
 
 # Set some variables
 folder = "./examples/data"
-filepath = "$folder/monomer.xyz"
+filepath = "$folder/monomer_charged.xyz"
 this_files_folder = "examples/create_psf_file_from_xyz"
 
 # Read the xyz file

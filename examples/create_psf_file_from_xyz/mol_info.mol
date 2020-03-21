@@ -7,14 +7,14 @@ CT = C
 CM = C
 
 BONDS:
-1 = C C
-2 = C H
+1 = C.* C.*
+2 = C.* H.*
 
 ANGLES:
-1 = C C C
-2 = C C H
+1 = C.* C.* C.*
+2 = C.* C.* H.*
 
 DIHEDRALS:
-1 = C C C C
-2 = C C C H
-3 = H C C H
+1 = C.* C.* C.* C.*
+2 = C.* C.* C.* H.*
+3 = H.* C.* C.* H.*

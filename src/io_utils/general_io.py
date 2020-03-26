@@ -59,15 +59,15 @@ class DataFileStorage(object):
         """
         pass
 
-    def append(self, val):
-        """
-        Will try to append a value onto the data within the class
-        """
-        try:
-            self.data.append(val)
-        except Exception as e:
-            err_msg = f"Can't append {val} which is of type {type(val)} to {self}"
-            raise SystemExit(err_msg_)
+    # def append(self, val):
+    #     """
+    #     Will try to append a value onto the data within the class
+    #     """
+    #     try:
+    #       self.data.append(val)
+    #     except Exception as e:
+    #         err_msg = f"Can't append {val} which is of type {type(val)} to {self}"
+    #         raise SystemExit(err_msg_)
 
     # Overload adding
     def __add__(self, val):

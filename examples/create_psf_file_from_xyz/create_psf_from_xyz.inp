@@ -16,11 +16,16 @@
 
 # Set some variables
 folder = "./examples/data"
-filepath = "$folder/monomer_charged.xyz"
+filepath_charged = "$folder/monomer_charged.xyz"
+filepath_neutral = "$folder/monomer_neutral.xyz"
 this_files_folder = "examples/create_psf_file_from_xyz"
 
+########
+# Creating a charged psf
+#######
+
 # Read the xyz file
-read $filepath xyz as mol
+read $filepath_charged xyz as mol
 # Tell the code we are using pentacene
 set system mol to pentacene
 # Read the parameter file
@@ -32,7 +37,26 @@ set params mol to mol_prms
 calc psf_file from mol as psf
 
 # Write the psf file
-write psf "test.psf"
+write psf "pentacene_charged.psf"
+
+########
+# Creating a neutral psf
+#######
+
+# Read the xyz file
+read $filepath_neutral xyz as mol
+set system mol to pentacene
+
+# Read the parameter file
+read "$this_files_folder/mol_info.mol" params as mol_prms
+set params mol to mol_prms
+
+# Actually get the psf data
+calc psf_file from mol as psf
+
+# Write the psf file
+write psf "pentacene_neutral.psf"
+
 
 
 

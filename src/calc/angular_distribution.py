@@ -40,6 +40,7 @@ class Angular_Dist(gen_type.Calc_Type):
     # Need these 3 attributes to create a new variable type
     data = {}
     metadata = {'file_type': 'json'}
+    required_data_types = (('xyz', 'lammps_dump'),)
     name = "Angular Distribution"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
 

@@ -158,33 +158,53 @@ def is_atom_line(line):
         return True
 
 
-def num_atoms_find(ltxt):
+def atom_find_more_rigorous(ltxt):
     """
-    Will determine the number of atoms in an xyz file
+    Will try to find where the atom section starts and ends using some patterns in the file.
+
+    The idea behind this function is we split the first 100 lines into words and find their
+    length. The most common length is then assumed to be the length of the atom line and any
+    line with this num of words is assumed to be an atom line.
 
     Inputs:
-       * ltxt <list<str>> => A list with every line of the input file as a different element.
-
+      * ltxt <list<str>> => The file_txt split by lines
     Outputs:
-       <tuple<int>> The line which the atom data starts and how many atom data lines there are.
+      * <int>, <int> Where the atom section starts and ends
     """
-    start_atoms, finish_atoms = 0,0
-    for i,line in enumerate(ltxt):
-        if (is_atom_line(line)) == True:
-            start_atoms = i
-            break
-    else:
-        print("Start of atom lines = %i" % start_atoms)
-        raise SystemExit("Can't read this xyz file! I can't find where the atom section starts!")
+    # Get the most common length of line -this will be the length of atom line.
+    first_100_line_counts = [len(line.split()) for line in ltxt[:100]]
+    unique_vals = set(first_100_line_counts)
+    modal_val = max(unique_vals, key=first_100_line_counts.count)
 
-    for i,line in enumerate(ltxt[start_atoms:]):
-        if (is_atom_line(line) == False):
-            finish_atoms=i
-            break
-    else:
-        finish_atoms = len(ltxt[start_atoms:])
+    # This means either we have 1 title line, 2 title lines but 1 has the same num words as the atom lines 
+    #    or 2 title lines and they both have the same length.
+    # If this function needs to be more rigorous this can be modified.
+    if len(unique_vals) == 2:
+      pass
 
-    return start_atoms, finish_atoms
+    # This means we haven't found any difference in any lines.
+    if len(unique_vals) == 1:
+       raise SystemError("Can't find the atom section in this file!")
+
+    start = False
+    for line_num, line in enumerate(ltxt):
+        len_words = len(line.split())
+
+        # Have started and len words changed so will end
+        if len_words != modal_val and start is True:
+            atom_end = line_num
+            break
+
+        # Haven't started and len words changed so will start
+        if len_words == modal_val and start is False:
+            start = True
+            prev_line = False
+            atom_start = line_num
+    else:
+      atom_end = len(ltxt)
+
+    return atom_start, atom_end - atom_start
+
 
 
 # Finds the number of title lines and number of atoms with a step
@@ -229,7 +249,7 @@ def find_time_delimeter(step, filename):
 
     # find the character before the first number after the word time.
     prev_char, count = False, 0
-    txt = txt[txt.find("time"):]
+    txt = txt[txt.lower().find("time"):]
     for char in txt.replace(" ",""):
         isnum = (char.isdigit() or char == '.')
         if isnum != prev_char:
@@ -297,7 +317,7 @@ def get_xyz_metadata(filename, ltxt=False):
         most_stable = True
 
     if not most_stable:
-        num_title_lines, num_atoms = num_atoms_find(ltxt)
+        num_title_lines, num_atoms = atom_find_more_rigorous(ltxt)
         lines_in_step = num_title_lines + num_atoms
         if len(ltxt) > lines_in_step+1: # take lines from the second step instead of first as it is more reliable
            step_data = {i: ltxt[i*lines_in_step:(i+1)*lines_in_step] for i in range(1,2)}
@@ -424,8 +444,9 @@ def read_xyz_file(filename, num_data_cols=False,
     step_data = np.reshape(all_data, (len(all_steps), lines_in_step))
     step_data = step_data[:, num_title_lines:]
 
-
     # This bit is the slowest atm and would benefit the most from optimisation
+    # tmp = np.array([[len(i.split()) for i in j] for j in step_data])
+    # print(step_data[tmp != 3])
     step_data = np.apply_along_axis(splitter, 1, step_data)
     data = step_data[:, :, num_data_cols:].astype(float)
 

@@ -114,7 +114,7 @@ all_example_tests = {
                       'create_psf_file_from_xyz':  {
                                                     'test_func': check_stdout,
                                                     'inp_file': 'create_psf_from_xyz.inp',
-                                                    'out_file': "test.psf",
+                                                    'out_file': ("pentacene_charged.psf", "pentacene_neutral.psf", "bond_struct.png"),
                                                    },
                       'inline_python_script': {
                                      'test_func': check_stdout,

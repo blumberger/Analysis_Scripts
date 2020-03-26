@@ -215,6 +215,58 @@ def get_all_atom_chains(mol_crds, original_iat, chain, types, bond_info,
     return all_inds
 
 
+def get_atom_masses(at_labels):
+    """
+    Will get atomic masses from atomic labels
+
+    Inputs:
+        * at_labels <arr> => The label of the atoms can be any shape
+    Outputs:
+        * <arr> The masses as floats for each label
+    """
+    unique_types = np.unique(at_labels)
+    for elm in unique_types:
+        if elm in PT_abbrv:
+            at_labels[at_labels == elm] = PT_abbrv[elm]['atomic_weight']
+        else:
+            raise SystemError(f"I don't understand the atom type '{elm}'")
+
+    return at_labels.astype(float)
+
+def get_COM(all_mol_crds, mol_col):
+    """
+    Will calculate the Center of Mass of a list of molecules.
+
+    N.B if the array only has 3 dimensions then it will assume that nsteps is missing
+
+    Inputs:
+        * all_mol_crds <array> => The molecular coordinate in shape (nstep, nmol, nat_per_mol, 3)
+        * mol_col <array> => The type of each molecule as a string in shape (nmol, nat_per_mol)
+    Outputs:
+        <array> The center of masses in shape (nstep, nmol, 3)
+    """
+    # If we don't have the number of steps info
+    add_ax = False
+    if len(np.shape(all_mol_crds)) == 3:
+        add_ax = True
+        all_mol_crds = [all_mol_crds]
+
+    # Get atom masses
+    masses = get_atom_masses(mol_col)
+
+    # Loop over all mols and get COM
+    nstep = len(all_mol_crds)
+    mass_1_mol = np.sum(masses[0])
+    COMs = [[crds[:, :, 0] * masses, crds[:, :, 1] * masses, crds[:, :, 2] * masses]
+             for crds in all_mol_crds]
+    COMs = np.sum(COMs, axis=3) / mass_1_mol
+    COMs = np.swapaxes(COMs, 1, 2)
+
+    if add_ax:
+        COMs = COMs[0]
+    
+    return COMs
+
 
 def get_topo_info(all_mol_crds, angle_info, all_bonds, cols, types, NN=False):
     """

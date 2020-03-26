@@ -23,7 +23,7 @@ class Density(gen_type.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     required_metadata = ('molecular_mass', "atoms_per_molecule", "number_atoms")
-    required_data_names = ('csv', )
+    required_data_names = ()
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'csv'}
@@ -57,12 +57,21 @@ class Density(gen_type.Calc_Type):
                     data_count += 1
 
         elif type(data) == pd.DataFrame:
-            if all(j in df.columns for j in ('Lx', 'Ly', 'Lz',)):
+            if all(j in data.columns for j in ('Lx', 'Ly', 'Lz',)):
                 self.csv_data.append(self.__calc_dens__(data))
                 did_dens_calc = True
 
         if did_dens_calc is False:
-            raise SystemExit("Can't find the required DataFrame headers to calculate the density")
+            if all(j in self.Var.metadata for j in ('a', 'b', 'c')):
+                df = pd.DataFrame({
+                            'Volume': [np.linalg.det([self.Var['a'], self.Var['b'], self.Var['c']])]
+                                   })
+                self.csv_data.append(self.__calc_dens__(df))
+            else:
+                raise SystemExit("Can't find the required DataFrame headers to calculate the density")
+
+        self.density = [df['Density'].tolist() for df in self.csv_data]
+        return self.density
 
     def append_csvs(self):
         """

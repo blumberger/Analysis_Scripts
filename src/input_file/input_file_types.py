@@ -67,20 +67,21 @@ class Variable(object):
                 else:
                     self.data.data = attr
 
-    # Overload appending
-    def append(self, val):
-        """
-        Check the data is a list, if not don't append
-        """
-        if isinstance(self.data, (int, str, float, tuple)):
-            raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
+    # # Overload appending
+    # def append(self, val):
+    #     """
+    #     Check the data is a list, if not don't append
+    #     """
+    #     if isinstance(self.data, (int, str, float, tuple)):
+    #         raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
 
-        elif type(self.data) == dict:
-            self.data.setdefault('appended_vals', []).append(self.data)
+    #     elif type(self.data) == dict:
+    #         self.data.setdefault('appended_vals', []).append(self.data)
 
-        else:
-            self.data.append(val)
-            return self
+    #     else:
+    #         self.data.append(val)
+    #         print(type(self.data))
+    #         return self
 
 
     def __len__(self):

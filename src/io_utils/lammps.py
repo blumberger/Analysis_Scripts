@@ -458,7 +458,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
 
         This depends on the metadata inputted.
         """
-        print(self.metadata['coordinate_wrapping'])
         if self.metadata['coordinate_wrapping'] == 'wrapped' or not self.unwrapped_avail:
             self.csv_data = self.wrapped_csv
         else:
@@ -581,7 +580,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
 
         This doesn't affect the data it is only used for writing.
         """
-        print(self.metadata['coordinate_wrapping'])
         if self.metadata['coordinate_wrapping'] == 'unwrapped':
             df = self.unwrapped_csv
         else:

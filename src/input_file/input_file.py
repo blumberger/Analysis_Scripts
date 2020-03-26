@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3from src.calc import general_types as gen_type
+
 # -*- coding: utf-8 -*-
 """
 This module contains all the relevant code that parses the input file that tells
@@ -44,6 +45,7 @@ from src.io_utils import json_files as json
 from src.io_utils import csv_files
 from src.io_utils import massif_files as M_files
 from src.io_utils import param_files
+from src.io_utils import pseudo_hamiltonian as psu_ham
 
 # Parsing
 from src.parsing import general_parsing as gen_parse
@@ -56,6 +58,9 @@ from src.calc import angular_distribution as ang_dist
 from src.calc import density as dens
 from src.calc import RDF as rdf
 from src.calc import create_psf as psf_calc
+from src.calc import crystallinity
+from src.calc import coupling_distribution as coupl
+from src.calc import couplings_by_layer as coupl_lay
 
 # Input file functions
 from src.input_file import input_file_types as inp_types
@@ -69,6 +74,7 @@ VALID_LOAD_WORDS = ("into", "as")
 VALID_SCRIPT_TYPES = {'python', 'C++', 'C'}
 VAR_REGEX = "\$*[A-Za-z]+[A-Za-z0-9_-]*"
 IN_STR_VAR_REGEX = "\$[A-Za-z]+[A-Za-z0-9_-]*"
+
 
 def is_var_line(line):
     """
@@ -176,7 +182,7 @@ class INP_File(object):
                  'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
                  'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
                  'lammps_dump': lammps.Lammps_Dump, 'massif_file': M_files.Massif_File,
-                 'params': param_files.Params,
+                 'params': param_files.Params, "pseudo_ham": psu_ham.Pseudo_Ham
                 }
     write_fncs = {
                   'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
@@ -186,7 +192,8 @@ class INP_File(object):
     calc_fncs = {
                  'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,
                  'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
-                 'psf_file': psf_calc.Create_PSF,
+                 'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
+                 'couplings': coupl.Couplings, "layer_couplings": coupl_lay.Layer_Couplings,
                 }
 
     line_declarations = LINE_DECLARATIONS
@@ -199,6 +206,8 @@ class INP_File(object):
     def __init__(self, inp_filepath):
         self.E_str = "init"
         self.inp_filepath = inp_filepath
+
+        self.rev_load_fncs = {self.load_fncs[i]: i for i in self.load_fncs}
 
         # Read the file
         self.file_txt = gen_io.open_read(inp_filepath)
@@ -1074,10 +1083,10 @@ class INP_File(object):
         for key in Loaded_Data.metadata:
             if key not in metadata: metadata[key] = Loaded_Data.metadata[key]
 
-        if words[3] == 'into':
-            self.load_var_into(Loaded_Data, var_name, metadata)
-        elif words[3] == "as":
+        if words[3] == "as" or var_name not in self.variables:
             self.set_var(var_name, Loaded_Data, metadata)
+        elif words[3] == 'into' and var_name in self.variables:
+            self.load_var_into(Loaded_Data, var_name, metadata)
 
     def load_var_into(self, Data_To_Append, var_name, metadata={}):
         """
@@ -1088,17 +1097,27 @@ class INP_File(object):
             * var_name <str> => The name of the variable
             * metadata <dict> OPTIONAL => The metadata for the variable.
         """
-        if var_name not in self.variables:
-            self.set_var(var_name, Data_To_Append, metadata)
+        Var = getattr(self, var_name)
+
+        # If this is the first time things are being appended get things set up.
+        if type(Var.data) != dict or (type(Var.data) == dict and 'is_append' in Var.data):
+            data_type_code = self.rev_load_fncs[type(Var.data)]
+            Var.data = {data_type_code: Var.data, 'is_append': True}
+        
+        # If this isn't the first time we put data into the variable.
+        new_data_type_code = self.rev_load_fncs[type(Data_To_Append)]
+        if new_data_type_code in Var.data:
+            try:
+                Var.data[new_data_type_code].append(Data_To_Append)
+            except ValueError as e:
+                self.print_error(f"Currently can't append type '{new_data_type_code}' to itself.")
+
         else:
-            Var = getattr(self, var_name)
+            Var.data[new_data_type_code] = Data_To_Append
 
-            # Combine metadata (replace old with new)
-            for i in metadata:
-                Var.metadata[i] = metadata[i]
-
-            # Append the new variable
-            Var.append(Data_To_Append)
+        # Combine metadata (replace old with new)
+        for i in metadata:
+            Var.metadata[i] = metadata[i]
 
     def parse_write_cmd(self, line):
         """
@@ -1191,7 +1210,7 @@ class INP_File(object):
         required_metadata = self.calc_fncs[calc_type].required_metadata
         Var = getattr(self, var_name)
         for attr in required_metadata:
-            if attr not in Var.metadata:
+            if attr not in Var.metadata and attr not in self.calc_fncs[calc_type]._defaults:
                 err_msg = f"'{attr}' required for calculation of '{calc_type}'"
                 err_msg += "\n\nPlease set it with the following syntax:\n\t"
                 err_msg += f"{var_name}['{attr}'] = <value>"
@@ -1203,6 +1222,7 @@ class INP_File(object):
 
         # Calculate and prerequisites and save them in the new object
         for calc in Calc_Obj.required_calc:
+            print(calc)
             setattr(Calc_Obj, calc, self.calc_fncs[calc](Var).calc())
         Calc_Obj.calc()
 

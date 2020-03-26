@@ -4,5 +4,7 @@
                       "C": 22,
                       "H": 14
                      },
- "molecular_mass": 4.62202975e-25  
+ "molecular_mass": 4.62202975e-25,
+ "crystal_density": 1.31,
+ "amorphous_density": 1.18
 }

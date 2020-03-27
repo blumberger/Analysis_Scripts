@@ -5,10 +5,10 @@ A module to calculate pvecs from some xyz coordinates.
 """
 import numpy as np
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.system import type_checking as type_check
 
-class PVecs(gen_type.Calc_Type):
+class PVecs(gen_calc.Calc_Type):
     """
     Will calculate the pvecs from the data contained within a data file.
 
@@ -22,7 +22,7 @@ class PVecs(gen_type.Calc_Type):
     """
     required_metadata = ('atoms_per_molecule',)
     required_calc = ('NN', )
-    required_data_names = ('xyz', )
+    required_data_types = ('pos',)
 
     # Need these 3 attribute to create a new variable type
     metadata = {'file_type': 'xyz'}

@@ -16,13 +16,13 @@ from src.wrappers import RDF_wrap as rdf
 # Own Python Modules
 from src.data import consts
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 from src.calc import geometry as geom
 
 
 
-class RDF(gen_type.Calc_Type):
+class RDF(gen_calc.Calc_Type):
     """
     Will calculate the radial distribution functions of the molecules in a system.
 
@@ -41,7 +41,7 @@ class RDF(gen_type.Calc_Type):
     required_metadata = ('atoms_per_molecule', 'number_each_atom')
     _defaults = {'rdf_type': 'intermolecular',
                  'max_dist': 1.0, 'number_bins': 400}
-    required_calc = ()
+    required_data_types = ('pos',)
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'json'}

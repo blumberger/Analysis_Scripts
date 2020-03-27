@@ -1,0 +1,8 @@
+filepath = "/home/oem/Data/Final_Pentacene_1ns_Quench/snapshot3225000.dat"
+
+read $filepath lammps_dump as data
+set system data to pentacene
+
+
+calc density from data as dens
+calc crystallinity from data as loc_dens

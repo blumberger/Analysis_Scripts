@@ -5,7 +5,7 @@ A module to create a psf file from an xyz file.
 """
 import numpy as np
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 
 from src.system import type_checking as type_check
@@ -19,13 +19,13 @@ def calc_all_dists(pos1, all_pos, types=False):
         sorting = sorted(zip(dist, np.arange(1, len(dist)+1)))
     return sorting
 
-class Create_PSF(gen_type.Calc_Type):
+class Create_PSF(gen_calc.Calc_Type):
     """
     Will create a psf file from
     """
     required_metadata = ('atoms_per_molecule', 'number_each_atom', 'bonds',
                          'dihedrals', 'angles', 'atom_types',)
-    required_data_names = ('xyz', )
+    required_data_types = ('pos', )
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'psf'}

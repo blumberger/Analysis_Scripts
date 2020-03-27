@@ -6,15 +6,15 @@ A module to calculate couplings from hamiltonian data
 import numpy as np
 import pandas as pd	
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 
 
-class Layer_Couplings(gen_type.Calc_Type):
+class Layer_Couplings(gen_calc.Calc_Type):
 	"""
 	Will get the distribution of couplings from hamiltonian data for each predefined layer. 
 	"""
-	required_data_types = ('xyz', 'pseudo_ham',)
+	required_data_types = ('pos', 'pseudo_ham',)
 	_defaults = {'zmin': 'all', 'zmax': 'all', 'ymin': 'all', 'ymax': 'all', 'xmin': 'all', 'xmax': 'all'}
 	required_metadata = ('xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax', "atoms_per_molecule")
 	name = "Layer Couplings"

@@ -36,13 +36,15 @@ class Calc_Type(object):
     required_metadata = ()
     required_calc = ()
     required_data_types = ()
-    required_data_names = ()
     _defaults = {}
 
     # Require these 3 objects for the formation of a new variable type
     name = "General Calc Type"
     metadata = {}
     data = 0
+
+    # The shortcuts for more all data types that contain a more general type i.e. xyz and lammps_dump types contain position data.
+    type_shortcut_dict = {'pos': ('xyz', 'lammps_dump',)}
 
     def __init__(self, Variable):
         """
@@ -59,30 +61,16 @@ class Calc_Type(object):
                     setattr(self, i, copy.deepcopy(var))
 
         # Add the required calc types to the class
-        self.required_data_types = LogicalTuple(self.required_data_types)
-        if type(self.Var.data) == dict:
+        self.required_data_types = LogicalTuple([self.type_shortcut_dict.setdefault(i.lower(), i) for i in self.required_data_types])
+        data_types_loaded = self.Var['data_loaded']
+        if not self.required_data_types.all_in(data_types_loaded):
+            err_msg = f"Can't calculate property '{self.name}' as the data"
+            err_msg += f" '{str(self.required_data_types)}' haven't been loaded."
+            raise SystemExit(err_msg)
 
-            # Check we have the required data types
-            data_keys = [i for i in self.Var.data.keys() if i != 'is_append']
-            if not self.required_data_types.all_in(data_keys):
-                err_msg = f"Can't calculate property '{self.name}' as the data"
-                err_msg += f" '{self.required_data_types[0]}' hasn't been loaded."
-                raise SystemExit(err_msg)
-            
-            # If the dict only has 1 entry then collapse it.
-            if len(data_keys) == 1:
-                if self.required_data_types[0] in self.Var.data:
-                    self.Var.required_data = self.Var.data[self.required_data_types[0]]
-                else:
-                    pass
-
-            # Else just set the required data to the previous data variable.
-            else:
-                self.Var.required_data  = self.Var.data
-                for i in self.required_data_types:
-                    if i not in self.Var.required_data:
-                        raise SystemExit(f"\n\nThe data type '{i}' is required to calculate '{self.name}'\n\n")
-
+        # Else just set the required data to the previous data variable.
+        else:
+            self.Var.required_data  = self.Var.data
 
         # Set the default parameters
         for key in self._defaults:
@@ -271,6 +259,18 @@ class LogicalTuple(tuple):
         self.all_tuples = tuple(i for i in self.data if type(i) == tuple)
         self.all_single_vals = tuple(i for i in self.data if type(i) != tuple)
 
+        # Create the string from the data
+        self.str_data = ""
+        for ind, i in enumerate(self.data):
+            if type(i) != tuple:
+                self.str_data += f"{i}"
+            else:
+                joined_str = " and/or ".join([f"'{str(j)}'" for j in i])
+                self.str_data += f"({joined_str})"
+
+            if ind < len(self.data)-1:
+                self.str_data += " and "
+
     def __contains__(self, key):
         """
         Overload 'in' operator to check whether something is in any of the tuple (it can be 2D).
@@ -369,3 +369,7 @@ class LogicalTuple(tuple):
     def __ne__(self, comp):
         """Will just return the inverse of the equal operator."""
         return not self.__eq__(comp)
+
+    def __str__(self):
+        """Will overload the str() function."""
+        return self.str_data

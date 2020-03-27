@@ -6,10 +6,10 @@ A module to calculate couplings from hamiltonian data
 import numpy as np
 import pandas as pd	
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 
 
-class Couplings(gen_type.Calc_Type):
+class Couplings(gen_calc.Calc_Type):
 	"""
 	Will get the distribution of couplings from hamiltonian data.
 	"""

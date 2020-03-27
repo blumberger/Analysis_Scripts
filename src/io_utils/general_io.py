@@ -123,46 +123,77 @@ class DataFileStorage(object):
 
 
 class Write_File(object):
-     """
-     A parent class for other file writing classes.
+    """
+    A parent class for other file writing classes.
 
-     The general procedure for writing a file is first create the file text
-     (saved as self.file_txt) and then write it as a file to the filepath given
-     as an argument.
+    The general procedure for writing a file is first create the file text
+    (saved as self.file_txt) and then write it as a file to the filepath given
+    as an argument.
 
-     The function create_file_str must be set and must return the file text.
+    The function create_file_str must be set and must return the file text.
 
-     This class can also be used to write general files
+    This class can also be used to write general files
 
-     Inputs:
-        * Data_Class <class> => The class containing all the data to be written
-        * filepath <str>     => The path to the file to be written.
-        * extension <str> OPTIONAL   => The file extension. Default is False.
-     """
-     def __init__(self, Data_Class, filepath, ext=False):
-         self.filepath = filepath
-         self.Data = Data_Class
-         self.extension = ext
+    Inputs:
+       * Data_Class <class> => The class containing all the data to be written
+       * filepath <str>     => The path to the file to be written.
+       * extension <str> OPTIONAL   => The file extension. Default is False.
+    """
+    def __init__(self, Data_Class, filepath, ext=False):
+        self.filepath = filepath
+        self.Data = Data_Class
+        self.extension = ext
 
-         # Get the str to write to a file
-         self.file_txt = self.create_file_str()
+        # Get the str to write to a file
+        self.file_txt = self.create_file_str()
 
-         # Correct the extension
-         if self.extension:
-             filepath, _ = remove_file_extension(filepath)
-             filepath = f"{filepath}.{ext}"
+        if type(self.file_txt) == list:
+            if len(self.file_txt) == 1:
+                self.write_single_file(self.file_txt[0], filepath)
 
-         # Write the file with the correct extension
-         with open(filepath, 'w') as f:
-             f.write(self.file_txt)
+            else:
+                for i, s in enumerate(self.file_txt):
+                    self.write_single_file(s, filepath, i)
 
-     def create_file_str(self):
-         """
-         To be overwritten by children to create the str to be written to a file.
+        else:
+            self.write_single_file(self.file_txt, filepath)
 
-         By default we write the str(self.Data)
-         """
-         return str(self.Data)
+
+    def write_single_file(self, s, filepath, file_num=False):
+        """
+        Will write a single file from a string.
+
+        Inputs:
+            * s <str> => The text to write
+        """
+        # Correct the extension
+        if self.extension:
+            filepath, _ = remove_file_extension(filepath)
+
+            if file_num:
+                filepath_with_num = f"{filepath}_{count}.{ext}"
+            
+                count = 0
+                while os.path.isfile(filepath_with_num):
+                    filepath_with_num = f"{filepath}_{count}.{ext}"
+                    count += 1
+                filepath = filepath_with_num
+            
+            else:    
+                filepath = f"{filepath}.{ext}"
+
+        # Write the file with the correct extension
+        with open(filepath, 'w') as f:
+            f.write(s)
+
+
+    def create_file_str(self):
+      """
+      To be overwritten by children to create the str to be written to a file.
+  
+      By default we write the str(self.Data)
+      """
+      return str(self.Data)
 
 
 # Reads a file and closes it

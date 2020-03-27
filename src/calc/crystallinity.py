@@ -8,7 +8,7 @@ a structure's density is from the crystal or amorphous density.
 """
 import numpy as np
 
-from src.calc import general_types as gen_calc
+from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 
 def calc_all_dists(pos1, all_pos, cutoff=10):
@@ -31,6 +31,7 @@ class Crystallinity(gen_calc.Calc_Type):
 	required_metadata = ("crystal_density", "amorphous_density", "atoms_per_molecule",
 						 "number_each_atom")
 	required_calc = ('density', )
+	required_data_types = ('pos',)
 
 	# Need these 3 attributes to create a new variable type
 	metadata = {'file_type': 'csv'}

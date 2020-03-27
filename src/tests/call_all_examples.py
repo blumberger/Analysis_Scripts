@@ -150,7 +150,7 @@ for test_fold in all_example_tests:
 
     # Check the inp file is there
     if not os.path.isfile(inp_file):
-        all_errors.append(f"Couldn't find an input file in the folder {test_fold}. Looked for {inp_file}")
+        all_errors.setdefault(test_fold, []).append(f"Couldn't find an input file in the folder {test_fold}. Looked for {inp_file}")
         continue
 
     # Run the input file
@@ -183,7 +183,7 @@ for test_fold in all_example_tests:
             out_file = (out_file,)
         for file_ in out_file:
             if not os.path.isfile(file_):
-                all_errors.append(f"Couldn't find the output file {file_}")
+                all_errors.setdefault(test_fold, []).append(f"Couldn't find the output file {file_}")
                 continue
             else:
                 os.remove(file_)

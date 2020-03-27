@@ -6,12 +6,12 @@ A module to calculate nearest neighbour lists
 import numpy as np
 import time
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 
 from src.system import type_checking as type_check
 
-class NN(gen_type.Calc_Type):
+class NN(gen_calc.Calc_Type):
     """
     Will calculate the Nearest neighbour list from the data contained within a data file.
 
@@ -44,7 +44,7 @@ class NN(gen_type.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     required_metadata = ()
-    required_data_names = ('xyz', )
+    required_data_types = ('pos',)
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'json'}

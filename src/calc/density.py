@@ -6,11 +6,11 @@ A module to calculate nearest neighbour lists
 import numpy as np
 import pandas as pd
 
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 from src.system import type_checking as type_check
 
-class Density(gen_type.Calc_Type):
+class Density(gen_calc.Calc_Type):
     """
     Will calculate the Density from the data contained within a data file.
 
@@ -23,7 +23,7 @@ class Density(gen_type.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     required_metadata = ('molecular_mass', "atoms_per_molecule", "number_atoms")
-    required_data_names = ()
+    required_data_types = ('pos',)
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'csv'}

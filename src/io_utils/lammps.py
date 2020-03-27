@@ -379,31 +379,31 @@ class Lammps_Data_File(gen_io.DataFileStorage):
 
         return inds
 
-    def set_xyz_data(self):
-        """
-        Will set the xyz_data variable and cols and timesteps for the write_xyz function to use later.
+    # def set_xyz_data(self):
+    #     """
+    #     Will set the xyz_data variable and cols and timesteps for the write_xyz function to use later.
 
-        This doesn't affect the data it is only used for writing.
-        """
-        with open(consts.PT_FILEPATH, 'r') as f:
-            pt = json.load(f)
-        at_cvt = {int(pt[i]['atomic_weight']): pt[i]['abbreviation'] for i in pt
-                  if pt[i]['atomic_weight'] is not None}
+    #     This doesn't affect the data it is only used for writing.
+    #     """
+    #     with open(consts.PT_FILEPATH, 'r') as f:
+    #         pt = json.load(f)
+    #     at_cvt = {int(pt[i]['atomic_weight']): pt[i]['abbreviation'] for i in pt
+    #               if pt[i]['atomic_weight'] is not None}
 
-        # Save the xyz data to allow the write_xyz function to find it and write it
-        self.xyz_data = [self.csv_data['atoms'][['x', 'y', 'z']].to_numpy()]
-        self.xyz_data = np.array(self.xyz_data)
+    #     # Save the xyz data to allow the write_xyz function to find it and write it
+    #     self.xyz_data = [self.csv_data['atoms'][['x', 'y', 'z']].to_numpy()]
+    #     self.xyz_data = np.array(self.xyz_data)
 
-        # Get the cols
-        self.cols = self.csv_data['atoms']['at_type']
-        for i in self.cols.unique():
-            mass = self.metadata['masses'][str(i)]
-            mass = int(mass)
-            self.cols[self.cols == i] = at_cvt[mass]
-        self.cols = np.array([self.cols], dtype=str)
+    #     # Get the cols
+    #     self.cols = self.csv_data['atoms']['at_type']
+    #     for i in self.cols.unique():
+    #         mass = self.metadata['masses'][str(i)]
+    #         mass = int(mass)
+    #         self.cols[self.cols == i] = at_cvt[mass]
+    #     self.cols = np.array([self.cols], dtype=str)
 
-        # Get the timesteps
-        self.timesteps = np.array([0.0] * len(self.cols))
+    #     # Get the timesteps
+    #     self.timesteps = np.array([0.0] * len(self.cols))
 
 class Lammps_Dump(gen_io.DataFileStorage):
     """
@@ -573,30 +573,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
             for idim, dim in enumerate('xyz'):
                 if unit_vec[idim] != 0:
                     self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
-
-    def set_xyz_data(self):
-        """
-        Will set the xyz_data variable and cols and timesteps for the write_xyz function to use later.
-
-        This doesn't affect the data it is only used for writing.
-        """
-        if self.metadata['coordinate_wrapping'] == 'unwrapped':
-            df = self.unwrapped_csv
-        else:
-           df = self.wrapped_csv
-
-        # Set the xyz data
-        self.xyz_data = np.array([df[['x', 'y', 'z']].to_numpy()])
-
-        # Set the xyz column data
-        self.cols = np.array([df['type']]).astype(str)
-        self.cols[0][self.cols[0] == '1'] = 'C'
-        self.cols[0][self.cols[0] == '2'] = 'H'
-
-        # Set the timesteps
-        self.timesteps = np.array([0])
-        if 'timestep' in self.metadata:
-            self.timesteps = np.array([self.metadata['timestep']])
 
     def append(self, val):
         """

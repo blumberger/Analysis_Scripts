@@ -93,8 +93,10 @@ class Write_XYZ_File(gen_io.Write_File):
       """
       def __init__(self, Data_Class, filepath):
           # If we can set the xyz variables in the data class then set them
-          if 'set_xyz_data' in dir(Data_Class):
-              Data_Class.set_xyz_data()
+          if 'get_xyz_data' in dir(Data_Class):
+              self.xyz_data = Data_Class.get_xyz_data()
+              self.cols = Data_Class.get_xyz_cols()
+              self.timesteps = Data_Class.get_xyz_timesteps()
 
           # Run standard file writing procedure
           super().__init__(Data_Class, filepath)
@@ -103,21 +105,25 @@ class Write_XYZ_File(gen_io.Write_File):
           """
           Will create the string that contains an xyz file, this is save as self.file_txt.
           """
-          xyz_data, cols, timesteps = self.Data.xyz_data, self.Data.cols, self.Data.timesteps
-          # Create an array of spaces/newlines to add between data columns in str
-          natom = len(cols[0])
-          space = ["    "] * natom
+          all_file_strings = []
 
-          # Convert floats to strings (the curvy brackets are important for performance here)
-          xyz = xyz_data.astype(str)
-          xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
-          cols = np.char.add(cols[0], space)
-          head_str = '%i\ntime = ' % natom
-          s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
-               for step_data, t in zip(xyz, timesteps))
+          for cols, xyz_data, timesteps in zip(self.cols, self.xyz_data, self.timesteps):
+              # Create an array of spaces/newlines to add between data columns in str
+              natom = len(cols[0])
+              space = ["    "] * natom
+  
+              # Convert floats to strings (the curvy brackets are important for performance here)
+              xyz = xyz_data.astype(str)
+              xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+              cols = np.char.add(cols[0], space)
+              head_str = '%i\ntime = ' % natom
+              s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+                   for step_data, t in zip(xyz, timesteps))
+  
+              all_file_strings.append(''.join(s))
 
           # Create the str
-          return ''.join(s)
+          return all_file_strings
 
 
 def string_between(Str, substr1, substr2):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3from src.calc import general_types as gen_type
+#!/usr/bin/env python3from src.calc import general_calc as gen_type
 
 # -*- coding: utf-8 -*-
 """
@@ -1084,9 +1084,13 @@ class INP_File(object):
             if key not in metadata: metadata[key] = Loaded_Data.metadata[key]
 
         if words[3] == "as" or var_name not in self.variables:
-            self.set_var(var_name, Loaded_Data, metadata)
+            self.set_var(var_name, {dtype: Loaded_Data}, metadata)
         elif words[3] == 'into' and var_name in self.variables:
             self.load_var_into(Loaded_Data, var_name, metadata)
+
+        Var = getattr(self, var_name)
+        Var.metadata.setdefault('data_loaded', []).append(dtype)
+
 
     def load_var_into(self, Data_To_Append, var_name, metadata={}):
         """
@@ -1099,12 +1103,7 @@ class INP_File(object):
         """
         Var = getattr(self, var_name)
 
-        # If this is the first time things are being appended get things set up.
-        if type(Var.data) != dict or (type(Var.data) == dict and 'is_append' in Var.data):
-            data_type_code = self.rev_load_fncs[type(Var.data)]
-            Var.data = {data_type_code: Var.data, 'is_append': True}
-        
-        # If this isn't the first time we put data into the variable.
+        # Add the data to the correct type in the data dict.
         new_data_type_code = self.rev_load_fncs[type(Data_To_Append)]
         if new_data_type_code in Var.data:
             try:
@@ -1116,8 +1115,7 @@ class INP_File(object):
             Var.data[new_data_type_code] = Data_To_Append
 
         # Combine metadata (replace old with new)
-        for i in metadata:
-            Var.metadata[i] = metadata[i]
+        for i in metadata:  Var.metadata[i] = metadata[i]
 
     def parse_write_cmd(self, line):
         """

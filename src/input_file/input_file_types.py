@@ -1,6 +1,8 @@
 """
 A module to store derived types (classes) used in the parsing of input files.
 """
+import numpy as np
+
 
 class Variable(object):
     """
@@ -21,7 +23,10 @@ class Variable(object):
     """
     def __init__(self, var_name, var_data, metadata={}):
        self.name = var_name
-       self.data = var_data
+       if type(var_data) == dict:
+            self.data = Vars(var_data)
+       else:
+            self.data = var_data
        self.metadata = metadata
 
 
@@ -67,23 +72,6 @@ class Variable(object):
                 else:
                     self.data.data = attr
 
-    # # Overload appending
-    # def append(self, val):
-    #     """
-    #     Check the data is a list, if not don't append
-    #     """
-    #     if isinstance(self.data, (int, str, float, tuple)):
-    #         raise TypeError(f"Cannot append to variable '{self.name}' which is of type {type(self.data)}.")
-
-    #     elif type(self.data) == dict:
-    #         self.data.setdefault('appended_vals', []).append(self.data)
-
-    #     else:
-    #         self.data.append(val)
-    #         print(type(self.data))
-    #         return self
-
-
     def __len__(self):
         """
         Return a length of the variable
@@ -96,49 +84,198 @@ class Variable(object):
     # Overload mathematical operators
     def __add__(self, val):
         """Ammend data attribute and return self"""
-        self.data += val
+        for key in self.data:
+            self.data[key] += val
         return self
     def __radd__(self, val):
         """Ammend data attribute and return self"""
-        self.data += val
+        for key in self.data:
+            self.data[key] += val
         return self
     def __sub__(self, val):
         """Ammend data attribute and return self"""
-        self.data -= val
+        for key in self.data:
+            self.data[key] -= val
         return self
     def __rsub__(self, val):
         """Ammend data attribute and return self"""
-        self.data -= val
+        for key in self.data:
+            self.data[key] -= val
         return self
     def __mul__(self, val):
         """Ammend data attribute and return self"""
-        self.data *= val
+        for key in self.data:
+            self.data[key] *= val
         return self
     def __rmul__(self, val):
         """Ammend data attribute and return self"""
-        self.data *= val
+        for key in self.data:
+            self.data[key] *= val
         return self
     def __truediv__(self, val):
         """Ammend data attribute and return self"""
-        self.data /= val
+        for key in self.data:
+            self.data[key] /= val
         return self
     def __rtruediv__(self, val):
         """Ammend data attribute and return self"""
-        self.data = val / self.data
+        for key in self.data:
+            self.data[key] = val / self.data
         return self
     def __floordiv__(self, val):
         """Ammend data attribute and return self"""
-        self.data //= val
+        for key in self.data:
+            self.data[key] //= val
         return self
     def __rfloordiv__(self, val):
         """Ammend data attribute and return self"""
-        self.data = val // self.data
+        for key in self.data:
+            self.data[key] = val // self.data
         return self
     def __pow__(self, val):
         """Ammend data attribute and return self"""
-        self.data **= val
+        for key in self.data:
+            self.data[key] **= val
         return self
     def __rpow__(self, val):
         """Ammend data attribute and return self"""
-        self.data **= val
+        for key in self.data:
+            self.data[key] **= val
         return self
+
+
+
+
+class Vars(dict):
+    """
+    A subclass of the dictionary object.
+
+    This acts exactly the same as a dictionary but has a few more bells and
+    whistles to make it easier to use.
+    """
+    def __init__(self, dict_):
+        super().__init__()
+        self.data = dict_
+
+
+
+    ###############################################################################
+    ##                XYZ Data Handling Functions                                ##
+    ###############################################################################
+    def get_ats_per_mol_from_lammps_dump(self, df):
+        """
+        Will get the number of atoms per molecule from the lammps dump file.
+        
+        Inputs:
+            * df <DataFrame> => The lammps dump data.
+
+        N.B. Only works for systems with 1 mol type.
+        """
+        if 'mol' not in df.columns:
+            raise SystemExit("I can't find which molecule each atom belongs to...\n"
+                             +"The Lammps dump file needs a mol column.\n\n")
+
+        unique_vals = np.unique(df['mol'])
+        return len(df[df['mol'] == unique_vals[0]])
+
+    def get_xyz_cols_from_lammps_dump(self):
+        """
+        Will get the element type columns from a csv file.
+        """
+        if self.number_each_atom is False:
+            raise SystemExit("I need to know how of each type of atom there are in each mol."
+                           + "\n\nSet this by using the command:\n\n\t`set system <data_name>"
+                           + " to <mol_type>`\n\nin the input file.")
+
+        df = self.data['lammps_dump']
+        ats_per_mol = self.get_ats_per_mol_from_lammps_dump(df)
+
+        # Error check
+        if 'type' not in df.columns:
+            raise SystemError("\n\n\nI can't calculate the xyz cols of the mols."
+                              + " I can't find the atoms types in the data."
+                              + "I don't what atom types are in the mol")
+
+        # Error check -if there is a mol with equal nums of atom of x and y type.
+        num_elm_in_mol = [self.number_each_atom[i] for i in self.number_each_atom]
+        if len(set(num_elm_in_mol)) != len(num_elm_in_mol):
+            raise SystemError("\n\n\nCan't find the xyz columns."
+                            + " I don't know what types the atoms are and can't"
+                            + " work them out as the molecule has 2 or more "
+                            + "elements with the same number of atoms.\n\n")
+
+        # Compare how many atoms of each type are in each molecule and how many there should be.
+        num_at_types = Counter(df.loc[:ats_per_mol-1, 'type'])
+        at_types = {i: self.number_each_atom[i] for i in self.number_each_atom}
+        cvt_type = {}
+        for i in num_at_types:
+            for elm in at_types:
+                if at_types[elm] == num_at_types[i]:
+                    print(f"Atom type '{i}' is element {elm}.")
+                    cvt_type[str(i)] = elm
+                    break
+            else:
+                raise SystemError("Could determine what element each atom type is.")
+            at_types.pop(elm)
+
+        # Create the cols array
+        cols = df['type'].to_numpy().astype(str)
+        self.natom = len(cols)
+        for i in np.unique(cols):
+            cols[cols == i] = cvt_type[i]
+
+        return np.array([cols])
+
+    def get_xyz_cols_from_xyz(self):
+        """Will return the xyz columns."""
+        return self.data['xyz'].cols
+
+
+    def get_xyz_cols(self, number_each_atom=False):
+        """
+        Will try to get the atom element types from the number of each type in a
+        molecule.
+        """
+        self.number_each_atom = number_each_atom
+
+        XYZ_DATA_KEYS = {'xyz': self.get_xyz_cols_from_xyz,
+                         'lammps_dump': self.get_xyz_cols_from_lammps_dump}
+        xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
+        return xyz_data
+
+    def get_xyz_timesteps(self):
+        """
+        Will grab the timestep of each step.
+        """
+        XYZ_DATA_KEYS = {'xyz': self.get_xyz_timesteps_from_xyz,
+                         'lammps_dump': self.get_xyz_timesteps_from_lammps_dump}
+        xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
+        return xyz_data
+
+    def get_xyz_timesteps_from_xyz(self):
+        """Will get the xyz timesteps from xyz file container."""
+        return self.data['xyz'].timesteps
+    
+    def get_xyz_timesteps_from_lammps_dump(self):
+        """Will return the xyz timesteps from lammps dump file container."""
+        raise SystemExit("Lammps dump writing to xyz file, not currently implemented.")
+
+    def get_xyz_data(self):
+        """
+        Will search the data dictionary and if any keys have xyz data the will return those.
+
+        The data types with xyz data in are given in XYZ_DATA_KEYS, this contains references
+        to the functions that grab the xyz data for that data type.
+        """
+        XYZ_DATA_KEYS = {'xyz': self.get_xyz_data_from_xyz,
+                         'lammps_dump': self.get_xyz_data_from_lammps_dump}
+        xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
+        return xyz_data
+
+    def get_xyz_data_from_xyz(self):
+        """Will return the xyz data an XYZ file type."""
+        return self.data['xyz'].xyz_data
+
+    def get_xyz_data_from_lammps_dump(self):
+        """Will return the xyz data from a lammps dump file type."""
+        print(self.data['lammps_dump'])

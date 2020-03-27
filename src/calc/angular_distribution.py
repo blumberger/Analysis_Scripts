@@ -8,7 +8,7 @@ import json
 import matplotlib.pyplot as plt
 
 # Import calculating functions
-from src.calc import general_types as gen_type
+from src.calc import general_calc as gen_calc
 from src.calc import geometry as geom
 from src.calc import molecule_utils as mol_utils
 
@@ -17,7 +17,7 @@ from src.data import consts
 # import type checking functions
 from src.system import type_checking as type_check
 
-class Angular_Dist(gen_type.Calc_Type):
+class Angular_Dist(gen_calc.Calc_Type):
     """
     Will calculate the angular distributions of the molecules in a system.
 
@@ -40,7 +40,7 @@ class Angular_Dist(gen_type.Calc_Type):
     # Need these 3 attributes to create a new variable type
     data = {}
     metadata = {'file_type': 'json'}
-    required_data_types = (('xyz', 'lammps_dump'),)
+    required_data_types = ('pos',)
     name = "Angular Distribution"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
 

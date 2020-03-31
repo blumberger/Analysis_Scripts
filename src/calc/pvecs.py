@@ -33,39 +33,47 @@ class PVecs(gen_calc.Calc_Type):
         Will calculate the pvecs from self.xyz_data_File.xyz_data
         """
         self.data = []
-        XYZFile = self.Var.data
-        at_crds = XYZFile.xyz_data
-        self.nstep = XYZFile.nstep
-        self.at_per_mol = self.Var.metadata['atoms_per_molecule']
+        all_xyz_data = self.Var.data.get_xyz_data()
+        all_cols = self.Var.data.get_xyz_cols()
+
 
         # First remove 'Ne' atoms
-        self.cols = XYZFile.cols
-        at_crds = np.array([i[self.cols[0] != 'Ne'] for i in XYZFile.xyz_data])
-        self.cols = np.array([c[self.cols[0] != 'Ne'] for c in self.cols])
-        self.natom = len(at_crds[1])
+        all_xyz_data = np.array([
+                         [step_xyz[step_cols != 'Ne']
+                         for step_cols, step_xyz in zip(file_cols, file_xyz)]
+                        for file_cols, file_xyz in zip(all_cols, all_xyz_data)])
+        all_cols = np.array([[step_cols[step_cols != 'Ne'] for step_cols in file_cols]
+                             for file_cols in all_cols])
 
-        # Reshape the at_crds array to get mol_crds array
-        mol_crds, ats_per_mol = self.__reshape_at_crds(at_crds)
-        self.__get_pvec_ats()
 
-        self.xyz_data = np.zeros((self.nstep,
-                               self.nmol * len(self.pvec_ats[0]),
-                               3))
-        for step in range(self.nstep):
-           at_count = 0
-           for imol in range(self.nmol):
-               crds = mol_crds[step, imol]
-               for iats in self.pvec_ats[imol]:
-                   disp1 = crds[iats[0]] - crds[iats[1]]
-                   disp2 = crds[iats[2]] - crds[iats[1]]
+        # Loop over the xyz data of each file that is loaded.
+        for ifile, (at_crds, self.cols) in enumerate(zip(all_xyz_data, all_cols)):
+            self.nstep = len(at_crds)
+            self.at_per_mol = self.Var.metadata['atoms_per_molecule']
+            self.natom = len(at_crds[0])
 
-                   pvec = np.cross(disp1, disp2)
-                   pvec /= np.linalg.norm(pvec)
+            # Reshape the at_crds array to get mol_crds array
+            mol_crds, ats_per_mol = self.__reshape_at_crds(at_crds)
+            self.__get_pvec_ats(ifile)
 
-                   self.xyz_data[step, at_count] = pvec
-                   at_count += 1
+            self.pvecs = np.zeros((self.nstep,
+                                   self.nmol * len(self.pvec_ats[0]),
+                                   3))
+            for step in range(self.nstep):
+               at_count = 0
+               for imol in range(self.nmol):
+                   crds = mol_crds[step, imol]
+                   for iats in self.pvec_ats[imol]:
+                       disp1 = crds[iats[0]] - crds[iats[1]]
+                       disp2 = crds[iats[2]] - crds[iats[1]]
 
-    def __get_pvec_ats(self):
+                       pvec = np.cross(disp1, disp2)
+                       pvec /= np.linalg.norm(pvec)
+
+                       self.pvecs[step, at_count] = pvec
+                       at_count += 1
+
+    def __get_pvec_ats(self, ifile):
         """
         Will get for each carbon atom the 3 closest atoms at step 0.
 
@@ -82,7 +90,7 @@ class PVecs(gen_calc.Calc_Type):
         self.cols = np.reshape(self.cols, (self.nstep, self.nmol, self.at_per_mol))
         self.C_ats = [np.arange(len(c))[c == 'C'] for c in self.cols[0]][0]
 
-        step_NN = self.NN[0]
+        step_NN = self.NN[ifile][0]
         at_inds = np.array(step_NN['closest_atoms_mol_grouped'])
         at_inds = at_inds.astype(int)
         self.pvec_ats = {}
@@ -118,7 +126,11 @@ class PVecs(gen_calc.Calc_Type):
 
         return mol_crds, ats_per_mol
 
-    def set_xyz_data(self):
+    def get_xyz_data(self):
+        """Will return the xyz_data that has been created"""
+        return self.pvecs
+
+    def get_xyz_cols(self):
         """
         Set the xyz data attributes required for writing an xyz file.
 
@@ -127,8 +139,11 @@ class PVecs(gen_calc.Calc_Type):
         mols = [str(imol) + "    " for j in self.C_ats for imol in range(self.nmol)]
         ats = [str(j) + "     " for imol in range(self.nmol) for j in self.C_ats + (imol*self.at_per_mol)]
         self.cols = np.char.add(mols, ats)
-        self.cols = np.array([self.cols] * self.nstep)
-        self.timesteps = np.array([0.0] * self.nstep)
+        return np.array([self.cols] * self.nstep)
+
+    def get_xyz_timesteps(self):
+        """Will return 0 for all timesteps."""
+        return np.array([0.0] * self.nstep)
 
     def __str__(self):
         """
@@ -140,7 +155,8 @@ class PVecs(gen_calc.Calc_Type):
         cols = np.char.add(mols, ats)
 
         head_str = f'{len(ats)}\nPvecs. Step:  '
-        self.xyz_data = self.xyz_data.astype(str)
+        self.pvecs = self.xyz_data.astype(str)
+        
         xyz = (['    '.join(line) for line in step_data] for step_data in self.xyz_data)
         s = (head_str + "%s\n"%step + '\n'.join(np.char.add(cols, step_data)) + "\n"
              for step, step_data in enumerate(xyz))

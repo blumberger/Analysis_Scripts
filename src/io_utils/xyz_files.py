@@ -93,10 +93,17 @@ class Write_XYZ_File(gen_io.Write_File):
       """
       def __init__(self, Data_Class, filepath):
           # If we can set the xyz variables in the data class then set them
-          if 'get_xyz_data' in dir(Data_Class):
+          required_data_fncs = ('get_xyz_data', 'get_xyz_cols', 'get_xyz_timesteps',)
+
+          if all(j in dir(Data_Class) for j in required_data_fncs):
               self.xyz_data = Data_Class.get_xyz_data()
               self.cols = Data_Class.get_xyz_cols()
               self.timesteps = Data_Class.get_xyz_timesteps()
+          else:
+              non_implemented = ""
+              for i in required_data_fncs:
+                  if i not in dir(Data_Class): non_implemented += f"'{i}' "
+              raise SystemError(f"\n\n\nPlease implement the methods {non_implemented} in {type(Data_Class)}\n\n")
 
           # Run standard file writing procedure
           super().__init__(Data_Class, filepath)
@@ -105,26 +112,40 @@ class Write_XYZ_File(gen_io.Write_File):
           """
           Will create the string that contains an xyz file, this is save as self.file_txt.
           """
-          all_file_strings = []
-
-          for cols, xyz_data, timesteps in zip(self.cols, self.xyz_data, self.timesteps):
-              # Create an array of spaces/newlines to add between data columns in str
-              natom = len(cols[0])
-              space = ["    "] * natom
+          all_lists = (self.cols, self.xyz_data, self.timesteps)
+          if all(type(j) == list for j in all_lists):
   
-              # Convert floats to strings (the curvy brackets are important for performance here)
-              xyz = xyz_data.astype(str)
-              xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
-              cols = np.char.add(cols[0], space)
-              head_str = '%i\ntime = ' % natom
-              s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
-                   for step_data, t in zip(xyz, timesteps))
-  
-              all_file_strings.append(''.join(s))
+              if len(self.cols) != len(self.xyz_data) != self.timesteps:
+                raise SystemError("\n\nThe length of the cols, xyz_data and timesteps arrays are different.\n\n"
+                                  + "These arrays should all be the same length and should contain info for each file to write.")
+              
+              all_file_strings = [self.create_single_file_str(xyz_data, cols, timesteps)
+                                  for cols, xyz_data, timesteps in zip(self.cols, self.xyz_data, self.timesteps)]  
 
           # Create the str
+          else:
+              all_file_strings = self.create_single_file_str(self.xyz_data, self.cols, self.timesteps)
+
+
           return all_file_strings
 
+      def create_single_file_str(self, xyz_data, cols, timesteps):
+          """Will create the xyz file string for a single file."""
+
+          # Create an array of spaces/newlines to add between data columns in str
+          natom = len(cols[0])
+          space = ["    "] * natom
+  
+          # Convert floats to strings (the curvy brackets are important for performance here)
+          xyz = xyz_data.astype(str)
+          xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+          cols = np.char.add(cols[0], space)
+          head_str = '%i\ntime = ' % natom
+
+          s = (head_str + ("%.3f\n" % t) + '\n'.join(np.char.add(cols, step_data)) + "\n"
+               for step_data, t in zip(xyz, timesteps))
+  
+          return ''.join(s)
 
 def string_between(Str, substr1, substr2):
     """

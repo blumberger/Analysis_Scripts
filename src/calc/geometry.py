@@ -1,134 +1,73 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-This module holds some functions to calculate certain geometric properties such
-as angle between 2 vectors and center of masses etc...
+Contains various functions to perform/calculate geometric operations/properties.
+
+These include things like: calculate rotation angle, get rotation matricies
 """
 
 import numpy as np
 
 
-#### Define Consts #####
-PI_4_3 = 4./3. * np.pi #
-PI_4   = 4. * np.pi    #
-########################
+def angle_between_vecs(vec1, vec2):
+  """
+  Will find the angle between 2 vectors.
+  
+  This uses np.arccos( (a . b) / |a||b| )
+
+  Inputs:
+    * vec1 <list> => The first vector
+    * vec2 <list> => The second vector
+  Outputs:
+    <float> angle.
+  """
+  dot_prod = np.dot(vec1, vec2)
+  mags = np.linalg.norm(vec1) * np.linalg.norm(vec2)
+
+  return np.arccos(dot_prod / mags)
 
 
-def volume_sphere(r):
+def map_vec1_to_unit(vec, unit=[1.0, 0.0, 0.0]): 
     """
-    Returns the volume of a sphere
-    """
-    return PI_4_3 * r**3
+    Will map 1 vector to another vector and return the rotation matrix.
 
+    This works by finding the perp vector to the input vec and unit (using np.cross).
+    The angle is then found between the input vec and unit.
+    The rotation matrix is then constructed to rotate about the calculated axis by
+     the calculated angle.
 
-def volume_concentric_spheres(R1, R2):
-    """
-    Returns the volume between 2 concentric spheres
-    """
-    if (R1 > R2):
-        return PI_4_3 * (R1**3 - R2**3)
-    else:
-        return PI_4_3 * (R2**3 - R1**3)
-
-
-def volume_differential_shell(r, dr):
-    """
-    Should be the same as volume_concentric_spheres for vanishing dr.
-    """
-    return PI_4 * (r**2) * dr
-
-
-def beginning_tests(xyz, mass=False):
-    """
-    Carries out some basic tests at the beginning of a function to check
-    if the input array looks right.
-    """
-    if mass and len(xyz) != len(mass):
-        raise SystemExit("Mass array and xyz array not the same length")
-    elif len(xyz[0]) != 3:
-        raise SystemExit("This only works with 3D coords given in shape (num_crds, 3)")
-    elif type(xyz) != type(np.array(1)):
-        xyz = np.array(xyz)
-        if mass:
-            mass = np.array(mass)
-    return xyz, mass
-
-
-def get_COM(xyz, mass):
-    """
-    Will get the 3D center of mass of an array of points (xyz) given their
-    masses (mass).
-
-    Inputs:
-        * xyz   => 2D array of atomic coords of shape <num coords, 3>
-        * mass  => 1D array of masses same as len(xyz).
-
-    Returns:
-        * 3D array with [x,y,z] of center of mass
-    """
-    xyz, mass = beginning_tests(xyz, mass)
-
-    tot_mass = sum(mass)
-
-    xmean = sum(xyz[:,0]*mass) / tot_mass
-    ymean = sum(xyz[:,1]*mass) / tot_mass
-    zmean = sum(xyz[:,2]*mass) / tot_mass
-
-    return [xmean, ymean, zmean]
-
-
-def find_center_atom(crds):
-    """
-    Will find the atom that is closest to the arthimetic center
-
-    Inputs:
-        * 2D crds array of shape (num_atoms, 3)
-
-    Outpus:
-        * index of central most atom
-        * xyz of central most atom
-    """
-    crds, _ = beginning_tests(crds)
-
-    # Center point = (max - min) / 2
-    center_point = (np.max(crds, axis=0) - np.min(crds, axis=0))/2.
-
-    dist_from_center = np.linalg.norm(crds - center_point, axis=1)
-    min_at_ind = np.argmin(dist_from_center)
-    center_xyz = crds[min_at_ind]
-
-    return min_at_ind, center_xyz, dist_from_center
-
-
-def get_vector_from_cds(at1, at2):
-    """
-    Will get the displacement vector from at1 to at2.
-
-    Inputs:
-        * at1 => 1D vector of length 3.
-        * at2 => 1D vector of length 3.
-
+    Inputs: 
+        * vec <list> => The first vector to rotate
+        * unit <list> => The vector to map 'vec' onto
     Outputs:
-        * 3D vector pointing from atom1 to atom2.
+        <array<array>> The rotation matrix.
+
+    Taken from: https://stackoverflow.com/questions/43507491/imprecision-with-rotation-matrix-to-align-a-vector-to-an-axis
     """
-    at1, at2 = np.array(at1), np.array(at2)
-    return at2 - at1
+    # Normalize vector length 
+    vec /= np.linalg.norm(vec) 
+    unit /= np.linalg.norm(unit)
 
+    # Get axis 
+    uvw = np.cross(vec, unit) 
 
-def get_angle_between_2_vecs(vec1, vec2):
-    """
-    Will find the angle between 2 vectors.
+    # compute trig values - no need to go through arccos and back 
+    rcos = np.dot(vec, unit) 
+    rsin = np.linalg.norm(uvw) 
 
-    Inputs:
-        * vec1 => 1D vector (np.array)
-        * vec2 => 1D vector (np.array)
+    #normalize and unpack axis 
+    if not np.isclose(rsin, 0): 
+       uvw /= rsin 
+    u, v, w = uvw 
 
-    Outputs:
-        Single float with angle between the 2 vectors
-    """
-    if len(vec1) != len(vec2):
-        raise SystemExit("Vectors must be same dimension!")
+    # Compute rotation matrix - re-expressed to show structure 
+    return ( 
+       rcos * np.eye(3) + 
+       rsin * np.array([ 
+           [ 0, -w,  v], 
+           [ w,  0, -u], 
+           [-v,  u,  0] 
+       ]) + 
+       (1.0 - rcos) * uvw[:,None] * uvw[None,:] 
+    )
 
-    dot_prod = np.dot(vec1, vec2)
-    norm_mult = np.linalg.norm(vec1) * np.linalg.norm(vec2)
-    return np.arccos(dot_prod / norm_mult)

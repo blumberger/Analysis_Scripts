@@ -23,7 +23,7 @@ class Density(gen_calc.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     required_metadata = ('molecular_mass', "atoms_per_molecule", "number_atoms")
-    required_data_types = ('pos',)
+    required_data_types = ('lammps_log',)
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'csv'}
@@ -43,7 +43,9 @@ class Density(gen_calc.Calc_Type):
         will be the atom index.
         """
         self.csv_data = []
-        data = self.Var.data.csv_data
+        self.Var.data['lammps_log'].append_csvs()
+        data = self.Var.data['lammps_log'].csv_data
+        
         did_dens_calc = False
         data_count = 0
 

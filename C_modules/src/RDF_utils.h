@@ -491,9 +491,10 @@ struct Config_File read_config ( char file_path[]) {
     // First find the start of type_1
     int found_type = 0;
     while( fgets(buffer, cmax_length, file_obj) != NULL) {
-        if ( strcmp(buffer, "type_1\n") == 0 )
+        if ( strcmp(buffer, "type_1\n") == 0 ) {
             found_type = 1;
             break;
+        }
     }
     // Check we found the required section.
     if (found_type == 0) { 
@@ -771,7 +772,7 @@ void wrap_coords(struct Lammps_Dump *file_data) {
     projcb0 = proj(ABC_hat.c, Identity.b);
     projcc0 = proj(ABC_hat.c, Identity.c);
 
-    // projection denominator
+    // projection denominator (determinant)
     denom = - (projac0 * projbb0 * projca0) \
             + (projab0 * projbc0 * projca0) \
             + (projac0 * projba0 * projcb0) \
@@ -842,8 +843,8 @@ void wrap_coords(struct Lammps_Dump *file_data) {
 
         file_data->nx = (int) floor( a_norm / a_norm_REF );
         if (a_sign < 0.0) file_data->nx = -file_data->nx - 1;
-        file_data->nz = (int) floor( b_norm / b_norm_REF );
-        if (b_sign < 0.0) file_data->nz = -file_data->nz - 1;
+        file_data->ny = (int) floor( b_norm / b_norm_REF );
+        if (b_sign < 0.0) file_data->ny = -file_data->ny - 1;
         int nz = (int) floor( c_norm / c_norm_REF );
         if( c_sign < 0.0) nz =  -nz - 1;
 

@@ -17,6 +17,6 @@ load $xyz_filepath xyz as pos
 calc NN from pos as NN
 
 # Write the data
-write NN "test.json"
+write NN "NN.json"
 
 

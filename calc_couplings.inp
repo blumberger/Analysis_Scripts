@@ -1,6 +1,6 @@
 folder = "/home/oem/Data/FSSH_Pentacene_15_15"
 filepath = "$folder/run-pseudo-hamilt-1.xyz"
-filepath_pos = "/home/oem/Data/final_snapshot_10ns.xyz"
+filepath_pos = "./rotated.xyz"
 
 read $filepath pseudo_ham as ham
 read $filepath_pos xyz into ham

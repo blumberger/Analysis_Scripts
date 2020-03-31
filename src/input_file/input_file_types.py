@@ -2,7 +2,7 @@
 A module to store derived types (classes) used in the parsing of input files.
 """
 import numpy as np
-
+from collections import Counter
 
 class Variable(object):
     """
@@ -21,6 +21,7 @@ class Variable(object):
        * data <*>   => The data declared.
        * metadata <dict> => Any extra data that is relevant to the variable.
     """
+    name = "Input Variable"
     def __init__(self, var_name, var_data, metadata={}):
        self.name = var_name
        if type(var_data) == dict:
@@ -151,18 +152,23 @@ class Vars(dict):
     A subclass of the dictionary object.
 
     This acts exactly the same as a dictionary but has a few more bells and
-    whistles to make it easier to use.
+    whistles to make the data easier to call forward.
     """
-    def __init__(self, dict_):
-        super().__init__()
-        self.data = dict_
+    name = "Vars Dict"
+    metadata = {}
 
+    def __init__(self, dict_):
+        dict.__init__(self, dict_)
+        self.data = dict_
 
 
     ###############################################################################
     ##                XYZ Data Handling Functions                                ##
     ###############################################################################
-    def get_ats_per_mol_from_lammps_dump(self, df):
+
+    ###########################################
+    ### XYZ columns
+    def __get_ats_per_mol_from_lammps_dump__(self, df):
         """
         Will get the number of atoms per molecule from the lammps dump file.
         
@@ -178,7 +184,7 @@ class Vars(dict):
         unique_vals = np.unique(df['mol'])
         return len(df[df['mol'] == unique_vals[0]])
 
-    def get_xyz_cols_from_lammps_dump(self):
+    def __get_xyz_cols_from_lammps_dump__(self):
         """
         Will get the element type columns from a csv file.
         """
@@ -187,8 +193,8 @@ class Vars(dict):
                            + "\n\nSet this by using the command:\n\n\t`set system <data_name>"
                            + " to <mol_type>`\n\nin the input file.")
 
-        df = self.data['lammps_dump']
-        ats_per_mol = self.get_ats_per_mol_from_lammps_dump(df)
+        df = self.data['lammps_dump'].csv_data
+        ats_per_mol = self.__get_ats_per_mol_from_lammps_dump__(df)
 
         # Error check
         if 'type' not in df.columns:
@@ -211,7 +217,7 @@ class Vars(dict):
         for i in num_at_types:
             for elm in at_types:
                 if at_types[elm] == num_at_types[i]:
-                    print(f"Atom type '{i}' is element {elm}.")
+                    # print(f"Atom type '{i}' is element {elm}.")
                     cvt_type[str(i)] = elm
                     break
             else:
@@ -226,7 +232,7 @@ class Vars(dict):
 
         return np.array([cols])
 
-    def get_xyz_cols_from_xyz(self):
+    def __get_xyz_cols_from_xyz__(self):
         """Will return the xyz columns."""
         return self.data['xyz'].cols
 
@@ -237,29 +243,36 @@ class Vars(dict):
         molecule.
         """
         self.number_each_atom = number_each_atom
+        if number_each_atom is False and 'number_each_atom' in self.metadata:
+            self.number_each_atom = self.metadata['number_each_atom']
 
-        XYZ_DATA_KEYS = {'xyz': self.get_xyz_cols_from_xyz,
-                         'lammps_dump': self.get_xyz_cols_from_lammps_dump}
+        XYZ_DATA_KEYS = {'xyz': self.__get_xyz_cols_from_xyz__,
+                         'lammps_dump': self.__get_xyz_cols_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
         return xyz_data
 
+    ###########################################
+    ### Timesteps
     def get_xyz_timesteps(self):
         """
         Will grab the timestep of each step.
         """
-        XYZ_DATA_KEYS = {'xyz': self.get_xyz_timesteps_from_xyz,
-                         'lammps_dump': self.get_xyz_timesteps_from_lammps_dump}
+        XYZ_DATA_KEYS = {'xyz': self.__get_xyz_timesteps_from_xyz__,
+                         'lammps_dump': self.__get_xyz_timesteps_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
         return xyz_data
 
-    def get_xyz_timesteps_from_xyz(self):
+    def __get_xyz_timesteps_from_xyz__(self):
         """Will get the xyz timesteps from xyz file container."""
         return self.data['xyz'].timesteps
     
-    def get_xyz_timesteps_from_lammps_dump(self):
+    def __get_xyz_timesteps_from_lammps_dump__(self):
         """Will return the xyz timesteps from lammps dump file container."""
-        raise SystemExit("Lammps dump writing to xyz file, not currently implemented.")
+        return np.array([self.data['lammps_dump'].metadata['timestep']] )
 
+
+    ###########################################
+    ### XYZ Data
     def get_xyz_data(self):
         """
         Will search the data dictionary and if any keys have xyz data the will return those.
@@ -267,15 +280,34 @@ class Vars(dict):
         The data types with xyz data in are given in XYZ_DATA_KEYS, this contains references
         to the functions that grab the xyz data for that data type.
         """
-        XYZ_DATA_KEYS = {'xyz': self.get_xyz_data_from_xyz,
-                         'lammps_dump': self.get_xyz_data_from_lammps_dump}
+        XYZ_DATA_KEYS = {'xyz': self.__get_xyz_data_from_xyz__,
+                         'lammps_dump': self.__get_xyz_data_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
         return xyz_data
 
-    def get_xyz_data_from_xyz(self):
+    def __get_xyz_data_from_xyz__(self):
         """Will return the xyz data an XYZ file type."""
         return self.data['xyz'].xyz_data
 
-    def get_xyz_data_from_lammps_dump(self):
+    def __get_xyz_data_from_lammps_dump__(self):
         """Will return the xyz data from a lammps dump file type."""
-        print(self.data['lammps_dump'])
+        xyz = ('x', 'y', 'z',)
+
+        wrapped = True
+        if 'coordinate_wrapping' in self.metadata:
+            if self.metadata['coordinate_wrapping'] == 'unwrapped':
+                wrapped = False
+
+        # Return the wrapped data
+        if wrapped:
+            if all(j in self.data['lammps_dump'].wrapped_csv for j in xyz):
+                return np.array([self.data['lammps_dump'].wrapped_csv[['x', 'y', 'z']].to_numpy()])
+            else:
+                raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")
+
+        # Return the unwrapped data
+        else:
+            if all(j in self.data['lammps_dump'].unwrapped_csv for j in xyz):
+                return np.array([self.data['lammps_dump'].unwrapped_csv[['x', 'y', 'z']].to_numpy()])
+            else:
+                raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")

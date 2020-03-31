@@ -50,7 +50,10 @@ class Write_INP(gen_io.Write_File):
         * filepath <str>     => The path to the file to be written.
     """
     def __init__(self, Data_Class, filepath):
-        super().__init__(Data_Class, filepath, "inp")
+        if 'cp2k_inp' not in Data_Class.data:
+            raise SystemError("\n\nCan't find the CP2K INP file data.\n\n")
+            
+        super().__init__(Data_Class.data['cp2k_inp'], filepath, "inp")
 
 
 class INP_Line(object):

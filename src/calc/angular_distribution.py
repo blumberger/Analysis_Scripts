@@ -52,7 +52,9 @@ class Angular_Dist(gen_calc.Calc_Type):
         ax of central molecule) of the long and short axes of the molecule then
         create a histogram of this data.
         """
-        self.get_xyz_data()
+        self.Var['coordinate_wrapping'] = 'unwrapped'
+        self.xyz_data = self.Var.data.get_xyz_data()
+
         ats_per_mol = self.Var.metadata['atoms_per_molecule']
         if 'long_axis_atoms' not in self.Var.metadata:
             long_ax_ats = self.metadata['long_axis_atoms']
@@ -62,7 +64,12 @@ class Angular_Dist(gen_calc.Calc_Type):
         else: short_ax_ats = self.Var.metadata['short_axis_atoms']
 
         # Divide atomic coordinates into molecular coordinates
-        all_at_crds = self.compute_data
+        
+
+        # This line means we will only work with the first file that has xyz data.
+        # This will need changing to make it more general.
+        all_at_crds = self.xyz_data[0]
+
         all_mol_crds = mol_utils.atoms_to_mols(all_at_crds, ats_per_mol,
                                                nstep=len(all_at_crds))
 
@@ -99,6 +106,7 @@ class Angular_Dist(gen_calc.Calc_Type):
                                   density=True, bins=self.metadata['number_bins'])
             self.short_counts, self.short_bin_edges = np.histogram(self.short_angles,
                                   density=True, bins=self.metadata['number_bins'])
+
 
     def get_angles_between_vecs(self, vec_ind, vecs, mags):
         """

@@ -11,9 +11,9 @@
 folder = "examples/data/Lammps"
 filepath = "$folder/snapshot0.dat"
 
-
 # Read the lammps file
 read $filepath lammps_dump as data
+set system data to pentacene
 
 # Write the wrapped xyz data
 data['coordinate_wrapping'] = "wrapped"

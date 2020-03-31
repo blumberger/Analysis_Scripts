@@ -2,6 +2,8 @@ from distutils.core import setup, Extension
 
 RDF_module = Extension('RDF',
                         sources = ['src/RDF.c'])
+# wrap_coords_module = Extension('wrap_coords',
+#                         sources = ['src/wrap_coords.c'])
 
 rdf_description = """Python package to calculate the radial distribution function.
 
@@ -18,6 +20,16 @@ with the following keys:
 
 """
 
+# wrap_desc = """Python package to unwrap coords so they form whole molecules again.
+
+# To use the utility use the function wrap_coords.wrap_coords() as an argument supply a dictionary
+# with the following keys:
+# 	* pos:        The positions. These should be given as a 2D list of shape (natom, 3).
+# 	* ABC:        The vector that define the simulation box\nThe input should be of the form:\n[    [xlo, xhi, xy],\n     [ylo, yhi, xz],\n     [zlo, zhi, yz] ]
+# 	* mol_nums    The molecular number of each atom should be 1D list of length (natom, )
+# 	* atom_types  The type of each atom, should be 1D list of length (natom, )
+# """
+
 setup(name = "RDF",
       version = "1.0",
       description = rdf_description,
@@ -25,3 +37,10 @@ setup(name = "RDF",
       url="https://en.wikipedia.org/wiki/Radial_distribution_function",
       author="Matt Ellis",
       author_email="95ellismle@gmail.com")
+
+# setup(name = "wrap_coords",
+#       version = "1.0",
+#       description = wrap_desc,
+#       ext_modules = [wrap_coords_module],
+#       author="Matt Ellis",
+#       author_email="95ellismle@gmail.com")

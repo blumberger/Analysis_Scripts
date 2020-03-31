@@ -149,17 +149,17 @@ class Write_File(object):
 
         if type(self.file_txt) == list:
             if len(self.file_txt) == 1:
-                self.write_single_file(self.file_txt[0], filepath)
+                self.write_single_file(self.file_txt[0], filepath, ext)
 
             else:
                 for i, s in enumerate(self.file_txt):
-                    self.write_single_file(s, filepath, i)
+                    self.write_single_file(s, filepath, ext, i)
 
         else:
-            self.write_single_file(self.file_txt, filepath)
+            self.write_single_file(self.file_txt, filepath, ext)
 
 
-    def write_single_file(self, s, filepath, file_num=False):
+    def write_single_file(self, s, filepath, ext, file_num=False):
         """
         Will write a single file from a string.
 
@@ -168,7 +168,8 @@ class Write_File(object):
         """
         # Correct the extension
         if self.extension:
-            filepath, _ = remove_file_extension(filepath)
+            filepath, user_ext = remove_file_extension(filepath)
+            if ext is False: ext = user_ext
 
             if file_num:
                 filepath_with_num = f"{filepath}_{count}.{ext}"

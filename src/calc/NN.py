@@ -63,38 +63,45 @@ class NN(gen_calc.Calc_Type):
         the second key being either 'distances' or 'atom_indices' the third key
         will be the atom index.
         """
-        self.data = {}
-        XYZFile = self.Var.data
-        cols = XYZFile.cols
-        at_crds = np.array([i[cols[0] != 'Ne'] for i in XYZFile.xyz_data])
-        self.natom = len(at_crds[0])
-        self.nstep = len(at_crds)
+        self.data = []
+        all_xyz_data = self.Var.data.get_xyz_data()
+        all_cols = self.Var.data.get_xyz_cols()
 
-        # Calculate the nearest neighbour lists for each step
-        for step in range(self.nstep):
-            self.data[step] = {}
+        # Loop over all the xyz data and cols we have
+        for xyz_data, cols in zip(all_xyz_data, all_cols):
 
-            # Get coords
-            crds = at_crds[step]
+            at_crds = np.array([i[cols[0] != 'Ne'] for i in xyz_data])
+            self.natom = len(at_crds[0])
+            self.nstep = len(at_crds)
+            self.step_data = {}
 
-            # Get distances between neighbours
-            self.get_distances(crds)
+            # Calculate the nearest neighbour lists for each step
+            for step in range(self.nstep):
+                self.step_data[step] = {}
 
-            # Get a sorted list of atom indices by distance
-            self.get_nearest_atom_inds()
+                # Get coords
+                crds = at_crds[step]
 
-            # If we have some molecule metadata
-            if 'atoms_per_molecule' in self.Var.metadata:
-                self.at_per_mol = self.Var.metadata['atoms_per_molecule']
-                self.nmol = mol_utils.get_nmol(self.natom, self.at_per_mol)
-                self.reshape_at_dist()
-                self.get_nearest_atom_inds_per_mol()
-                self.data[step]['closest_atoms_mol_grouped'] = self.closest_at_per_mol
-                self.data[step]['distances_mol_grouped'] = self.all_dist_per_mol
+                # Get distances between neighbours
+                self.get_distances(crds)
 
-            # Save data in dict
-            self.data[step]['distances'] = self.all_dist
-            self.data[step]['closest_atom_indices'] = self.closest_ats
+                # Get a sorted list of atom indices by distance
+                self.get_nearest_atom_inds()
+
+                # If we have some molecule metadata
+                if 'atoms_per_molecule' in self.Var.metadata:
+                    self.at_per_mol = self.Var.metadata['atoms_per_molecule']
+                    self.nmol = mol_utils.get_nmol(self.natom, self.at_per_mol)
+                    self.reshape_at_dist()
+                    self.get_nearest_atom_inds_per_mol()
+                    self.step_data[step]['closest_atoms_mol_grouped'] = self.closest_at_per_mol
+                    self.step_data[step]['distances_mol_grouped'] = self.all_dist_per_mol
+
+                # Save data in dict
+                self.step_data[step]['distances'] = self.all_dist
+                self.step_data[step]['closest_atom_indices'] = self.closest_ats
+
+            self.data.append(self.step_data)
 
         return self.data
 
@@ -195,11 +202,19 @@ class NN(gen_calc.Calc_Type):
 
         This function is just used for writing
         """
-        return_data = {}
-        for step in self.data:
-            return_data[step] = {}
-            for key in self.data[step]:
-                return_data[step][key] = self.data[step][key].tolist()
+        return_data = []
+
+        # Loop over num files
+        for ifile in range(len(self.data)):
+
+            # Loop over steps
+            file_return_data = {}
+            for istep in range(len(self.data[ifile])):
+                file_return_data[istep] = {}
+                for key in self.data[ifile][istep]:
+                    file_return_data[istep][key] = self.data[ifile][istep][key].tolist()
+
+            return_data.append(file_return_data)
 
         return return_data
 

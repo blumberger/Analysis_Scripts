@@ -61,6 +61,7 @@ from src.calc import create_psf as psf_calc
 from src.calc import crystallinity
 from src.calc import coupling_distribution as coupl
 from src.calc import couplings_by_layer as coupl_lay
+from src.calc import rotation as rotate
 
 # Input file functions
 from src.input_file import input_file_types as inp_types
@@ -194,6 +195,7 @@ class INP_File(object):
                  'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
                  'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
                  'couplings': coupl.Couplings, "layer_couplings": coupl_lay.Layer_Couplings,
+                 "long_ax_rotation": rotate.Long_Ax_Rot,
                 }
 
     line_declarations = LINE_DECLARATIONS
@@ -1220,8 +1222,11 @@ class INP_File(object):
 
         # Calculate and prerequisites and save them in the new object
         for calc in Calc_Obj.required_calc:
-            print(calc)
-            setattr(Calc_Obj, calc, self.calc_fncs[calc](Var).calc())
+            print(f"Calculating {calc}")
+            Calculated_Object = self.calc_fncs[calc](Var)
+            Calculated_Object.calc()
+            setattr(Calc_Obj, calc, Calculated_Object)
+            
         Calc_Obj.calc()
 
         # Create a new variable type
@@ -1733,6 +1738,7 @@ class INP_File(object):
 
         # Create a new Variable and set it to self
         Var = inp_types.Variable(var_name, var_data, metadata)
+
         setattr(self, var_name, Var)
 
         # Append the variable to the list of variables

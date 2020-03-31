@@ -62,7 +62,7 @@ all_example_tests = {
                      'Nearest_Neighbour':   {
                                               'test_func': check_stdout,
                                               'inp_file' : 'calc_NN.inp',
-                                              'out_file' : 'test.json',
+                                              'out_file' : 'NN.json',
                                             },
                      'prettify_CP2K_input': {
                                              'test_func': check_stdout,

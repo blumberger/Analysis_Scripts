@@ -10,7 +10,7 @@ from collections import Counter
 
 from src.calc import molecule_utils as mol_utils
 
-
+from src.input_file import function_dicts as f_dicts
 
 
 class Calc_Type(object):
@@ -63,10 +63,11 @@ class Calc_Type(object):
         # Add the required calc types to the class
         self.required_data_types = LogicalTuple([self.type_shortcut_dict.setdefault(i.lower(), i) for i in self.required_data_types])
         data_types_loaded = self.Var['data_loaded']
-        if not self.required_data_types.all_in(data_types_loaded):
+        if type(data_types_loaded) == bool or not self.required_data_types.all_in(data_types_loaded):
             err_msg = f"Can't calculate property '{self.name}' as the data"
             err_msg += f" '{str(self.required_data_types)}' haven't been loaded."
-            raise SystemExit(err_msg)
+            err_msg += "\n\n" + f"Data types loaded = {data_types_loaded}" + "\n"
+            raise SystemError(err_msg)
 
         # Else just set the required data to the previous data variable.
         else:
@@ -86,12 +87,35 @@ class Calc_Type(object):
             else:
                self.metadata[key] = self.Var[key]
 
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
+    def _calc_(self):
+        """
+        A function to override with the function to calculate the required property
+        """
+        print("\n\n" +f"Please overload the _calc_ function in {self.name}" + "\n\n")
+        raise SystemExit("General Calc _calc_ function not overloaded!")
+
     def calc(self):
         """
         A placeholder method. In child classes this should be replaced with the appropriate calc
         function.
         """
-        print("Please override the 'calc' method in the class '{self.__name__}'")
+        curr_metadata = self.Var.metadata.copy()
+        # Calculate and prerequisites and save them in the new object
+        for calc in self.required_calc:
+            print(f"Calculating {calc}")
+            Calculated_Object = f_dicts.calc_fncs[calc](self.Var)
+            Calculated_Object.calc()
+            setattr(self, calc, Calculated_Object)
+
+        # Preserve the metadata from before the calculation.
+        self.Var.metadata_update(curr_metadata)
+        self._calc_()
 
     def _get_mol_crds(self):
         """
@@ -107,6 +131,24 @@ class Calc_Type(object):
         self.nmol = all_mol_crds.shape[1]
         mol_col = np.reshape(self.cols[0], (self.nmol, ats_per_mol))
         return all_mol_crds, mol_col
+
+    def _plot_xyz_data(self, xyz_data):
+        """
+        Will plot xyz data in 3D a matplotlib canvas
+        """
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+
+        f = plt.figure()
+        a = f.add_subplot(111, projection="3d")
+
+        a.plot(xyz_data[:, 0], xyz_data[:, 1], xyz_data[:, 2], 'o')
+
+        a.set_xlabel("X")
+        a.set_ylabel("Y")
+        a.set_zlabel("Z")
+
+        plt.show()
 
     # Overload the type convertors
     def __str__(self):
@@ -249,7 +291,7 @@ class LogicalTuple(tuple):
         for i in self.all_single_vals:
             if i in compare: continue
             else: return False
-
+            
         # Check all the ORs
         for i in self.all_tuples:
             if not any(j in compare for j in i):

@@ -48,7 +48,7 @@ class RDF(gen_calc.Calc_Type):
     name = "Radial Distribution Function"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
 
-    def calc(self):
+    def _calc_(self):
         """
         Will calculate the radial distribution function for the system.
         """

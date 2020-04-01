@@ -1,10 +1,11 @@
 folder = "/home/oem/Data/FSSH_Pentacene_15_15"
 filepath = "$folder/run-pseudo-hamilt-1.xyz"
-filepath_pos = "./rotated.xyz"
+filepath_pos = "/home/oem/Data/Final_Pentacene_10ns_Quench/snapshot9995000.dat"
 
 read $filepath pseudo_ham as ham
-read $filepath_pos xyz into ham
+read $filepath_pos lammps_dump into ham
 set system ham to pentacene
+ham['coordinate_wrapping'] = "wrapped"
 
 ham['zmin'] = 65
 ham['zmax'] = 70

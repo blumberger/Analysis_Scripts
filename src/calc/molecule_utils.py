@@ -69,6 +69,38 @@ def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3, nstep=1):
                           + " (natom, 3)\n\n"
                           + f"Current shape = {crds.shape}")
 
+def cols_to_mols(cols, num_ats_in_mol, nstep=1):
+    """
+    Will reshape array to divide up the atoms into arrays with molecules.
+
+    i.e. reshape array from (num_ats, cart_dims) to (num_mols, ats_in_mol, cart_dims)
+
+    Inputs:
+        * crds <np.NDArray> => coordinates in shape (num_ats, cart_dims)
+        * num_ats_in_mol <int> => how many atoms in a single molecule
+
+    Outputs:
+        * <np.NDArray> array of shape (num_mols, ats_in_mol, cart_dims)
+    """
+    if type(cols) == list:
+        cols = np.array(cols)
+
+
+    if len(cols.shape) == 2:
+        nstep = len(cols)
+        nmol = get_nmol(len(cols[0]), num_ats_in_mol)
+        return np.reshape(cols, (nstep, nmol, num_ats_in_mol))
+
+    elif len(cols.shape) == 1:
+        nmol = get_nmol(len(cols), num_ats_in_mol)
+        return np.reshape(cols, (nmol, num_ats_in_mol))
+
+    else:
+        raise SystemError("\n\n\nWrong shape for atomic coordinate array!\n\n"
+                          + "It should either be (nstep, natom, 3) or"
+                          + " (natom, 3)\n\n"
+                          + f"Current shape = {cols.shape}")
+
 
 def get_K_nearest_neighbours(at, crds, K, dist=False):
     """

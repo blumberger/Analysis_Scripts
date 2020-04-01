@@ -36,34 +36,16 @@ import glob
 # Fundamental system functions
 from src.system import type_checking as type_check
 
-# File loading functions
-from src.io_utils import general_io as gen_io
-from src.io_utils import CP2K_inp_files as CP2K_inp
-from src.io_utils import xyz_files as xyz
-from src.io_utils import lammps
-from src.io_utils import json_files as json
-from src.io_utils import csv_files
-from src.io_utils import massif_files as M_files
-from src.io_utils import param_files
-from src.io_utils import pseudo_hamiltonian as psu_ham
-
 # Parsing
 from src.parsing import general_parsing as gen_parse
 from src.parsing import parse_maths
 
-# Calculator functions
-from src.calc import pvecs as pvec_lib
-from src.calc import NN
-from src.calc import angular_distribution as ang_dist
-from src.calc import density as dens
-from src.calc import RDF as rdf
-from src.calc import create_psf as psf_calc
-from src.calc import crystallinity
-from src.calc import coupling_distribution as coupl
-from src.calc import couplings_by_layer as coupl_lay
-from src.calc import rotation as rotate
+# File Handling
+from src.io_utils import general_io as gen_io
+from src.io_utils import json_files as json
 
 # Input file functions
+from src.input_file import function_dicts as f_dicts
 from src.input_file import input_file_types as inp_types
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
@@ -178,26 +160,6 @@ class INP_File(object):
     variables = []
     E_str = ""   # A variable to count the errors
 
-    load_fncs = {
-                 'cp2k_inp': CP2K_inp.Read_INP, 'xyz': xyz.XYZ_File,
-                 'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
-                 'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
-                 'lammps_dump': lammps.Lammps_Dump, 'massif_file': M_files.Massif_File,
-                 'params': param_files.Params, "pseudo_ham": psu_ham.Pseudo_Ham
-                }
-    write_fncs = {
-                  'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
-                  'json': json.write_json, 'csv': csv_files.Write_CSV,
-                  "psf": gen_io.Write_File,
-                 }
-    calc_fncs = {
-                 'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,
-                 'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
-                 'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
-                 'couplings': coupl.Couplings, "layer_couplings": coupl_lay.Layer_Couplings,
-                 "long_ax_rotation": rotate.Long_Ax_Rot,
-                }
-
     line_declarations = LINE_DECLARATIONS
     line_declarations['variable'] = is_var_line
     line_declarations['load'] = lambda x: len(re.findall("^load |^read ", x)) > 0
@@ -209,7 +171,7 @@ class INP_File(object):
         self.E_str = "init"
         self.inp_filepath = inp_filepath
 
-        self.rev_load_fncs = {self.load_fncs[i]: i for i in self.load_fncs}
+        self.rev_load_fncs = {f_dicts.load_fncs[i]: i for i in f_dicts.load_fncs}
 
         # Read the file
         self.file_txt = gen_io.open_read(inp_filepath)
@@ -389,14 +351,14 @@ class INP_File(object):
         except IOError as e:
             self.print_error(str(e))
 
-        if words[2] not in self.load_fncs:
+        if words[2] not in f_dicts.load_fncs:
             err_msg = "I don't know how to load files of type '{words[2]}'."
             err_msg += "\n\nFor a full list of file types that can be loaded see below:\n\t* "
-            err_msg += "\n\t* ".join(list(self.load_fncs.keys()))
+            err_msg += "\n\t* ".join(list(f_dicts.load_fncs.keys()))
             self.print_error(err_msg)
 
         # Save the variable name for error checking later
-        metadata = self.load_fncs[words[2]].metadata
+        metadata = f_dicts.load_fncs[words[2]].metadata
         self.set_var(words[4], "^EMPTY^", metadata)
         return words[4]
 
@@ -428,10 +390,10 @@ class INP_File(object):
 
         # Check we know how to write the requested filetype
         if len(words) == 5:
-           if words[4] not in self.write_fncs:
+           if words[4] not in f_dicts.write_fncs:
                err_msg = "I don't know how to write that type of file.\n\n"
                err_msg += "Please use one of:\n\t*"
-               err_msg += "\n\t*".join(list(self.write_fncs.keys()))
+               err_msg += "\n\t*".join(list(f_dicts.write_fncs.keys()))
                self.print_error(err_msg)
 
         # Need to check requested filetype and if that isn't in write_fncs then raise Error
@@ -557,15 +519,15 @@ class INP_File(object):
             self.print_error(f"I can't find the data named: '{var_name}'")
 
         # Check we have a function to calculate the variable
-        if calc_type not in self.calc_fncs:
+        if calc_type not in f_dicts.calc_fncs:
             self.print_error(f"Can't calculate '{calc_type}' yet choose from"
                                 + '\n\t* '
-                                + '\n\t* '.join(list(self.calc_fncs.keys())))
+                                + '\n\t* '.join(list(f_dicts.calc_fncs.keys())))
 
         # Check the required_calc data can be calculated
-        required_calc = self.calc_fncs[calc_type].required_calc
+        required_calc = f_dicts.calc_fncs[calc_type].required_calc
         for calc in required_calc:
-            if calc not in self.calc_fncs:
+            if calc not in f_dicts.calc_fncs:
                 err_msg = f"Calculation of '{calc}' required for calculation of "
                 err_msg += f"'{calc_type}'. This currently can't be calculated."
                 self.print_error(err_msg)
@@ -1078,7 +1040,7 @@ class INP_File(object):
         fpath = gen_io.get_abs_path(fpath)
 
         # Create the variable object and save it
-        Loaded_Data = self.load_fncs[dtype](fpath)
+        Loaded_Data = f_dicts.load_fncs[dtype](fpath)
 
         # Grab the metadata and create a new variable
         metadata = {'file_type': dtype}
@@ -1093,28 +1055,27 @@ class INP_File(object):
         Var = getattr(self, var_name)
         Var.metadata.setdefault('data_loaded', []).append(dtype)
 
-
-    def load_var_into(self, Data_To_Append, var_name, metadata={}):
+    def load_var_into(self, New_Data, var_name, metadata={}):
         """
         Will load a data variable and set it as a Variable type.
 
         Inputs:
-            * Data_To_Append <*> => The object containing the loaded data.
+            * New_Data <*> => The object containing the loaded data.
             * var_name <str> => The name of the variable
             * metadata <dict> OPTIONAL => The metadata for the variable.
         """
         Var = getattr(self, var_name)
 
         # Add the data to the correct type in the data dict.
-        new_data_type_code = self.rev_load_fncs[type(Data_To_Append)]
+        new_data_type_code = self.rev_load_fncs[type(New_Data)]
         if new_data_type_code in Var.data:
             try:
-                Var.data[new_data_type_code].append(Data_To_Append)
+                Var.data[new_data_type_code].append(New_Data)
             except ValueError as e:
                 self.print_error(f"Currently can't append type '{new_data_type_code}' to itself.")
 
         else:
-            Var.data[new_data_type_code] = Data_To_Append
+            Var.data[new_data_type_code] = New_Data
 
         # Combine metadata (replace old with new)
         for i in metadata:  Var.metadata[i] = metadata[i]
@@ -1160,7 +1121,7 @@ class INP_File(object):
            ftype = Var['file_type']
 
         # Write the data
-        self.write_fncs[ftype](Var.data, fpath)
+        f_dicts.write_fncs[ftype](Var.data, fpath)
 
     def parse_echo_cmd(self, line):
         """
@@ -1207,26 +1168,19 @@ class INP_File(object):
         Var = getattr(self, var_name)
 
         # Check the required metadata has been set
-        required_metadata = self.calc_fncs[calc_type].required_metadata
+        required_metadata = f_dicts.calc_fncs[calc_type].required_metadata
         Var = getattr(self, var_name)
         for attr in required_metadata:
-            if attr not in Var.metadata and attr not in self.calc_fncs[calc_type]._defaults:
+            if attr not in Var.metadata and attr not in f_dicts.calc_fncs[calc_type]._defaults:
                 err_msg = f"'{attr}' required for calculation of '{calc_type}'"
                 err_msg += "\n\nPlease set it with the following syntax:\n\t"
                 err_msg += f"{var_name}['{attr}'] = <value>"
                 err_msg += f" or by using a set command."
                 self.print_error(err_msg)
 
-        # Initialise the Calc_Obj
-        Calc_Obj = self.calc_fncs[calc_type](Var)
 
-        # Calculate and prerequisites and save them in the new object
-        for calc in Calc_Obj.required_calc:
-            print(f"Calculating {calc}")
-            Calculated_Object = self.calc_fncs[calc](Var)
-            Calculated_Object.calc()
-            setattr(Calc_Obj, calc, Calculated_Object)
-            
+        Calc_Obj = f_dicts.calc_fncs[calc_type](Var)
+
         Calc_Obj.calc()
 
         # Create a new variable type

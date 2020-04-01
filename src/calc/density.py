@@ -29,7 +29,7 @@ class Density(gen_calc.Calc_Type):
     metadata = {'file_type': 'csv'}
     name = "Densities"
 
-    def calc(self):
+    def _calc_(self):
         """
         Will calculate the nearest neighbour list from an xyz file.
 

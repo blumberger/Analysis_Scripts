@@ -44,7 +44,7 @@ class Angular_Dist(gen_calc.Calc_Type):
     name = "Angular Distribution"
     with open(consts.PT_FILEPATH) as f: PT = json.load(f)
 
-    def calc(self):
+    def _calc_(self):
         """
         Will calculate the angular distribution of the molecular system.
 

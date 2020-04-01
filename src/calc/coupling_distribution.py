@@ -15,7 +15,7 @@ class Couplings(gen_calc.Calc_Type):
 	"""
 	required_data_types = ("pseudo_ham", )
 
-	def calc(self):
+	def _calc_(self):
 		ham_data = self.Var.required_data.get_data()
 
 		couplings = [j for i in ham_data for j in i['couplings']]

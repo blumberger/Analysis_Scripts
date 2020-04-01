@@ -28,7 +28,7 @@ class PVecs(gen_calc.Calc_Type):
     metadata = {'file_type': 'xyz'}
     name = "P-Vecs"
 
-    def calc(self):
+    def _calc_(self):
         """
         Will calculate the pvecs from self.xyz_data_File.xyz_data
         """

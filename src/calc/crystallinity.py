@@ -37,7 +37,7 @@ class Crystallinity(gen_calc.Calc_Type):
 	metadata = {'file_type': 'csv'}
 	name = "Crystallinity"
 
-	def calc(self):
+	def _calc_(self):
 		self.global_density = [i[-1] for i in self.density][-1]
 
 		self.Var['coordinate_wrapping'] = 'wrapped'
@@ -65,14 +65,6 @@ class Crystallinity(gen_calc.Calc_Type):
 
 			self._calc_local_crystallinities(at_crds, self.cols)
 			break
-
-
-
-
-
-
-
-
 
 	def _calc_local_crystallinities(self, crds, at_types, grid_points=False):
 		"""

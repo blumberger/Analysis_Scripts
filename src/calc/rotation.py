@@ -32,7 +32,7 @@ class Long_Ax_Rot(gen_calc.Calc_Type):
     metadata = {}
     name = "Long Axis Rotation"
 
-    def calc(self):
+    def _calc_(self):
         """
         Will do the calculating and return the standard long axis vector.
         """
@@ -59,4 +59,6 @@ class Long_Ax_Rot(gen_calc.Calc_Type):
         self.xy_rotation_matrix = geom.map_vec1_to_unit(self.long_ax_vector, [0, 0, 1])
 
         return self.long_ax_vector
+
+
 

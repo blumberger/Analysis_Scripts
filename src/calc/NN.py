@@ -50,7 +50,7 @@ class NN(gen_calc.Calc_Type):
     metadata = {'file_type': 'json'}
     name = "Nearest Neighbour Lists"
 
-    def calc(self):
+    def _calc_(self):
         """
         Will calculate the nearest neighbour list from an xyz file.
 

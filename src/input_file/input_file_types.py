@@ -57,6 +57,10 @@ class Variable(object):
         except AttributeError:
             pass
 
+    def metadata_update(self, dict_):
+        self.metadata.update(dict_)
+        self.data.metadata.update(dict_)
+
     def set_data_var(self):
         """
         A function to find what sort of data variable the data holds
@@ -157,9 +161,23 @@ class Vars(dict):
     name = "Vars Dict"
     metadata = {}
 
-    def __init__(self, dict_):
-        dict.__init__(self, dict_)
-        self.data = dict_
+    def __init__(self, *args, **kwargs):
+        self.update(*args, **kwargs)
+
+    def __getitem__(self, key):
+        val = dict.__getitem__(self, key)
+        return val
+
+    def __setitem__(self, key, val):
+        dict.__setitem__(self, key, val)
+
+    def __repr__(self):
+        dictrepr = dict.__repr__(self)
+        return '%s(%s)' % (type(self).__name__, dictrepr)
+
+    def update(self, *args, **kwargs):
+        for k, v in dict(*args, **kwargs).items():
+            self[k] = v
 
 
     ###############################################################################
@@ -193,7 +211,7 @@ class Vars(dict):
                            + "\n\nSet this by using the command:\n\n\t`set system <data_name>"
                            + " to <mol_type>`\n\nin the input file.")
 
-        df = self.data['lammps_dump'].csv_data
+        df = self['lammps_dump'].csv_data
         ats_per_mol = self.__get_ats_per_mol_from_lammps_dump__(df)
 
         # Error check
@@ -234,7 +252,7 @@ class Vars(dict):
 
     def __get_xyz_cols_from_xyz__(self):
         """Will return the xyz columns."""
-        return self.data['xyz'].cols
+        return self['xyz'].cols
 
 
     def get_xyz_cols(self, number_each_atom=False):
@@ -248,7 +266,7 @@ class Vars(dict):
 
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_cols_from_xyz__,
                          'lammps_dump': self.__get_xyz_cols_from_lammps_dump__}
-        xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
+        xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
         return xyz_data
 
     ###########################################
@@ -259,16 +277,16 @@ class Vars(dict):
         """
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_timesteps_from_xyz__,
                          'lammps_dump': self.__get_xyz_timesteps_from_lammps_dump__}
-        xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
+        xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
         return xyz_data
 
     def __get_xyz_timesteps_from_xyz__(self):
         """Will get the xyz timesteps from xyz file container."""
-        return self.data['xyz'].timesteps
+        return self['xyz'].timesteps
     
     def __get_xyz_timesteps_from_lammps_dump__(self):
         """Will return the xyz timesteps from lammps dump file container."""
-        return np.array([self.data['lammps_dump'].metadata['timestep']] )
+        return np.array([self['lammps_dump'].metadata['timestep']] )
 
 
     ###########################################
@@ -282,17 +300,16 @@ class Vars(dict):
         """
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_data_from_xyz__,
                          'lammps_dump': self.__get_xyz_data_from_lammps_dump__}
-        xyz_data = [XYZ_DATA_KEYS[i]() for i in self.data if i in XYZ_DATA_KEYS]
+        xyz_data = [XYZ_DATA_KEYS[i]() for i in dict.keys(self) if i in XYZ_DATA_KEYS]
         return xyz_data
 
     def __get_xyz_data_from_xyz__(self):
         """Will return the xyz data an XYZ file type."""
-        return self.data['xyz'].xyz_data
+        return self['xyz'].xyz_data
 
     def __get_xyz_data_from_lammps_dump__(self):
         """Will return the xyz data from a lammps dump file type."""
         xyz = ('x', 'y', 'z',)
-
         wrapped = True
         if 'coordinate_wrapping' in self.metadata:
             if self.metadata['coordinate_wrapping'] == 'unwrapped':
@@ -300,14 +317,14 @@ class Vars(dict):
 
         # Return the wrapped data
         if wrapped:
-            if all(j in self.data['lammps_dump'].wrapped_csv for j in xyz):
-                return np.array([self.data['lammps_dump'].wrapped_csv[['x', 'y', 'z']].to_numpy()])
+            if all(j in self['lammps_dump'].wrapped_csv for j in xyz):
+                return np.array([self['lammps_dump'].wrapped_csv[['x', 'y', 'z']].to_numpy()])
             else:
                 raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")
 
         # Return the unwrapped data
         else:
-            if all(j in self.data['lammps_dump'].unwrapped_csv for j in xyz):
-                return np.array([self.data['lammps_dump'].unwrapped_csv[['x', 'y', 'z']].to_numpy()])
+            if all(j in self['lammps_dump'].unwrapped_csv for j in xyz):
+                return np.array([self['lammps_dump'].unwrapped_csv[['x', 'y', 'z']].to_numpy()])
             else:
                 raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")

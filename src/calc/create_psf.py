@@ -31,7 +31,7 @@ class Create_PSF(gen_calc.Calc_Type):
     metadata = {'file_type': 'psf'}
     name = "Create PSF File"
 
-    def calc(self):
+    def _calc_(self):
         """
         Will call the relevant functions to calculate the psf file info.
 

@@ -527,15 +527,9 @@ class Lammps_Dump(gen_io.DataFileStorage):
 
         if self.metadata['cell_type'] == 'triclinic':
             xy, xz, yz = self.metadata['xy'], self.metadata['xz'], self.metadata['yz']
-            xhi = xhi - (xy + xz)
 
-            min_y = yz if yz < 0 else 0
-            max_y = yz if yz > 0 else 0
-            ylo = ylo - min_y
-            yhi = yhi - max_y
-
-            self.metadata['a'] = np.array([xhi - xlo, 0, 0])
-            self.metadata['b'] = np.array([xy, yhi - ylo, 0])
+            self.metadata['a'] = np.array([xhi - xlo, 0.0, 0.0])
+            self.metadata['b'] = np.array([xy, yhi - ylo, 0.0])
             self.metadata['c'] = np.array([xz, yz, zhi - zlo])
 
         else:
@@ -559,83 +553,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
     def proj(self, vec1, vec2):
         return np.dot(vec1, vec2) / np.linalg.norm(vec1)
 
-    def triclinic_unwrapping(self):
-        """
-        A quick dirty function to wrap triclinic coords back -it doesn't work.
-        """
-        ABC = np.array([self.metadata[i] for i in ('a', 'b', 'c')])
-        I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        ABC_norms = np.linalg.norm(ABC, axis=1)
-
-        # Get some useful quantities
-        ABC_units = ABC / ABC_norms
-        proj = np.array([[self.proj(ABC_units[i], I[j]) for j in range(3)] for i in range(3)])
-        denom = np.linalg.det(proj)
-        ABC_norm_REF = np.array([np.dot(i, i) for i in ABC])
-
-        # Loop over atoms and correct their position.
-        self.unwrapped_csv = copy.deepcopy(self.csv_data)
-        for icrd, crd in zip(self.unwrapped_csv.index, self.csv_data[['x', 'y', 'z']].to_numpy()):
-            # Get projections
-            nom1 =  -1.0 * (  (proj[1,2] * proj[2,1] * crd[0])  \
-                            - (proj[1,1] * proj[2,2] * crd[0])  \
-                            - (proj[1,2] * proj[2,0] * crd[1])  \
-                            + (proj[1,0] * proj[2,2] * crd[1])  \
-                            + (proj[1,1] * proj[2,0] * crd[2])  \
-                            - (proj[1,0] * proj[2,1] * crd[2])  )
-    
-            nom2 = (  (proj[0,2] * proj[2,1] * crd[0]) \
-                    - (proj[0,1] * proj[2,2] * crd[0]) \
-                    - (proj[0,2] * proj[2,0] * crd[1]) \
-                    + (proj[0,0] * proj[2,2] * crd[1]) \
-                    + (proj[0,1] * proj[2,0] * crd[2]) \
-                    - (proj[0,0] * proj[2,1] * crd[2]) )
-    
-            nom3 =  - 1.0 * (  (proj[0,2] * proj[1,1] * crd[0]) \
-                             - (proj[0,1] * proj[1,2] * crd[0]) \
-                             - (proj[0,2] * proj[1,0] * crd[1]) \
-                             + (proj[0,0] * proj[1,2] * crd[1]) \
-                             + (proj[0,1] * proj[1,0] * crd[2]) \
-                             - (proj[0,0] * proj[1,1] * crd[2]) )
-
-            a, b, c = nom1 / denom, nom2 / denom, nom3 / denom
-            a2, b2, c2 = a**2, b**2, c**2
-            
-            # Get + or - direction
-            if (a * ABC_units[0,0] * ABC[0,0]) < 0.0:
-                 a_sign =  -1.0
-            else:
-                 a_sign =  +1.0
-            if ((b * ABC_units[1,0] * ABC[1,0]) + (b * ABC_units[1,1] * ABC[1,1])) < 0.0:
-                 b_sign =  -1.0
-            else:
-                 b_sign =  +1.0 
-            if ((c * ABC_units[2,0] * ABC[2,0]) + (c * ABC_units[2,1] * ABC[2,1]) + (c * ABC_units[2,2] * ABC[2,2])) < 0.0:
-                 c_sign =  -1.0
-            else:
-                 c_sign =  +1.0 
-
-            a_norm = np.sqrt((a2 * ABC_units[0,0]) + (a2 * ABC_units[0,1]) + (a2 * ABC_units[0,2]))
-            b_norm = np.sqrt((b2 * ABC_units[1,0]) + (b2 * ABC_units[1,1]) + (b2 * ABC_units[1,2]))
-            c_norm = np.sqrt((c2 * ABC_units[2,0]) + (c2 * ABC_units[2,1]) + (c2 * ABC_units[2,2]))
-
-            # How many cell to move the atom
-            nx = np.floor(a_norm / ABC_norm_REF[0])
-            if (a_sign < 0): nx = -nx -1
-            ny = np.floor(b_norm / ABC_norm_REF[1])
-            if (a_sign < 0): ny = -ny -1
-            nz = np.floor(c_norm / ABC_norm_REF[2])
-            if (a_sign < 0): nz = -nz -1
-
-            new_crd = crd - np.array([ (nx * ABC[0,0]) - (ny * ABC[1,0]) - (nz * ABC[2,0]),
-                                       (ny * ABC[1,1]) - (nz * ABC[2,1]),
-                                       (nz * ABC[2,2])  ])
-
-            self.unwrapped_csv.loc[icrd, 'x'] = new_crd[0]
-            self.unwrapped_csv.loc[icrd, 'y'] = new_crd[1]
-            self.unwrapped_csv.loc[icrd, 'z'] = new_crd[2]
-
-
     def fix_wrapping(self):
         """
         Will translate atom coords to fix wrapping of coords in periodic systems
@@ -648,19 +565,19 @@ class Lammps_Dump(gen_io.DataFileStorage):
             self.unwrapped_avail = False
             return self.unwrapped_csv
 
-        if self.metadata['cell_type'] == 'triclinic':
-            self.triclinic_unwrapping()
-            print("\n\n\n\n\nThere is a known bug with the unwrapping of coordinates for triclinic systems.")
-            print("\n\nCubic systems aren't affected\n\n\n\n")
-            raise SystemError("Exitting.")
+        # if self.metadata['cell_type'] == 'triclinic':
+        #     print("\n\n\n\n\nThere is a known bug with the unwrapping of coordinates for triclinic systems.")
+        #     print("\n\nCubic systems aren't affected\n\n\n\n")
+        #     raise SystemError("Exitting.")
 
-        else:
-            # Apply the wrapping
-            unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
-            for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
-                for idim, dim in enumerate('xyz'):
-                    if unit_vec[idim] != 0:
-                        self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
+        # else:
+
+        # Apply the wrapping
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+        for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
+            for idim, dim in enumerate('xyz'):
+                if unit_vec[idim] != 0:
+                    self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
 
     def append(self, val):
         """

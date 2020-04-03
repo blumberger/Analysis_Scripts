@@ -557,6 +557,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         Will translate atom coords to fix wrapping of coords in periodic systems
         """
+        # self.unwrap_split_mols()
         self.unwrapped_avail = True
         self.unwrapped_csv = copy.deepcopy(self.csv_data)
 
@@ -565,19 +566,43 @@ class Lammps_Dump(gen_io.DataFileStorage):
             self.unwrapped_avail = False
             return self.unwrapped_csv
 
-        # if self.metadata['cell_type'] == 'triclinic':
-        #     print("\n\n\n\n\nThere is a known bug with the unwrapping of coordinates for triclinic systems.")
-        #     print("\n\nCubic systems aren't affected\n\n\n\n")
-        #     raise SystemError("Exitting.")
-
-        # else:
-
-        # Apply the wrapping
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
         for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
             for idim, dim in enumerate('xyz'):
                 if unit_vec[idim] != 0:
                     self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
+
+    def unwrap_split_mols(self):
+        """
+        Will only unwrap the molecules that have been split by the periodic wrapping.
+        """
+        self.unwrapped_avail = True
+        self.unwrapped_csv = copy.deepcopy(self.csv_data)
+
+        # Check we can do the wrapping
+        if not all(j in self.unwrapped_csv.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z', 'mol')):
+            self.unwrapped_avail = False
+            return self.unwrapped_csv
+
+        # Find the split mols
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+        mol_crds = self.unwrapped_csv[['mol', 'x', 'y', 'z']].groupby("mol", axis=0).std()
+        split_mols = mol_crds.index[(mol_crds['x'] > 7) | (mol_crds['y'] > 7) | (mol_crds['z'] > 7)]
+
+        # Now ammend the ix, iy, iz
+        split_mask = np.ones(len(self.unwrapped_csv['mol']), dtype=bool)
+        split_mask = [i not in split_mols for i in self.unwrapped_csv['mol']]
+        self.unwrapped_csv.loc[split_mask, ['ix', 'iy', 'iz']] = 0
+
+        # self.unwrapped_csv['ix'] = 0 #(self.unwrapped_csv['ix'] / np.abs(self.unwrapped_csv['ix'])).fillna(0)
+        # self.unwrapped_csv['iy'] = 0 #(self.unwrapped_csv['iy'] / np.abs(self.unwrapped_csv['iy'])).fillna(0)
+        # self.unwrapped_csv['iz'] = (self.unwrapped_csv['iz'] / np.abs(self.unwrapped_csv['iz'])).fillna(0)
+        for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
+            for idim, dim in enumerate('xyz'):
+                if unit_vec[idim] != 0:
+                    self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
+       
+        # raise SystemExit("BREAK")
 
     def append(self, val):
         """

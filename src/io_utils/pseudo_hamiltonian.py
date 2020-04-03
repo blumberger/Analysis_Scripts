@@ -66,3 +66,18 @@ class Pseudo_Ham(gen_io.DataFileStorage):
         Will just return the data to make so the user doesn't need to know the name of it in the class.
         """
         return self.data
+
+    def append(self, val):
+        if type(val) == type(self):
+            for i in range(len(val.data)):
+                if i < len(self.data):
+                    new_dict = val.data[i]
+                    curr_dict = self.data[i]
+                    for key in new_dict:
+                        if key not in curr_dict:
+                            curr_dict[key] = new_dict[key]
+                        else:
+                            print(f"Duplicate Entries in both dicts: {key}")
+            
+        else:
+            raise TypeError(f"\n\nCan't append object of type {type(val)} to {self.name}.")

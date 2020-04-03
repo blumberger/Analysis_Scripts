@@ -41,7 +41,7 @@ class RDF(gen_calc.Calc_Type):
     required_metadata = ('atoms_per_molecule', 'number_each_atom')
     _defaults = {'rdf_type': 'intermolecular',
                  'max_dist': 1.0, 'number_bins': 400}
-    required_data_types = ('pos',)
+    required_data_types = ('lammps_dump',)
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'json'}
@@ -54,8 +54,8 @@ class RDF(gen_calc.Calc_Type):
         """
         self.ats_per_mol = self.metadata['atoms_per_molecule']
         self.Var['coordinate_wrapping'] = 'wrapped'
-        self.get_xyz_data()
-        self.get_cols(self.metadata['number_each_atom'],
+        self.Var.data.get_xyz_data()
+        self.Var.data.get_xyz_cols(self.metadata['number_each_atom'],
                       self.ats_per_mol)
 
         # Set cell vecs in the required format

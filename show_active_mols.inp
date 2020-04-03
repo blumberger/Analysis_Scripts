@@ -1,0 +1,35 @@
+folder = "/home/oem/Data/Layer_Runs/Layer_3"
+pos_filepath = "$folder/run-pos-1.xyz"
+decom_filepath = "$folder/DECOMP.inp"
+
+
+read $pos_filepath xyz as pos
+read $decom_filepath cp2k_inp as decomp
+
+
+python {
+
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    
+    from src.calc import molecule_utils as mol_utils
+
+
+    f = plt.figure()
+    a = f.add_subplot(111, projection="3d")
+
+    active_mols = [int(i) - 1 for i in decomp.data['cp2k_inp'].all_data['params']['ENERGY_DECOMP']['INDEX_MOL_DECOMP'].split()]
+
+    all_pos = pos.data['xyz'].xyz_data
+    mol_crds = mol_utils.atoms_to_mols(all_pos, 36)
+
+    print(mol_crds.shape)
+    act_pos = mol_crds[0, active_mols]
+
+
+    a.plot(all_pos[0, :, 0], all_pos[0, :, 1], all_pos[0, :, 2], 'k.', alpha=0.2)
+    for mol_crd in act_pos:
+        a.plot(mol_crd[:, 0], mol_crd[:, 1], mol_crd[:, 2], 'ro')
+
+    plt.show()
+}

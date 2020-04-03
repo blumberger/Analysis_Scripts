@@ -233,7 +233,7 @@ def get_folder_from_filepath(filepath):
       <str> folderpath
    """
    if os.path.isdir(filepath) or '/' not in filepath:
-      return filepath
+      return ""
 
    folder = filepath[:filepath.rfind('/')]  # Splice up to the last '/'
    return folder

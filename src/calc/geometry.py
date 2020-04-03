@@ -160,6 +160,8 @@ def cluster_points(points_1D, eps=0.02, min_samples=1):
     Outputs
         <DBSCAN class>, <list> The DBSCAN class and the avg point in each cluster
     """
+    if len(points_1D) == 0:
+        raise SystemError("1D Point clustering error, input list has length 0.")
     if type(points_1D) == list:
         points_1D = np.array(points_1D)
     if isinstance(points_1D, (pd.DataFrame, pd.Series)) :
@@ -170,7 +172,7 @@ def cluster_points(points_1D, eps=0.02, min_samples=1):
     clustered_means = [np.mean(points_1D[db.labels_ == i]) for i in set(db.labels_)]
     return db, clustered_means
 
-def find_local_min(y, start_ind):
+def find_local_min(y, start_ind, allow_boundaries=False):
     """
     Apply a steepest descent like algorithm to get a local minima.
 
@@ -184,6 +186,8 @@ def find_local_min(y, start_ind):
         * x <arr> => 1D array of x positions
         * y <arr> => 1D array of y positions
         * start_ind <int> => where to start looking for the local minima
+        * allow_boundaries <bool> => Whether to allow the ends/boundaries of the data or 
+                                     only 'true' minima.
 
     Outputs:
         <ind>, <float> The index of the local minima and its value.
@@ -209,7 +213,7 @@ def find_local_min(y, start_ind):
             cond = False
 
     # if we hit a boundary (not a 'proper' minima) then return False
-    if cond:
+    if cond and allow_boundaries is False:
         return False, (False, False)
 
     return start_ind, y[start_ind]

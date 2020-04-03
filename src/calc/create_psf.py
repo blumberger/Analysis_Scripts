@@ -43,48 +43,59 @@ class Create_PSF(gen_calc.Calc_Type):
         """
         self.ats_per_mol = self.metadata['atoms_per_molecule']
 
-        self.get_xyz_data()
-        self.get_cols(self.metadata['number_each_atom'],
-                      self.ats_per_mol)
+        self.xyz_data = self.Var.data.get_xyz_data()
+        self.cols = self.Var.data.get_xyz_cols(self.metadata['number_each_atom'])
 
-        self.natom = len(self.compute_data[0])
-        self.all_mol_crds = mol_utils.atoms_to_mols(self.compute_data, self.ats_per_mol)
-        nmol = self.all_mol_crds.shape[1]
-        self.mol_col = np.reshape(self.cols[0], (nmol, self.ats_per_mol))
+        self.each_file_data = []
+        for ifile in range(len(self.xyz_data)):
+            file_xyz = self.xyz_data[ifile]
+            file_cols = self.cols[ifile]
 
-        for mol_crd in self.all_mol_crds:
-            # Calculate the NN list for 1 molecule
-            NN = np.apply_along_axis(calc_all_dists, 1, mol_crd[0], mol_crd[0],
-                                     self.mol_col[0])
+            self.natom = len(self.xyz_data[0])
+            self.all_mol_crds = mol_utils.atoms_to_mols(file_xyz, self.ats_per_mol)
+            nmol = self.all_mol_crds.shape[1]
+            self.mol_col = np.reshape(file_cols[0], (nmol, self.ats_per_mol))
 
-            # Get the bonding info for the first molecule only. This can be replicated
-            #  later
-            bond_types = self.get_bonding_types(self.metadata['bonds'])
-            self.all_bonds = mol_utils.get_bonding_info(mol_crd[:1], bond_types,
-                                                   self.mol_col, self.metadata['atom_types'],
-                                                   NN=NN, cutoff=4)
+            for mol_crd in self.all_mol_crds:
+                # Calculate the NN list for 1 molecule
+                NN = np.apply_along_axis(calc_all_dists, 1, mol_crd[0], mol_crd[0],
+                                         self.mol_col[0])
 
-            self.bonds = self.remove_bond_info_dupes(self.all_bonds[0])
-            self.nbonds = len(self.bonds)
+                # Get the bonding info for the first molecule only. This can be replicated
+                #  later
+                bond_types = self.get_bonding_types(self.metadata['bonds'])
+                all_bonds = mol_utils.get_bonding_info(mol_crd[:1], bond_types,
+                                                       self.mol_col, self.metadata['atom_types'],
+                                                       NN=NN, cutoff=4)
 
-            # Get the angle info
-            self.all_angles = mol_utils.get_topo_info(mol_crd[:1], self.metadata['angles'],
-                                                      self.all_bonds, self.mol_col,
-                                                      self.metadata['atom_types'],
-                                                      NN=NN)
-            self.angles = self.remove_top_dict_dupes(self.all_angles[0])
-            self.nangles = len(self.angles)
+                bonds = self.remove_bond_info_dupes(all_bonds[0])
+                nbonds = len(bonds)
 
-            # Get the dihedral info
-            self.all_dihedrals = mol_utils.get_topo_info(mol_crd[:1], self.metadata['dihedrals'],
-                                                         self.all_bonds, self.mol_col,
-                                                         self.metadata['atom_types'],
-                                                         NN=NN)
-            self.dihedrals = self.remove_top_dict_dupes(self.all_dihedrals[0])
-            self.ndihedrals = len(self.dihedrals)
+                # Get the angle info
+                all_angles = mol_utils.get_topo_info(mol_crd[:1], self.metadata['angles'],
+                                                          all_bonds, self.mol_col,
+                                                          self.metadata['atom_types'],
+                                                          NN=NN)
+                angles = self.remove_top_dict_dupes(all_angles[0])
+                nangles = len(angles)
 
-        self.plot_bond_structure()
-        print("\n\nINFO:\nTo see if the bonding looks correct open the bond_struct.png picture!\n\n")
+                # Get the dihedral info
+                all_dihedrals = mol_utils.get_topo_info(mol_crd[:1], self.metadata['dihedrals'],
+                                                             all_bonds, self.mol_col,
+                                                             self.metadata['atom_types'],
+                                                             NN=NN)
+                dihedrals = self.remove_top_dict_dupes(all_dihedrals[0])
+                ndihedrals = len(dihedrals)
+
+            self.each_file_data.append(
+                                    {
+                                     'all_bonds': all_bonds, 'nbonds': nbonds, 'bonds': bonds,
+                                     'all_angles': all_angles, 'nangles': nangles, 'angles': angles,
+                                     'all_dihedrals': all_dihedrals, 'ndihedrals': ndihedrals, 'dihedrals': dihedrals,
+                                    }
+                                      )
+            self.plot_bond_structure(bonds)
+            print("\n\nINFO:\nTo see if the bonding looks correct open the bond_struct.png picture!\n\n")
 
 
     def remove_top_dict_dupes(self, top_dict):
@@ -159,7 +170,7 @@ class Create_PSF(gen_calc.Calc_Type):
         return bonding_types
 
 
-    def plot_bond_structure(self, show=False):
+    def plot_bond_structure(self, bonds, show=False):
         """
         Will plot the atoms in a 3D scatter plot with bonds that have been calculated plotted too
         """
@@ -186,15 +197,12 @@ class Create_PSF(gen_calc.Calc_Type):
         ax.set_zlim([min_vals[2]-1, min_vals[2]+max_len+1])
 
         # Now add the bonds
-        for bnd in self.bonds:
+        for bnd in bonds:
             at1, at2 = crds[bnd[0]-1], crds[bnd[1]-1]
             ax.plot([at1[0], at2[0]], [at1[1], at2[1]],
                     [at1[2], at2[2]], 'k--')
 
         plt.savefig("bond_struct.png")
-        if show:
-            plt.show()
-
 
     def create_atoms_section(self, spaces=10):
         """
@@ -251,34 +259,42 @@ class Create_PSF(gen_calc.Calc_Type):
         """
         len_start = 10
 
-        # Title
-        s = "PSF\n\n"
-        s += "%s !NTITLE\n   PYTHON UTILITY CREATED PSF FILE\n\n" % ("1".rjust(len_start))
-        
-        # Atoms section
-        s += self.create_atoms_section(len_start)
+        all_file_txt = []
+        for file_data in self.each_file_data:
+            bonds, nbonds = file_data['bonds'], file_data['nbonds']
+            angles, nangles = file_data['angles'], file_data['nangles']
+            dihedrals, ndihedrals = file_data['dihedrals'], file_data['ndihedrals']
 
-        # Bonds section
-        s += "\n" + f"{self.nbonds}".rjust(len_start) +" !NBOND: bonds\n"
-        s += self.create_topo_section(self.bonds, 4, len_start).lstrip("\n")
+            # Title
+            s = "PSF\n\n"
+            s += "%s !NTITLE\n   PYTHON UTILITY CREATED PSF FILE\n\n" % ("1".rjust(len_start))
+            
+            # Atoms section
+            s += self.create_atoms_section(len_start)
 
-        # Angles section
-        s += "\n\n" + f"{self.nangles}".rjust(len_start) +" !NTHETA: angles\n"
-        s += self.create_topo_section(self.angles, 3, len_start).lstrip("\n")
+            # Bonds section
+            s += "\n" + f"{nbonds}".rjust(len_start) +" !NBOND: bonds\n"
+            s += self.create_topo_section(bonds, 4, len_start).lstrip("\n")
 
-        # Dihedrals section
-        s += "\n\n" + f"{self.ndihedrals}".rjust(len_start) +" !NPHI: dihedrals\n"
-        s += self.create_topo_section(self.dihedrals, 2, len_start).lstrip("\n")
+            # Angles section
+            s += "\n\n" + f"{nangles}".rjust(len_start) +" !NTHETA: angles\n"
+            s += self.create_topo_section(angles, 3, len_start).lstrip("\n")
 
-        # The other parts
-        for i in ("!NIMPHI: impropers", "!NDON: donors", "!NACC: acceptors", "!NNB", "!NCRTERM: cross-terms"):
-            s += "\n\n" + "0".rjust(len_start) + f" {i}"
-        
-        return s
+            # Dihedrals section
+            s += "\n\n" + f"{ndihedrals}".rjust(len_start) +" !NPHI: dihedrals\n"
+            s += self.create_topo_section(dihedrals, 2, len_start).lstrip("\n")
+
+            # The other parts
+            for i in ("!NIMPHI: impropers", "!NDON: donors", "!NACC: acceptors", "!NNB", "!NCRTERM: cross-terms"):
+                s += "\n\n" + "0".rjust(len_start) + f" {i}"
+                
+            all_file_txt.append(s)
+
+        return all_file_txt
 
 
     def __str__(self):
         """
         Return the file txt
         """
-        return self.create_file_str()
+        return "\n\n".join([f"File {i}:"+"\n\n" + f"{txt}" for i, txt in enumerate(self.create_file_str())])

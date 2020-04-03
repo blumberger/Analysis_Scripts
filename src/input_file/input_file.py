@@ -1112,7 +1112,7 @@ class INP_File(object):
 
         # Create the folder if we need to
         folder = gen_io.get_folder_from_filepath(fpath)
-        if not os.path.isdir(folder):
+        if folder != '' and not os.path.isdir(folder):
            os.makedirs(folder)
 
         # Get the data to be written
@@ -1210,6 +1210,7 @@ class INP_File(object):
             if set_fnc not in dir(self):
                 self.print_error("BUG IN CODE! Tell Matt that he needs to "
                                  + f"implement the function '{set_fnc}'")
+
             getattr(self, set_fnc)(line)
 
 
@@ -1227,8 +1228,8 @@ class INP_File(object):
         if set_data == "^EMPTY^": return
 
         # Get the variable and add metadata
-        for key in set_data.data:
-            Var[key] = set_data.data[key]
+        for key in set_data['params'].data:
+            Var[key] = set_data['params'].data[key]
 
     def parse_set_system(self, line):
         """

@@ -6,6 +6,8 @@ reshaping atomic coords to molecular coords etc...
 """
 import re
 import numpy as np
+from sklearn.cluster import DBSCAN
+from collections import Counter
 
 from src.system import type_checking as type_check
 from src.io_utils import json_files as json
@@ -298,6 +300,88 @@ def get_COM(all_mol_crds, mol_col):
         COMs = COMs[0]
     
     return COMs
+
+def get_split_mols(all_mol_crds):
+    """
+    Will use stddev to detemine if a molecule is 'split' or not.
+    """
+    if len(np.shape(all_mol_crds)) != 4:
+        raise SystemError(f"Only works for 4D data, this is {len(np.shape(all_mol_crds))}D  data. It's shape is {np.shape(all_mol_crds)}.")
+
+    std_ats = np.std(all_mol_crds, axis=2)
+    mask = np.any(std_ats > 7, axis=2)
+
+    split_mols = np.array([step_crds[mask[i]] for i, step_crds in enumerate(all_mol_crds)])
+    non_split_mols = np.array([step_crds[~mask[i]] for i, step_crds in enumerate(all_mol_crds)])
+    return split_mols, non_split_mols, mask
+
+def get_COM_split_mols(all_mol_crds, mol_col):
+    """
+    Will correct for the split molecules in periodically wrapped systems.
+
+    This works by only calculating the COM of molecules that aren't split (have a stddev below 10).
+    For those molecules that are split the centroid of the largest fragment is calculated.
+
+    Inputs:
+        * all_mol_crds <array> => The molecular coordinate in shape (nstep, nmol, nat_per_mol, 3)
+        * mol_col <array> => The type of each molecule as a string in shape (nmol, nat_per_mol)
+    Outputs:
+        <array> The center of masses in shape (nstep, nmol, 3)
+    """
+    # If we don't have the number of steps info
+    add_ax = False
+    if len(np.shape(all_mol_crds)) == 3:
+        add_ax = True
+        all_mol_crds = np.array([all_mol_crds])
+
+    # Get atom masses
+
+    # Loop over all mols and get COM
+    split_mols, non_split_mols, mask = get_split_mols(all_mol_crds)
+    non_split_col = mol_col[~mask[0]]
+    
+    # Handle the non-split molecules
+    masses = get_atom_masses(non_split_col)
+    mass_1_mol = np.sum(masses[0])
+    COMs = np.zeros(list(np.shape(mask)) + [3])
+    tmp = [[crds[:, :, 0] * masses, crds[:, :, 1] * masses, crds[:, :, 2] * masses]
+             for crds in non_split_mols]
+    tmp = np.sum(tmp, axis=3) / mass_1_mol
+    COMs[~mask] = np.swapaxes(tmp, 1, 2)
+
+    # Now deal with the ones that have been split by the wrapping.
+
+    single_mol = split_mols[0, 47]
+    COMs[mask] = [[get_largest_mol_fragment_centroid(mol_data) for mol_data in step_data] for step_data in split_mols]
+
+    if add_ax:
+        COMs = COMs[0]
+
+    return COMs
+
+
+def get_largest_mol_fragment(single_mol):
+    """
+    Will use a clustering algorithm (DBSCAN) to determine the largest molecular fragment.
+
+    Inputs:
+        * single_mol <array> => The coordinates of a single molecule.
+    """
+    db = DBSCAN(eps=2.5, min_samples=2).fit(single_mol)
+    labels_mode = max(set(db.labels_), key=list(db.labels_).count)
+    return single_mol[db.labels_ == labels_mode]
+
+
+def get_largest_mol_fragment_centroid(single_mol):
+    """
+    Will use a clustering algorithm (DBSCAN) to determine the largest molecular fragment.
+
+    Inputs:
+        * single_mol <array> => The coordinates of a single molecule.
+    """
+    db = DBSCAN(eps=2.5, min_samples=2).fit(single_mol)
+    labels_mode = max(set(db.labels_), key=list(db.labels_).count)
+    return np.mean(single_mol[db.labels_ == labels_mode], axis=0)
 
 
 def get_topo_info(all_mol_crds, angle_info, all_bonds, cols, types, NN=False):

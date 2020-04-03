@@ -15,6 +15,7 @@ from src.calc import create_psf as psf_calc
 from src.calc import crystallinity
 from src.calc import coupling_distribution as coupl
 from src.calc import couplings_by_layer as coupl_lay
+from src.calc import layers
 from src.calc import rotation as rotate
 
 # File handling functions
@@ -46,5 +47,5 @@ calc_fncs = {
              'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
              'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
              'couplings': coupl.Couplings, "layer_couplings": coupl_lay.Layer_Couplings,
-             "long_ax_rotation": rotate.Long_Ax_Rot,
+             "long_ax_rotation": rotate.Long_Ax_Rot, "mol_layers": layers.Molecular_Layers
             }

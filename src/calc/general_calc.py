@@ -132,23 +132,26 @@ class Calc_Type(object):
         mol_col = np.reshape(self.cols[0], (self.nmol, ats_per_mol))
         return all_mol_crds, mol_col
 
-    def _plot_xyz_data(self, xyz_data):
-        """
-        Will plot xyz data in 3D a matplotlib canvas
-        """
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
+    def _plot_xyz_data(self, ats, a=False, args={'ls': 'None', 'marker': '.'}):
+        if a is False:
+            f = plt.figure()
+            a = f.add_subplot(111, projection="3d")
 
-        f = plt.figure()
-        a = f.add_subplot(111, projection="3d")
+            a.set_xlabel("X")
+            a.set_ylabel("Y")
+            a.set_zlabel("Z")
 
-        a.plot(xyz_data[:, 0], xyz_data[:, 1], xyz_data[:, 2], 'o')
+            a.view_init(elev=-3, azim=64)
 
-        a.set_xlabel("X")
-        a.set_ylabel("Y")
-        a.set_zlabel("Z")
+            a.set_xticks([])
+            a.set_yticks([])
+            a.set_zticks([])
+            a.axis[direction].set_axisline_style("-|>")
+            a.axis[direction].set_visible(True)
 
-        plt.show()
+        a.plot(ats[:, 0], ats[:, 1], ats[:, 2], **args)
+
+        return a
 
     # Overload the type convertors
     def __str__(self):

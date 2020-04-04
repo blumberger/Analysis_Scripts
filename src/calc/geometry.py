@@ -108,10 +108,7 @@ def get_system_size_info(xyz):
     coord_axis = _get_crd_ax(xyz, 3)
 
     # Get the coordinate info
-    indexer = [np.arange(i) for i in np.shape(xyz)]
-    x_indexer, y_indexer, z_indexer = indexer[:], indexer[:], indexer[:]
-    x_indexer[coord_axis], y_indexer[coord_axis], z_indexer[coord_axis] = 0, 1, 2
-    x, y, z = xyz[tuple(x_indexer)], xyz[tuple(y_indexer)], xyz[tuple(z_indexer)]
+    x, y, z = np.take(xyz, 0, coord_axis), np.take(xyz, 1, coord_axis), np.take(xyz, 2, coord_axis)
 
     # Calculate some basic properties
     sys_info['xmin'], sys_info['xmax'] = np.min(x), np.max(x)
@@ -120,6 +117,7 @@ def get_system_size_info(xyz):
 
     sys_info['xlen'] = sys_info['xmax'] - sys_info['xmin']
     sys_info['ylen'] = sys_info['ymax'] - sys_info['ymin']
+    sys_info['zlen'] = sys_info['zmax'] - sys_info['zmin']
 
     return sys_info
 

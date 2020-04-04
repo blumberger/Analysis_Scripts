@@ -22,25 +22,27 @@ class Write_CSV(object):
     def __init__(self, Data_Class, filepath):
         filepath, _ = gen_io.remove_file_extension(filepath)
 
+        csv_data = Data_Class.get_csv_data()
+
         # The CSV data may be stored in many formats
         # Write lists of csvs
-        if type(Data_Class.csv_data) == list:
-            if len(Data_Class.csv_data) == 1:
-                self.write_csv(Data_Class.csv_data[0], f"{filepath}.csv")
+        if type(csv_data) == list:
+            if len(csv_data) == 1:
+                self.write_csv(csv_data[0], f"{filepath}.csv")
             else:
-                for i, df in Data_Class.csv_data:
+                for i, df in csv_data:
                     new_filepath = f"{filepath}_{i}.csv"
                     self.write_csv(df, new_filepath)
 
         # Write dicts of csvs
-        elif type(Data_Class.csv_data) == dict:
-            for key in Data_Class.csv_data:
+        elif type(csv_data) == dict:
+            for key in csv_data:
                 new_filepath = f"{filepath}_{key}.csv"
-                self.write_csv(Data_Class.csv_data[key], new_filepath)
+                self.write_csv(csv_data[key], new_filepath)
 
         # Write plain DataFrames
         else:
-            self.write_csv(Data_Class.csv_data, filepath)
+            self.write_csv(csv_data, f"{filepath}.csv")
 
     def write_csv(self, df, filepath):
         """

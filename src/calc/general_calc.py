@@ -153,6 +153,20 @@ class Calc_Type(object):
 
         return a
 
+    ########################################################
+    ## For file writing
+    def get_csv_data(self):
+        """
+        Just a dummy function to return a useful error message to the user.
+
+        When implemented in children it will return the csv data as a pandas
+        DataFrame so the Write_CSV class can write a csv.
+        """
+        if 'csv_data' not in dir(self):
+            raise SystemError(f"No function 'get_csv_data()' in the '{self.name}' class.")
+
+        return self.csv_data
+
     # Overload the type convertors
     def __str__(self):
         """return str(data)"""
@@ -189,6 +203,24 @@ class Calc_Type(object):
         """Ammend data attribute and return self"""
         self.data **= val
         return self
+
+    def __setitem__(self, key, val):
+        """Will check if there is a data variable if not return error"""
+        try:
+            self.data[key] = val
+        except AttributeError:
+            raise SystemError(f"No variable 'data' implemented in '{self.name}'")
+        except:
+            raise SystemError(f"Can't index '{self.name}.data' ({type(self.data)}) with index '{key}' ({type(key)})")
+
+    def __getitem__(self, key):
+        """Will check if there is a data variable if not return error"""
+        try:
+            return self.data[key]
+        except AttributeError:
+            raise SystemError(f"No variable 'data' implemented in '{self.name}'")
+        except:
+            raise SystemError(f"Can't index '{self.name}.data' ({type(self.data)}) with index '{key}' ({type(key)})")
 
 
 class LogicalTuple(tuple):

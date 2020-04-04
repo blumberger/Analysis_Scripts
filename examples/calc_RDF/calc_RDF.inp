@@ -1,18 +1,27 @@
-############################################
-#                                          #
-# An input file to calculate the radial    #
-# distribution function for an xyz file.   #
-############################################
+###########################################
+# Will calculate the RDF from a lammps    #
+# snapshot file.                          #
+#                                         #
+###########################################
 
-# Set some variables
-folder = "./examples/data"
-filepath = "$folder/pentacene_amorphous.xyz"
+# Set folder
+folder = "./examples/data/Lammps"
 
-# Load the data from an xyz file
-load $filepath xyz as data
+# Read the files
+for i in range(0, 10000, 5000) {
+    read "$folder/rdf_snapshot$i.dat" lammps_dump into data
+}
 
-# Tell the code we are working with pentacene
+# Let the code know some useful variables
 set system data to pentacene
 
-# Calculate RDF
+# set some params
+data['show_plot'] = False
+data['dr'] = "auto"
+data['cutoff'] = "auto"
+
+# Calculate the RDF
 calc RDF from data as rdf_data
+
+# Write the data as a csv
+write rdf_data "rdf.csv" as csv

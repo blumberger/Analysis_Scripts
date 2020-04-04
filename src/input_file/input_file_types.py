@@ -200,7 +200,8 @@ class Vars(dict):
                              +"The Lammps dump file needs a mol column.\n\n")
 
         unique_vals = np.unique(df['mol'])
-        return len(df[df['mol'] == unique_vals[0]])
+        unique_steps = df['timestep'].unique()
+        return len(df[(df['mol'] == unique_vals[0]) & (df['timestep'] == unique_steps[0])])
 
     def __get_xyz_cols_from_lammps_dump__(self):
         """
@@ -239,16 +240,19 @@ class Vars(dict):
                     cvt_type[str(i)] = elm
                     break
             else:
-                raise SystemError("Could determine what element each atom type is.")
+                raise SystemError("Could not determine what element each atom type is.")
             at_types.pop(elm)
 
         # Create the cols array
-        cols = df['type'].to_numpy().astype(str)
-        self.natom = len(cols)
+        cols = [df['type'][df['timestep'] == i].to_numpy().astype(str)
+                for i in df['timestep'].unique()]
+        cols = np.array(cols)
+
+        self.natom = len(cols[0])
         for i in np.unique(cols):
             cols[cols == i] = cvt_type[i]
 
-        return np.array([cols])
+        return np.array(cols)
 
     def __get_xyz_cols_from_xyz__(self):
         """Will return the xyz columns."""
@@ -267,7 +271,8 @@ class Vars(dict):
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_cols_from_xyz__,
                          'lammps_dump': self.__get_xyz_cols_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
-        return xyz_data
+                
+        return np.array(xyz_data)
 
     ###########################################
     ### Timesteps
@@ -278,7 +283,7 @@ class Vars(dict):
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_timesteps_from_xyz__,
                          'lammps_dump': self.__get_xyz_timesteps_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
-        return xyz_data
+        return np.array(xyz_data)
 
     def __get_xyz_timesteps_from_xyz__(self):
         """Will get the xyz timesteps from xyz file container."""
@@ -286,7 +291,7 @@ class Vars(dict):
     
     def __get_xyz_timesteps_from_lammps_dump__(self):
         """Will return the xyz timesteps from lammps dump file container."""
-        return np.array([self['lammps_dump'].metadata['timestep']] )
+        return self['lammps_dump'].csv_data['timestep'].unique()
 
 
     ###########################################
@@ -301,7 +306,8 @@ class Vars(dict):
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_data_from_xyz__,
                          'lammps_dump': self.__get_xyz_data_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in dict.keys(self) if i in XYZ_DATA_KEYS]
-        return xyz_data
+
+        return np.array(xyz_data)
 
     def __get_xyz_data_from_xyz__(self):
         """Will return the xyz data an XYZ file type."""
@@ -315,16 +321,16 @@ class Vars(dict):
             if self.metadata['coordinate_wrapping'] == 'unwrapped':
                 wrapped = False
 
-        # Return the wrapped data
-        if wrapped:
-            if all(j in self['lammps_dump'].wrapped_csv for j in xyz):
-                return np.array([self['lammps_dump'].wrapped_csv[['x', 'y', 'z']].to_numpy()])
-            else:
-                raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")
+        # Set which data to use
+        if wrapped:  csv_data = self['lammps_dump'].wrapped_csv
+        else:        csv_data = self['lammps_dump'].unwrapped_csv
 
-        # Return the unwrapped data
+        # Return the wrapped data
+        if all(j in csv_data for j in xyz):
+
+            unique_steps = csv_data['timestep'].unique()
+            return np.array([csv_data[['x', 'y', 'z']][csv_data['timestep'] == i].to_numpy()
+                             for i in unique_steps])
         else:
-            if all(j in self['lammps_dump'].unwrapped_csv for j in xyz):
-                return np.array([self['lammps_dump'].unwrapped_csv[['x', 'y', 'z']].to_numpy()])
-            else:
-                raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")
+            raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")
+

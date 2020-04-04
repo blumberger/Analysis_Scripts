@@ -113,7 +113,7 @@ class Write_XYZ_File(gen_io.Write_File):
           Will create the string that contains an xyz file, this is save as self.file_txt.
           """
           all_lists = (self.cols, self.xyz_data, self.timesteps)
-          if all(type(j) == list for j in all_lists):
+          if len(np.shape(self.xyz_data)) == 4:
   
               if len(self.cols) != len(self.xyz_data) != self.timesteps:
                 raise SystemError("\n\nThe length of the cols, xyz_data and timesteps arrays are different.\n\n"

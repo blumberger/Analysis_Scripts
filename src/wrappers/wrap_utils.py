@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Some useful utilities for the C wrapper functions.
+"""
+
+import numpy as np
 
 def to_list(arr):
 	"""

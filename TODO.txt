@@ -1,1 +1,2 @@
 IMPLEMENT file write type check
+IMPLEMENT @nthreads decorator

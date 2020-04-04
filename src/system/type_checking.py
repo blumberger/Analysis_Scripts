@@ -15,6 +15,8 @@ def eval_type(String):
 		* If the string can be converted to a number it will be with ints being
 		  preferable to floats. Else will return the same string
 	"""
+	String = str(String)
+	
 	if is_float(String):
 		return float(String)
 	elif is_num(String):

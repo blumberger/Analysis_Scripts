@@ -8,7 +8,7 @@
 ##################################
 
 # Declare filepath and folder of data
-folder = "."
+folder = "examples/data/Lammps"
 filepath = "$folder/snapshot0.dat"
 
 # Read the lammps file

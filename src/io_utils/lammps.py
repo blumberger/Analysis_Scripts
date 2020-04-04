@@ -449,6 +449,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
                 self.parse_dump(item_num)
 
         # Fix periodic BCs
+        self.csv_data['timestep'] = self.metadata['timestep']
         self.wrapped_csv = copy.deepcopy(self.csv_data)
         self.fix_wrapping()
 
@@ -608,17 +609,9 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         Will append a value to the csv_data.
         """
-        if 'csv_data' in dir(val):
-            self.csv_data = self.csv_data.append(val.csv_data)
-        elif type(val) == pd.DataFrame:
-            self.csv_data = self.csv_data.append(val)
-        elif 'xyz_data' in dir(val) and 'cols' in dir(val):
-            self.csv_data = self.csv_data.append(
-                                          pd.DataFrame({'x': val.xyz_data[:, 0],
-                                                        'y': val.xyz_data[:, 1],
-                                                        'z': val.xyz_data[:, 2],
-                                                        'type': val.cols, }))
-        else:
-            raise TypeError(f"Can't append {val} which is of type {type(val)} to {self}")
-
-        self.csv_data.index = range(len(self.csv_data))
+        if type(val) == type(self):
+            for attr in ('csv_data', 'wrapped_csv', 'unwrapped_csv'):
+                csv_data = getattr(self, attr)
+                csv_data = csv_data.append(val.csv_data)
+                csv_data.index = range(len(csv_data))
+                setattr(self, attr, csv_data)

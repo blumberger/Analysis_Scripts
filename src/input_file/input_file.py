@@ -158,6 +158,8 @@ class INP_File(object):
     line_num = 0
     file_ltxt_orig = {}
     variables = []
+    files_written = []
+
     E_str = ""   # A variable to count the errors
 
     line_declarations = LINE_DECLARATIONS
@@ -271,6 +273,8 @@ class INP_File(object):
             delattr(self, var)
             self.variables.remove(var)
 
+        self.files_written = []
+
     def check_range_keyword(self, line):
         """
         Will check the range keyword is being used correctly.
@@ -349,7 +353,8 @@ class INP_File(object):
                 words[1] = gen_parse.rm_quotation_marks(words[1])
                 filepath = gen_io.get_abs_path(words[1])
         except IOError as e:
-            self.print_error(str(e))
+            if words[1] not in self.files_written:
+                self.print_error(str(e))
 
         if words[2] not in f_dicts.load_fncs:
             err_msg = "I don't know how to load files of type '{words[2]}'."
@@ -395,6 +400,8 @@ class INP_File(object):
                err_msg += "Please use one of:\n\t*"
                err_msg += "\n\t*".join(list(f_dicts.write_fncs.keys()))
                self.print_error(err_msg)
+
+        self.files_written.append(gen_parse.rm_quotation_marks(words[2]))
 
         # Need to check requested filetype and if that isn't in write_fncs then raise Error
 
@@ -912,6 +919,7 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input
                             file.
+            * get_set <str> OPTIONAL => 
         Outputs:
             (<list<str>>, <list<str>>, <str>) var_names, metadata_names, new_line
         """

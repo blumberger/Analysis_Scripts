@@ -1,0 +1,24 @@
+#####################################################
+#                                                   #
+# Will try and find molecular layers in a structure #
+# The algorithm works by aligning the z axis of the #
+# whole structure along the standard long axis      #
+# (this is calculated from the peak of a histogram  #
+# of the long axis vectors). A window is then       #
+# scanned along the z axis of the rotated structure #
+# and the number of atoms are counted within this   #
+# window. The layers are defined by the troughs in  #
+# the resulting distribution.                       #
+#####################################################
+
+# Read the data
+filepath_pos = "./examples/data/Lammps/Big_Layered_Pos.dat"
+read $filepath_pos lammps_dump into pos
+
+# Set some useful parameters
+set system pos to pentacene
+pos['allow_boundaries'] = True
+pos['plot_layers'] = True
+
+# Actually calculate where the layers appear
+calc mol_layers from pos as layers

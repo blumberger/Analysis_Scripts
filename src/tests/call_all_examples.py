@@ -126,8 +126,12 @@ all_example_tests = {
                                         'test_func': check_stdout,
                                         'inp_file' : 'calc_couplings.inp',
                                         'out_file' : [f"Hab_connect_layer_{i}.png" for i in range(0, 8)],
-                                                     },
-
+                                                     },     
+                        'calc_layers': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'get_layers.inp',
+                                        'out_file' : False,
+                                       },
 
 
                       # Keep this one last

@@ -269,24 +269,26 @@ def write_DECOMP_inp(mol_nums, ats_per_mol, filepath="DECOMP.inp"):
 	  f.write(s)
 
 
-# def write_AOM_include(mol_nums, ats_per_mol, single_mol_AOM, filepath="AOM_COEFF.include"):
-# 	"""
-# 	Will write the AOM_COEFF.include file that lets SH run know which mols are active etc...
+def write_AOM_include(nmol, active_mols, ats_per_mol, single_mol_AOM, filepath="AOM_COEFF.include"):
+	"""
+	Will write the AOM_COEFF.include file that lets SH run know which mols are active etc...
 
-# 	Inputs:
-# 	  * mol_nums <list> => Molecule numbers to activate (zero-indexed -the python way)
-# 	  * ats_per_mol <int> => Number of atoms per molecule
-# 	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file.
-# 	"""
-# 	inactive = "XX  1    0     0.00            0.00000000000\n" * 36
-# 	aom_txt = ""
-# 	for imol in range(len(mol_crds)):
-# 		if imol in mol_nums:
-# 			aom_txt += active
-# 		else:
-# 			aom_txt += inactive
-# 	with open(f"{dir_}/AOM_COEFF.include", "w") as f:
-# 		f.write(aom_txt)
+	Inputs:
+	  * mol_mask <array> => A boolean array of len nmol, where True means active and False 
+	  						is inactive.
+	  * ats_per_mol <int> => Number of atoms per molecule
+	  * single_mol_AOM <str> => The AOM coefficients for a single molecule.
+	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file.
+	"""
+	inactive = "XX  1    0     0.00            0.00000000000\n" * ats_per_mol
+	all_mols = np.array([inactive] * nmol)
+
+	mol_mask = np
+	all_mols[mol_mask]
+
+
+	with open(f"{dir_}/AOM_COEFF.include", "w") as f:
+		f.write(aom_txt)
 
 
 def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=False):

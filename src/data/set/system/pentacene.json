@@ -6,5 +6,6 @@
                      },
  "molecular_mass": 4.62202975e-25,
  "crystal_density": 1.31,
- "amorphous_density": 1.18
+ "amorphous_density": 1.18,
+ "reorganisation_energy": 98
 }

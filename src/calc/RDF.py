@@ -37,7 +37,7 @@ class RDF(gen_calc.Calc_Type):
     """
     _write_types = ('csv', )
     required_metadata = ('atoms_per_molecule', 'number_each_atom')
-    _defaults = {'rdf_type': 'intermolecular', 'show_plot': False,
+    _defaults = {'rdf_type': 'intermolecular', 'plot_RDF': False,
                  'max_dist': 1.0, 'number_bins': 400, 'atom_list_1': ['C'],
                  'atom_list_2': ['C'], 'dr': False, 'cutoff': False}
     required_data_types = ('lammps_dump',)
@@ -87,7 +87,7 @@ class RDF(gen_calc.Calc_Type):
 
         self.rdf = np.mean(self.rdf, axis=0)
 
-        if self.metadata['show_plot']:
+        if self.metadata['plot_RDF']:
             self._plot_()
             plt.show()
 

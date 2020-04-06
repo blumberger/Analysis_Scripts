@@ -1,0 +1,32 @@
+#####################################################
+#                                                   #
+# This will read a position file, a DECOMP.inp file #
+# and a pseudo_hamilt file to plot the couplings    #
+# between the molecules in particular layers within #
+# the structure.                                    #
+#####################################################
+
+root_folder = "./examples/data"
+filepath_pos = "$root_folder/Lammps/Big_Layered_Pos.dat"
+
+# Loop over all layers in structure
+for i in range(0, 8) {
+    # Create the filepaths
+    ham_folder = "$root_folder/Layer_$i"
+    filepath_ham1 = "$ham_folder/run-pseudo-hamilt-1.xyz"
+    filepath_decomp = "$ham_folder/DECOMP.inp"
+    
+    # Read the files
+    read $filepath_ham1 pseudo_ham as ham
+    read $filepath_decomp cp2k_inp into ham
+    read $filepath_pos lammps_dump into ham
+    
+    # Set some useful parameters
+    set system ham to pentacene
+    ham['CC_plot_title'] = "Layer $i"
+    ham['coordinate_wrapping'] = "wrapped"
+    ham['CC_savefig'] = "Hab_connect_layer_$i.png"
+    
+    # Plot the coupling connections
+    calc coupling_connections from ham as couplings
+}

@@ -4,6 +4,7 @@
 A module that contains general types that can be subclassed to create new calculation types.
 """
 import copy
+import matplotlib.pyplot as plt
 import numpy as np
 
 from collections import Counter
@@ -146,8 +147,6 @@ class Calc_Type(object):
             a.set_xticks([])
             a.set_yticks([])
             a.set_zticks([])
-            a.axis[direction].set_axisline_style("-|>")
-            a.axis[direction].set_visible(True)
 
         a.plot(ats[:, 0], ats[:, 1], ats[:, 2], **args)
 

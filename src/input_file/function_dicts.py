@@ -13,8 +13,7 @@ from src.calc import density as dens
 from src.calc import RDF as rdf
 from src.calc import create_psf as psf_calc
 from src.calc import crystallinity
-from src.calc import coupling_distribution as coupl
-from src.calc import couplings_by_layer as coupl_lay
+from src.calc import couplings as coupl
 from src.calc import layers
 from src.calc import rotation as rotate
 
@@ -46,6 +45,6 @@ calc_fncs = {
              'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,
              'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
              'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
-             'couplings': coupl.Couplings, "layer_couplings": coupl_lay.Layer_Couplings,
+             'couplings': coupl.Couplings, "coupling_connections": coupl.Coupling_Connections,
              "long_ax_rotation": rotate.Long_Ax_Rot, "mol_layers": layers.Molecular_Layers
             }

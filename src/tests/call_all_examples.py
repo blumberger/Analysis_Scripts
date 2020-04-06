@@ -48,79 +48,85 @@ examples_folder = './examples'
 #        inp_file  = the filename of the input file to run
 #        out_file  = the filename of the output file that is created (use False if there isn't one)
 all_example_tests = {
-                     'ammending_xyz_files': {'test_func': check_stdout,
-                                             'inp_file': 'ammend_xyz_file.inp',
-                                             'out_file': 'ammended.xyz',
-                                            },
+                        'ammending_xyz_files': {
+                                        'test_func': check_stdout,
+                                        'inp_file': 'ammend_xyz_file.inp',
+                                        'out_file': 'ammended.xyz',
+                                               },
 
-                     'calc_pvecs': {
-                                    'test_func': check_stdout,
-                                    'inp_file' : 'calc_pvecs.inp',
-                                    'out_file' : 'pvecs.xyz',
-                                   },
+                        'calc_pvecs': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'calc_pvecs.inp',
+                                        'out_file' : 'pvecs.xyz',
+                                      },
 
-                     'Nearest_Neighbour':   {
-                                              'test_func': check_stdout,
-                                              'inp_file' : 'calc_NN.inp',
-                                              'out_file' : 'NN.json',
-                                            },
-                     'prettify_CP2K_input': {
-                                             'test_func': check_stdout,
-                                             'inp_file' : 'prettify_CP2K_input.inp',
-                                             'out_file' : 'pretty.inp',
-                                             },
+                        'Nearest_Neighbour':   {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'calc_NN.inp',
+                                        'out_file' : 'NN.json',
+                                               },
+                        'prettify_CP2K_input': {
+                                        'test_func':  check_stdout,
+                                        'inp_file' : 'prettify_CP2K_input.inp',
+                                        'out_file' : 'pretty.inp',
+                                               },
 
-                      'arithmetic': {
+                        'arithmetic': {
                                         'test_func': check_stdout,
                                         'inp_file' : 'arithmetic.inp',
                                         'out_file' : False,
-                                    },
-                      'metadata':   {
+                                      },
+                        'metadata':   {
                                         'test_func': check_stdout,
                                         'inp_file' : 'metadata_setting.inp',
                                         'out_file' : False,
-                                    },
-                      'calc_density':       {
-                                             'test_func': check_stdout,
-                                             'inp_file' : 'calc_densities.inp',
-                                             'out_file' : 'density.csv',
-                                            },
-                      'unwrap_snapshot_data':      {
-                                                    'test_func': check_stdout,
-                                                    'inp_file' : 'unwrap_snapshot_data.inp',
-                                                    'out_file' : ('unwrapped.xyz', "wrapped.xyz"),
-                                                   },
+                                      },
+                        'calc_density': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'calc_densities.inp',
+                                        'out_file' : 'density.csv',
+                                        },
+                        'unwrap_snapshot_data': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'unwrap_snapshot_data.inp',
+                                        'out_file' : ('unwrapped.xyz', "wrapped.xyz"),
+                                                },
                       'calc_angular_distribution': {
-                                                    'test_func': check_stdout,
-                                                    'inp_file' : 'calc_angular_dist.inp',
-                                                    'out_file' : 'ang_dist.json',
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'calc_angular_dist.inp',
+                                        'out_file' : 'ang_dist.json',
                                                    },
-                      'for_loops': {
-                                     'test_func': check_stdout,
-                                     'inp_file' : 'for_loops.inp',
-                                     'out_file' : False,
-                                   },
-                      'calc_RDF': {
-                                     'test_func': check_stdout,
-                                     'inp_file' : 'calc_RDF.inp',
-                                     'out_file' : False,
-                                   },
+                        'for_loops': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'for_loops.inp',
+                                        'out_file' : False,
+                                     },
+                        'calc_RDF': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'calc_RDF.inp',
+                                        'out_file' : "rdf.csv",
+                                    },
 
-                      'scripts': {
-                                     'test_func': check_stdout,
-                                     'inp_file' : 'run_script.inp',
-                                     'out_file' : False,
-                                 },
-                      'create_psf_file_from_xyz':  {
-                                                    'test_func': check_stdout,
-                                                    'inp_file': 'create_psf_from_xyz.inp',
-                                                    'out_file': ("pentacene_charged.psf", "pentacene_neutral.psf", "bond_struct.png"),
-                                                   },
-                      'inline_python_script': {
-                                     'test_func': check_stdout,
-                                     'inp_file' : 'run.inp',
-                                     'out_file' : False,
+                        'scripts': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'run_script.inp',
+                                        'out_file' : False,
                                    },
+                        'create_psf_file_from_xyz':  {
+                                        'test_func': check_stdout,
+                                        'inp_file': 'create_psf_from_xyz.inp',
+                                        'out_file': ("pentacene_charged.psf", "pentacene_neutral.psf", "bond_struct.png"),
+                                                     },
+                        'inline_python_script': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'run.inp',
+                                        'out_file' : False,
+                                                },
+                        'calc_coupling_connections': {
+                                        'test_func': check_stdout,
+                                        'inp_file' : 'calc_couplings.inp',
+                                        'out_file' : [f"Hab_connect_layer_{i}.png" for i in range(0, 8)],
+                                                     },
 
 
 

@@ -18,7 +18,7 @@ class Molecular_Layers(gen_calc.Calc_Type):
 	"""
 	required_data_types = ('pos', )
 	required_calc = ("long_ax_rotation", )
-	_defaults = {'allow_boundaries': False, "plot_layers": True}
+	_defaults = {'allow_boundaries': False, "plot_layers": False}
 	required_metadata = ("atoms_per_molecule", )
 	name = "Molecular Layers"
 
@@ -45,11 +45,11 @@ class Molecular_Layers(gen_calc.Calc_Type):
 				mol_col = mol_utils.cols_to_mols(cols, self.metadata['atoms_per_molecule'])
 
 				COM = mol_utils.get_COM_split_mols(mol_crds, mol_col)
-				rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
-				self.sys_info = geom.get_system_size_info(rotated_COM)
+				self.rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
+				self.sys_info = geom.get_system_size_info(self.rotated_COM)
 
-				self.layer_starts = self.get_layers(rotated_COM)
-				self.layer_mols = self.get_layer_mols(rotated_COM)
+				self.layer_starts = self.get_layers(self.rotated_COM)
+				self.layer_mols = self.get_layer_mols(self.rotated_COM)
 
 				if self.metadata['plot_layers'] is True:
 					self.plot_layers()
@@ -124,9 +124,6 @@ class Molecular_Layers(gen_calc.Calc_Type):
 		
 		a3D.set_xlabel("X"); a3D.set_ylabel("Y"); a3D.set_zlabel("Z");
 		a3D.set_xticks([]);  a3D.set_yticks([]);  a3D.set_zticks([]);
-		for direction in ["xzero", "yzero"]:
-			a3D.axis[direction].set_axisline_style("-|>")
-			a3D.axis[direction].set_visible(True)
 
 		a3D.view_init(elev=-3, azim=64)
 		for i in self.layer_mols:

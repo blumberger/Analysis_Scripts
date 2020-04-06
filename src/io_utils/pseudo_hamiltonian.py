@@ -36,6 +36,7 @@ class Pseudo_Ham(gen_io.DataFileStorage):
         # self.get_step_data()
 
         self.data = []
+        counts = {}
 
         data = {'title_lines': [], 'couplings': [], 'site_energies': []}
         start = False
@@ -46,7 +47,10 @@ class Pseudo_Ham(gen_io.DataFileStorage):
                 mol1, mol2, Hval = words
                 mol1, mol2, Hval = int(mol1), int(mol2), float(Hval)
                 start = True
-                data.setdefault(mol1, {})[mol2] = Hval
+
+                # Minus 1 for tranlating from 0 indexing (python) to 1 indexing (FORTRAN)
+                data.setdefault(mol1 - 1, {})[mol2 - 1] = Hval
+
                 if mol1 != mol2:
                     data['couplings'].append(Hval)
                 else:

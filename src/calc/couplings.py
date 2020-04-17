@@ -159,7 +159,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 				data.setdefault(imol1, {})[imol2] = coupling * 2588.75
 
-		os.remove(self.config_filepaths[proc_num])
+		os.remove(self.config_filepaths [proc_num])
 		os.remove(self.dimer_filepaths[proc_num])
 
 		return data

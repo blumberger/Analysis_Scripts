@@ -3,6 +3,7 @@
 */*.pyc
 *.py[a-d]
 
+*.o
 config/vars
 *.*.sw*
 */.*.sw*
@@ -12,3 +13,6 @@ snapshots/
 
 bin/
 core.[0-9]*
+
+tmp_scripts/
+tmp_scripts/*

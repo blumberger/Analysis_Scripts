@@ -16,6 +16,7 @@ from src.calc import crystallinity
 from src.calc import couplings as coupl
 from src.calc import layers
 from src.calc import rotation as rotate
+from src.calc import tmp_calc as tmp
 
 # File handling functions
 from src.io_utils import general_io as gen_io
@@ -46,5 +47,6 @@ calc_fncs = {
              'angular_dist': ang_dist.Angular_Dist, 'RDF': rdf.RDF,
              'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
              'couplings': coupl.Couplings, "coupling_connections": coupl.Coupling_Connections,
-             "long_ax_rotation": rotate.Long_Ax_Rot, "mol_layers": layers.Molecular_Layers
+             "long_ax_rotation": rotate.Long_Ax_Rot, "mol_layers": layers.Molecular_Layers,
+             "tmp": tmp.TMP, "all_AOM_couplings": coupl.Calc_All_AOM_Couplings,
             }

@@ -145,7 +145,7 @@ def _get_crd_ax(xyz, dim=3):
     return coord_axis_lens.index(dim)
 
 
-def cluster_points(points_1D, eps=0.02, min_samples=1):
+def cluster_1D_points(points_1D, eps=0.02, min_samples=1):
     """
     Will return an array of clustered 1D points.
 

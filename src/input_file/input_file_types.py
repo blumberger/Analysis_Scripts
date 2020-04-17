@@ -35,6 +35,8 @@ class Variable(object):
     def __str__(self):
         """return str(data)"""
         return f"Variable '{self.name}':" + "\n" + str(self.data)
+    def __repr__(self):
+        return str(self.data)
     def __float__(self):
         """return float(data)"""
         return float(self.data)

@@ -9,10 +9,9 @@ To load inp files use the function `parse_inp_file(filepath <str>)`.
 
 To write them with correct indents etc use the function `write_inp(parsed_inp <dict>, filepath)`
 """
-import re
-import os
+import re, os, copy
 from collections import OrderedDict
-import copy
+import numpy as np
 
 from src.parsing import general_parsing as gen_parse
 from src.io_utils import general_io as gen_io
@@ -29,13 +28,290 @@ class Read_INP(gen_io.DataFileStorage):
 	"""
 	metadata = {'file_type': 'CP2K_inp'}
 	def parse(self):
-		self.all_data = parse_inp_file(self.filepath)
+		self.data = INP_File(parse_inp_file(self.filepath))
+
+		self.file_data = {gen_io.get_filename_from_filepath(self.filepath): copy.deepcopy(self.data)}
 
 	def __str__(self):
 		"""
 		Overload the str magic function.
 		"""
-		return write_inp(self.all_data)
+		return write_inp(self.data)
+
+	def append(self, val):
+		if type(val) == type(self):
+			for line in val.data['lines']:
+				self.data['lines'].append(line)
+
+			self.data['params'].update(val.data['params'])
+			self.data['full_data'].update(val.data['full_data'])
+
+			self.file_data.update(val.file_data)
+		else:
+			raise SystemError(f"Currently can't append non {type(self)} to {type(self)}.")
+
+
+class INP_File(dict):
+
+	def __str__(self):
+		return self.write()
+
+	def __repr__(self):
+		return self.__str__()
+
+	def __init__(self, *args, **kwargs):
+		self.update(*args, **kwargs)
+
+		if not all(j in self.keys() for j in ('lines', 'params', 'full_data')):
+			raise SystemError("Incorrect use of INP_File. Please input a dictionary with keys: 'lines', 'params', 'full_data'.")
+
+	def check_section_path(self, section_path):
+		"""
+		Will check a section path exists with the nested dict structure
+	  
+		Inputs:
+			* section_path <list> => The parameter path in the inp_dict
+
+		Outputs:
+			<bool> Whether the section is in the inp dict or not.
+		"""
+		is_sect, e = True, ""
+		# Check if the path is specified correctly
+		if len(section_path) == 1 and section_path[0] not in self['params']:
+			e = f"Can't find the section '{section_path[0]}' from '{section_path}'"
+			e += f"INP File keys: {self['params'].keys()}"
+			is_sect = False
+	  
+		new_dict = copy.deepcopy(self['params'])
+		for sect in section_path:
+			if new_dict.get(sect) is None:
+				e = f"Can't find the section '{sect}' from '{section_path}'"
+				e += f"INP File keys: {self['params'].keys()}"
+				is_sect = False
+				break
+
+			new_dict = new_dict[sect]
+
+		return is_sect, e
+
+	def add(self, section_path, new_val, throw_err=False):
+		"""
+		Will add a section or parameter in the inp file.
+
+		N.B. Only parameters currently handled. I'll need to ammend line_num indexing
+			 for sections
+
+		Inputs:
+			* parameter_path <list> => The parameter_path path in the inp_dict
+			* new_val <*> => The new value of the paramter
+
+		Output:
+			Changes occur in-place
+		"""		
+		is_section = False
+		self.__reset_all_line_nums__()
+
+		new_dict = {i: self['full_data'][i] for i in self['full_data']}
+		for val in section_path:
+			if type(val) == list:
+				raise SystemExit("Can't currently handle the repeated sections.")
+
+			if val in new_dict:
+				new_dict = new_dict[val]
+
+			else:
+				if val == section_path[-1]:
+					add_line_num = new_dict[''].line_num + 1
+					New_Line = INP_Line(f"{val}      {new_val}",
+										section_path[-2], add_line_num)
+					new_dict[val] = New_Line
+				else:
+					is_section = True
+					raise SystemError("Can't currently handle adding sections")
+				break
+
+		else:
+			# The parameter already exists
+			if throw_err:
+				raise SystemError(f"Parameter {val} already exists!")
+			else:
+				return
+
+		self['lines'].insert(add_line_num, New_Line)
+		self.__reset_all_line_nums__()
+
+	def remove(self, section_path, throw_err=False):
+		"""
+		Will remove a section or parameter in the inp file.
+
+		N.B. Only parameters currently handled. I'll need to properly remove lines
+			 in self['line'] for sections.
+
+		Inputs:
+			* section_path <list> => The section path in the inp_dict
+
+		Output:
+			Everything is in-place
+		"""
+		is_sect, err = self.check_section_path(section_path)
+		if not is_sect and throw_err:
+			raise SystemError(err)
+		elif not is_sect: return
+
+		# Change the inp lines dict and full_data dict
+		self.__reset_all_line_nums__()
+		new_dict = {i: self['full_data'][i] for i in self['full_data']}
+		for key in section_path[:-1]:
+			new_dict = new_dict[key]
+		line = new_dict[section_path[-1]]
+		bad_ind = line.line_num
+
+		if line.is_parameter:
+			new_dict.pop(section_path[-1])
+
+			del self['lines'][bad_ind]
+			self.__reset_all_line_nums__()
+
+			# Change the params dict too
+			new_dict = {i: self['params'][i] for i in self['params']}
+			for key in section_path[:-1]:
+				new_dict = new_dict[key]
+			new_dict.pop(section_path[-1])
+
+		else:
+			raise SystemExit("Still need to implement section removal!")
+	
+	def change_param(self, parameter_path, new_val, throw_err=False):
+		"""
+		Will change a parameter in the inp file.
+
+		Inputs:
+			* parameter_path <list> => The parameter_path path in the inp_dict
+			* new_val <*> => The new value of the paramter
+
+		Output:
+			Changes occur in-place
+		"""
+		is_sect, err = self.check_section_path(parameter_path)
+		if not is_sect and throw_err:
+			raise SystemError(err)
+		elif not is_sect: return
+
+		# Change the inp lines dict and full_data dict
+		new_dict = {i: self['full_data'][i] for i in self['full_data']}
+		for key in parameter_path[:-1]:
+			new_dict = new_dict[key]
+
+		# Check if the thing is a paramter
+		if not new_dict[parameter_path[-1]].is_parameter:
+			raise SystemExit(f"{parameter_path} doesn't point to a paramter.")
+
+		new_dict[parameter_path[-1]].set_param(new_val)
+		self['lines'][new_dict[parameter_path[-1]].line_num].set_param(new_val)
+
+		# Change parameter_path dict
+		new_dict = {i: self['params'][i] for i in self['params']}
+		for key in parameter_path[:-1]:
+			new_dict = new_dict[key]
+		new_dict[parameter_path[-1]] = new_val
+
+	def write(self, filename=False):
+		"""
+		Will create a string containing the inp file.
+
+		If a filepath is given this will write the file too.
+
+		Inputs:
+			* filename <str> OPTIONAL => A string specifying where to output the inp_file (if given).
+
+		Outputs:
+			* A string containing the inp file.
+		"""
+		inp_txt = ""
+		indent_level = 0
+		prev_line_type = ""
+
+		# Loop over every line and add it to the
+		param_len = 0
+		for line_num, line in enumerate(self['lines']):
+			indent = "   " * indent_level  # the indentation for each line
+			line_txt = ""
+			if not line.whitespace:
+				# Handle writing the setions
+				if line.is_section:
+					if line.is_section_start:
+						param_len = get_max_parameter_len_in_section(self['lines'], line_num)
+						if prev_line_type == "parameter" or prev_line_type == "end_section":
+							line_txt += "\n"
+
+						line_txt += "%s&%s\t%s" % (indent,
+												  line.section.upper(),
+												  '  '.join(line.extra_parameters))
+						indent_level += 1
+						prev_line_type = "start_section"
+
+					elif line.is_section_end:
+						indent_level -= 1
+						indent = "   " * indent_level # Need to change indent here to take effect on this line
+						line_txt += "%s&END %s\t%s" % (indent,
+													   line.section.upper(),
+													   '  '.join(line.extra_parameters))
+						prev_line_type = "end_section"
+
+
+				# Write any parameters (i.e. MD_TIMESTEP   [fs]   0.1)
+				elif line.is_parameter:
+					unit = "[%s]" % line.unit if line.unit else ""
+					line_txt += "%s%s  %s  %s" % (indent,
+												  line.parameter.ljust(param_len),
+												  unit,
+												  line.value)
+					prev_line_type = "parameter"
+
+				# If the line has an @include in write it
+				elif line.is_include:
+					if prev_line_type == "end_section":
+						line_txt += "\n"
+					line_txt += "%s%s    %s" % (indent,
+												"@INCLUDE".ljust(param_len),
+												'  '.join(line.include_file))
+					prev_line_type = "include"
+
+				# If the line has an @set in write it
+				elif line.is_set:
+					if prev_line_type == "end_section":
+						line_txt += "\n"
+					line_txt += "%s%s    %s" % (indent,
+												"@SET".ljust(param_len),
+												line.set_txt)
+					prev_line_type = "set"
+
+				elif line.is_coord:
+				   name = line.elm_name
+				   coords = [("%.6f" % i).ljust(10) for i in line.coords]
+				   line_txt += "%s%s     %s    %s    %s" % (indent, name.ljust(6),
+															coords[0], coords[1], coords[2])
+
+				comment = "# %s" % line.comment if line.comment else ""
+				inp_txt += "%s    %s\n" % (line_txt, comment)
+
+			# If there are any comments then write them
+			elif line.comment:
+				if prev_line_type == "end_section":
+					inp_txt += "\n%s# %s\n" % (indent, line.comment)
+				else: inp_txt += "%s# %s\n" % (indent, line.comment)
+				prev_line_type = "comment"
+
+		# If there is a filename given then write the file
+		if filename:
+			with open(filename, "w") as f:
+				f.write(inp_txt)
+
+		return inp_txt
+
+	def __reset_all_line_nums__(self):
+		"""Will reset all the line_numbers for each INP_Line object in the file."""
+		for i in range(len(self['lines'])): self['lines'][i].line_num = i
 
 
 class Write_INP(gen_io.Write_File):
@@ -78,8 +354,9 @@ class INP_Line(object):
 		* is_section => <bool> if the line is a section line
 		* is_section_start => <bool> if the line is a section_start line
 		* is_section_end => <bool> if the line is a section_end line
-	 """
-	def  __init__(self, line, curr_section, line_num=False):
+	"""
+	line_num = 0
+	def  __init__(self, line, curr_section, line_num):
 		self.line = line
 		self.curr_section = curr_section
 		self.line_num = line_num
@@ -170,7 +447,7 @@ class INP_Line(object):
 		if len(words) == 2:  self.parameter, self.value = words
 
 		# Try to find any units
-		elif re.findall("\[[a-zA-Z_]+\]", self.edit_line):
+		elif re.findall(r"\[[a-zA-Z_]+\]", self.edit_line):
 			unit_ind = [i for i, word in enumerate(words) if '[' in word and ']' in word]
 			if len(unit_ind) == 1:
 				self.unit = words[unit_ind[0]].strip('[]')
@@ -193,6 +470,22 @@ class INP_Line(object):
 
 		self.elm_name = words[0]
 		self.coords = [float(i) for i in words[1:]]
+
+	def set_param(self, new_val):
+		"""
+		Will change the value of the line to something new.
+
+		Inputs:
+			* new_val <*> => The line's new value.
+
+		Outputs:
+			Everything happens inplace
+		"""
+		if not self.is_parameter:
+			print(f"Warning tried to change non-parameter '{str(self)}' to '{new_val}'", end=" ")
+			print(f"for line '{self.edit_line}'")
+
+		self.value = new_val
 
 	def __str__(self):
 		"""
@@ -242,7 +535,7 @@ def find_section_end(parsed_inp_lines, section, curr_line):
 		raise SystemError("Can't find the end of the section '%s'" % section)
 
 
-def write_DECOMP_inp(mol_nums, ats_per_mol, filepath="DECOMP.inp"):
+def create_DECOMP_inp(mol_nums, ats_per_mol, filepath=False):
 	"""
 	Will write a DECOMP.inp file that includes the molecules that need activating in a
 	surface hopping run.
@@ -250,7 +543,11 @@ def write_DECOMP_inp(mol_nums, ats_per_mol, filepath="DECOMP.inp"):
 	Inputs:
 	  * mol_nums <list> => Molecule numbers to activate (zero-indexed -the python way)
 	  * ats_per_mol <int> => Number of atoms per molecule
-	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file.
+	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file. If not given then 
+	  							   a file won't be written.
+
+	Outputs:
+		<str> The DECOMP section
 	"""
 	if len(mol_nums) > 2000:
 	  raise SystemExit("Can't write more than 2000 mols.")
@@ -260,16 +557,19 @@ def write_DECOMP_inp(mol_nums, ats_per_mol, filepath="DECOMP.inp"):
 	s += "\n"+f"NUM_ACTIVE_ATOMS {len(mol_nums) * ats_per_mol}" + "\n\n"
 	s += "&END ENERGY_DECOMP"
 
-	# Create the directory (if required)
-	dir_ = gen_io.get_folder_from_filepath(filepath)
-	if dir_ != "" and not os.path.isdir(dir_):
-	  os.makedirs(dir_)
+	if filepath:
+		# Create the directory (if required)
+		dir_ = gen_io.get_folder_from_filepath(filepath)
+		if dir_ != "" and not os.path.isdir(dir_):
+		  os.makedirs(dir_)
 
-	with open(filepath, "w") as f:
-	  f.write(s)
+		with open(filepath, "w") as f:
+		  f.write(s)
+
+	return s
 
 
-def write_AOM_include(nmol, active_mols, ats_per_mol, single_mol_AOM, filepath="AOM_COEFF.include"):
+def create_AOM_include(nmol, active_mols, ats_per_mol, single_mol_AOM, filepath=False):
 	"""
 	Will write the AOM_COEFF.include file that lets SH run know which mols are active etc...
 
@@ -278,17 +578,25 @@ def write_AOM_include(nmol, active_mols, ats_per_mol, single_mol_AOM, filepath="
 	  						is inactive.
 	  * ats_per_mol <int> => Number of atoms per molecule
 	  * single_mol_AOM <str> => The AOM coefficients for a single molecule.
-	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file.
+	  * filepath <str> OPTIONAL => Filepath of the AOM_COEFF.include file (default is to not write)
 	"""
+	# Create inactive line
 	inactive = "XX  1    0     0.00            0.00000000000\n" * ats_per_mol
-	all_mols = np.array([inactive] * nmol)
 
-	mol_mask = np
-	all_mols[mol_mask]
+	AOM_txt = ""
+	for i in range(nmol):
+		if i in active_mols:
+			AOM_txt += single_mol_AOM
+		else:
+			AOM_txt += inactive
 
 
-	with open(f"{dir_}/AOM_COEFF.include", "w") as f:
-		f.write(aom_txt)
+	# Write if we want to 
+	if filepath is not False:
+		with open(filepath, "w") as f:
+			f.write(AOM_txt)
+
+	return AOM_txt
 
 
 def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=False):
@@ -322,10 +630,11 @@ def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=Fal
 	if full_data_dict is False: full_data_dict = {}
 	if all_lines is False:
 		all_lines, curr_section = [], ""
-		for i in inp_file:
-			parsed_line = INP_Line(i, curr_section)
+		for line_num, i in enumerate(inp_file):
+			parsed_line = INP_Line(i, curr_section, line_num=line_num)
 			if parsed_line.is_section:
 				curr_section = parsed_line.section
+
 			all_lines.append(parsed_line)
 
 	# Loop over all lines
@@ -413,196 +722,71 @@ def get_max_parameter_len_in_section(lines, curr_line_ind):
 	return max_param_len
 
 
-def write_inp(inp_dict, filename=False):
-	"""
-	Will create a string containing the inp file.
-
-	Inputs:
-		* inp_dict <dict> => The output of the 'parse_inp_file' function.
-		* filename <str> OPTIONAL => A string specifying where to output the inp_file (if given).
-
-	Outputs:
-		* A string containing the inp file.
-	"""
-	if type(inp_dict) != dict or 'lines' not in inp_dict:
-		msg = "Argument 'inp_dict' must be a dictionary as outputted by the function"
-		msg += " 'parse_inp_file'.\n\n"
-		msg += "Error: Wrong input to fucntion 'write_inp'. Bad 'inp_dict' argument."
-		raise SystemError(msg)
-
-	inp_txt = ""
-	indent_level = 0
-	prev_line_type = ""
-
-	# Loop over every line and add it to the
-	param_len = 0
-	for line_num, line in enumerate(inp_dict['lines']):
-		indent = "   " * indent_level  # the indentation for each line
-		line_txt = ""
-		if not line.whitespace:
-			# Handle writing the setions
-			if line.is_section:
-				if line.is_section_start:
-					param_len = get_max_parameter_len_in_section(inp_dict['lines'], line_num)
-					if prev_line_type == "parameter" or prev_line_type == "end_section":
-						line_txt += "\n"
-
-					line_txt += "%s&%s\t%s" % (indent,
-											  line.section.upper(),
-											  '  '.join(line.extra_parameters))
-					indent_level += 1
-					prev_line_type = "start_section"
-
-				elif line.is_section_end:
-					indent_level -= 1
-					indent = "   " * indent_level # Need to change indent here to take effect on this line
-					line_txt += "%s&END %s\t%s" % (indent,
-												   line.section.upper(),
-												   '  '.join(line.extra_parameters))
-					prev_line_type = "end_section"
 
 
-			# Write any parameters (i.e. MD_TIMESTEP   [fs]   0.1)
-			elif line.is_parameter:
-				unit = "[%s]" % line.unit if line.unit else ""
-				line_txt += "%s%s  %s  %s" % (indent,
-											  line.parameter.ljust(param_len),
-											  unit,
-											  line.value)
-				prev_line_type = "parameter"
 
-			# If the line has an @include in write it
-			elif line.is_include:
-				if prev_line_type == "end_section":
-					line_txt += "\n"
-				line_txt += "%s%s    %s" % (indent,
-											"@INCLUDE".ljust(param_len),
-											'  '.join(line.include_file))
-				prev_line_type = "include"
+# def create_section(section_path, inp_dict, section):
+# 	"""
+# 	Will create a section in the nested dictionary at a certain point.
 
-			# If the line has an @set in write it
-			elif line.is_set:
-				if prev_line_type == "end_section":
-					line_txt += "\n"
-				line_txt += "%s%s    %s" % (indent,
-											"@SET".ljust(param_len),
-											line.set_txt)
-				prev_line_type = "set"
+# 	Inputs:
+# 		* section_path => A string that points to the section to remove with '%' splitting each subsection e.g.
+# 						MOTION%MD would remove the MD subsection within the MOTION section.
+# 		* inp_dict => The nested dict containin the input parameters
 
-			elif line.is_coord:
-			   name = line.elm_name
-			   coords = [("%.6f" % i).ljust(10) for i in line.coords]
-			   line_txt += "%s%s     %s    %s    %s" % (indent, name.ljust(6),
-														coords[0], coords[1], coords[2])
+# 	Output:
+# 		* The dictionary is changed inplace so there is no output
+# 	"""
+# 	if section_path == "":
+# 		for key in section:
+# 			inp_dict[key] = section[key]
+# 	else:
+# 		section_path = section_path.upper()
+# 		sections = check_section_path(section_path, inp_dict)
+# 		if not sections: return
 
-			comment = "# %s" % line.comment if line.comment else ""
-			inp_txt += "%s    %s\n" % (line_txt, comment)
+# 		# First check if we have a section or a parameter
+# 		new_dict = copy.deepcopy(inp_dict)
+# 		last_section = 0
+# 		for sect in sections:
+# 			if isinstance(new_dict[sect], (dict, type(OrderedDict()))):
+# 				new_dict = new_dict[sect]
+# 				last_section += 1
+# 			else:
+# 				break
 
-		# If there are any comments then write them
-		elif line.comment:
-			if prev_line_type == "end_section":
-				inp_txt += "\n%s# %s\n" % (indent, line.comment)
-			else: inp_txt += "%s# %s\n" % (indent, line.comment)
-			prev_line_type = "comment"
+# 		# Now get the section dict to change
+# 		new_dict = inp_dict[sections[0]]
+# 		for sect in sections[1:last_section]:
+# 		 new_dict = new_dict[sect]
 
-	# If there is a filename given then write the file
-	if filename:
-		with open(filename, "w") as f:
-			f.write(inp_txt)
+# 		# If we want the new section after a parameter
+# 		for key in section:
+# 			new_dict[key] = section[key]
 
-	return inp_txt
-
-def check_section_path(section_path, inp_dict):
-	"""
-	Will check a section path exists with the nested dict structure
-  
-	Inputs:
-		* section_path => A string that points to the section to remove with '%' splitting each subsection e.g.
-						MOTION%MD would remove the MD subsection within the MOTION section.
-		* inp_dict => The nested dict containin the input parameters
-	"""
-	sections = section_path.split("%")
-  
-	# Check if the path is specified correctly
-	if len(sections) == 1 and sections[0] not in inp_dict:
-		print("Can't find the section '%s' from '%s'" % (sections[0], section_path))
-		print("INP File keys: ",  inp_dict.keys())
-		return False
-	else:
-		return sections
-  
-	new_dict = copy.deepcopy(inp_dict)
-	for sect in sections:
-		if new_dict.get(sect) is None:
-			print("Can't find the section '%s' from '%s'" % (sect, section_path))
-			print("INP File keys: ",  inp_dict.keys())
-			return False
-		new_dict = new_dict[sect]
-  
-	return sections
-  
-  
-def remove_section(section_path, inp_dict):
-	"""
-	Will remove a section from the nested dictionary.
  
-	Inputs:
-	  * section_path => A string that points to the section to remove with '%' splitting each subsection e.g.
-						MOTION%MD would remove the MD subsection within the MOTION section.
-	  * inp_dict => The nested dict containin the input parameters
+  
+# def remove_section(section_path, inp_dict):
+# 	"""
+# 	Will remove a section from the nested dictionary.
  
-	Output:
-	  * The dictionary is changed inplace so there is no output
-	"""
-	section_path = section_path.upper()
-	sections = check_section_path(section_path, inp_dict)
-	if not sections: return
+# 	Inputs:
+# 	  * section_path => A string that points to the section to remove with '%' splitting each subsection e.g.
+# 						MOTION%MD would remove the MD subsection within the MOTION section.
+# 	  * inp_dict => The nested dict containin the input parameters
  
-	# Remove the section
-	if len(sections) == 1:
-		inp_dict.pop(sections[0])
-	else:
-		new_dict = inp_dict[sections[0]]
-		for sect in sections[1:-1]:
-			new_dict = inp_dict[sect]
-		new_dict.pop(sections[-1])
-
-
-def create_section(section_path, inp_dict, section):
-	"""
-	Will create a section in the nested dictionary at a certain point.
-
-	Inputs:
-		* section_path => A string that points to the section to remove with '%' splitting each subsection e.g.
-						MOTION%MD would remove the MD subsection within the MOTION section.
-		* inp_dict => The nested dict containin the input parameters
-
-	Output:
-		* The dictionary is changed inplace so there is no output
-	"""
-	if section_path == "":
-		for key in section:
-			inp_dict[key] = section[key]
-	else:
-		section_path = section_path.upper()
-		sections = check_section_path(section_path, inp_dict)
-		if not sections: return
-
-		# First check if we have a section or a parameter
-		new_dict = copy.deepcopy(inp_dict)
-		last_section = 0
-		for sect in sections:
-			if isinstance(new_dict[sect], (dict, type(OrderedDict()))):
-				new_dict = new_dict[sect]
-				last_section += 1
-			else:
-				break
-
-		# Now get the section dict to change
-		new_dict = inp_dict[sections[0]]
-		for sect in sections[1:last_section]:
-		 new_dict = new_dict[sect]
-
-		# If we want the new section after a parameter
-		for key in section:
-			new_dict[key] = section[key]
+# 	Output:
+# 	  * The dictionary is changed inplace so there is no output
+# 	"""
+# 	section_path = section_path.upper()
+# 	sections = check_section_path(section_path, inp_dict)
+# 	if not sections: return
+ 
+# 	# Remove the section
+# 	if len(sections) == 1:
+# 		inp_dict.pop(sections[0])
+# 	else:
+# 		new_dict = inp_dict[sections[0]]
+# 		for sect in sections[1:-1]:
+# 			new_dict = inp_dict[sect]
+# 		new_dict.pop(sections[-1])

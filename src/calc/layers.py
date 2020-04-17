@@ -28,10 +28,8 @@ class Molecular_Layers(gen_calc.Calc_Type):
 
 		This works by first 
 		"""
-		self.ats_per_mol = self.metadata['atoms_per_molecule']
-
+		self.ats_per_mol = self.metadata
 		# Get the xyz data
-		self.Var['coordinate_wrapping'] = 'wrapped'
 		xyz_data = self.Var.data.get_xyz_data()
 		cols = self.Var.data.get_xyz_cols()
 
@@ -40,12 +38,13 @@ class Molecular_Layers(gen_calc.Calc_Type):
 			for istep in range(len(xyz_data[ifile])):
 				step_data = xyz_data[ifile][istep]
 				cols = cols[ifile][istep]
-				
+
 				mol_crds = mol_utils.atoms_to_mols(step_data, self.metadata['atoms_per_molecule'])
 				mol_col = mol_utils.cols_to_mols(cols, self.metadata['atoms_per_molecule'])
 
 				COM = mol_utils.get_COM_split_mols(mol_crds, mol_col)
 				self.rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
+
 				self.sys_info = geom.get_system_size_info(self.rotated_COM)
 
 				self.layer_starts = self.get_layers(self.rotated_COM)
@@ -86,14 +85,15 @@ class Molecular_Layers(gen_calc.Calc_Type):
 		"""
 		# Scan across the system and find the layer structure.
 		self.z, self.num = [], []
-		for zmin in np.linspace(self.sys_info['zmin'], self.sys_info['zmax'], 500):
-			mask = (xyz[:, 2] > zmin) & (xyz[:, 2] < zmin + 5)
+		init_z = np.linspace(self.sys_info['zmin'], self.sys_info['zmax'], 500)
+		for zmin in init_z:
+			mask = (xyz[:, 2] > zmin) & (xyz[:, 2] < zmin + 4)
 			self.z.append(zmin)
 			self.num.append(sum(mask))
 
 		# Smooth the data
 		self.smoothed_df = pd.DataFrame({'num': self.num, 'z': self.z})
-		self.smoothed_df = self.smoothed_df.rolling(10, center=True).mean().dropna()
+		self.smoothed_df = self.smoothed_df.rolling(2, center=True).mean().dropna()
 		# self.smoothed_df['gradient'] = np.abs(self.smoothed_df['num'] - np.roll(self.smoothed_df['num'], 10))
 		self.smoothed_df.index = np.arange(len(self.smoothed_df))
 
@@ -111,7 +111,7 @@ class Molecular_Layers(gen_calc.Calc_Type):
 			if new_ind is not False:
 				true_min.append(self.smoothed_df.loc[new_ind, 'z'])
 
-		_, true_min = geom.cluster_points(true_min, 0.03)
+		_, true_min = geom.cluster_1D_points(true_min, np.diff(init_z)[0])
 
 		return true_min
 

@@ -347,12 +347,17 @@ def get_COM_split_mols(all_mol_crds, mol_col):
     tmp = [[crds[:, :, 0] * masses, crds[:, :, 1] * masses, crds[:, :, 2] * masses]
              for crds in non_split_mols]
     tmp = np.sum(tmp, axis=3) / mass_1_mol
-    COMs[~mask] = np.swapaxes(tmp, 1, 2)
 
-    # Now deal with the ones that have been split by the wrapping.
+    # If there aren't any split mols just use the normal COM
+    if np.shape(split_mols)[1] == 0:
+        COMs = np.swapaxes(tmp, 1, 2)
 
-    single_mol = split_mols[0, 47]
-    COMs[mask] = [[get_largest_mol_fragment_centroid(mol_data) for mol_data in step_data] for step_data in split_mols]
+    else:
+        # COMs for mols not split
+        COMs[~mask] = np.swapaxes(tmp, 1, 2)
+
+        # Now deal with the ones that have been split by the wrapping.
+        COMs[mask] = [[get_largest_mol_fragment_centroid(mol_data) for mol_data in step_data] for step_data in split_mols]
 
     if add_ax:
         COMs = COMs[0]

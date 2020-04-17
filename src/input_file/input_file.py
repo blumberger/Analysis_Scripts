@@ -32,6 +32,7 @@ import re
 import os
 from IPython import embed
 import glob
+import subprocess
 
 # Fundamental system functions
 from src.system import type_checking as type_check
@@ -54,7 +55,7 @@ SET_FOLDERPATH = "src/data/set"
 SET_TYPES = ("params", "system")
 VALID_FOR_FUNCS = ("range", "filepath", "list")
 VALID_LOAD_WORDS = ("into", "as")
-VALID_SCRIPT_TYPES = {'python', 'C++', 'C'}
+VALID_SCRIPT_TYPES = {'python', 'bash'}
 VAR_REGEX = "\$*[A-Za-z]+[A-Za-z0-9_-]*"
 IN_STR_VAR_REGEX = "\$[A-Za-z]+[A-Za-z0-9_-]*"
 
@@ -168,6 +169,8 @@ class INP_File(object):
     line_declarations['math'] = is_math_line
     line_declarations['shell'] = lambda x: x.strip().lower() == "shell"
     line_declarations['python'] = lambda x: x == "python"
+    line_declarations['bash'] = lambda x: x == "bash"
+    line_declarations['inline_code'] = lambda x: x.split()[0] in VALID_SCRIPT_TYPES
 
     def __init__(self, inp_filepath):
         self.E_str = "init"
@@ -256,10 +259,14 @@ class INP_File(object):
                     if var not in variables: variables.append(var)
 
             # Error check any python commands
-            elif self.line_declarations['python'](line):
-                vars = self.check_python_command(line)
-                for var in vars:
-                    if var not in variables: variables.append(var)
+            elif self.line_declarations['inline_code'](line):
+                if self.line_declarations['python'](line):
+                    vars = self.check_python_command(line)
+                    for var in vars:
+                        if var not in variables: variables.append(var)
+                else:
+                    # Run the check_{script_type}_command() fnc
+                    getattr(self, f"check_{line.split()[0]}_command")(line)
 
             # Error check any python commands
             elif self.line_declarations['if'](line):
@@ -650,28 +657,33 @@ class INP_File(object):
 
         return vars
 
-    def check_python_command(self, line):
+    def __check_external_code__(self, line, name):
         """
-        Will check the syntax of a python command.
+        Will check the syntax of a generic code command.
 
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
+            * name <str> The name of the code type e.g. 'python' or 'bash'...
+
+        Outputs:
+            <int> The end index of the inline text
         """
         line, _ = self.find_vars_in_str(line)
         words = line.split()
-        self.E_str = "check_python_command"
+        self.E_str = f"check_{name}_command"
 
-        corr_syn = "The correct syntax for running a bit of python code is:\n\n"
-        corr_syn += "    python {\n\n    ...\n\n    }"
+        corr_syn = f"The correct syntax for running a bit of {name} code is:\n\n"
+        corr_syn += f"    {name} " + " {\n\n    ...\n\n     }"
 
         # Check the braces are opened and closed properly
         if self.file_ltxt[self.line_num+1] != "{":
-            self.print_error("You must open a bracket for the python command\n\n"
+            self.print_error(f"You must open a bracket for the {name} command"+"\n\n"
                              + corr_syn)
 
+        # Get the filetxt after the command
         rest_filetxt = '\n'.join(self.file_ltxt[self.line_num:])
         if gen_parse.get_bracket_close(rest_filetxt, "{", "}") == -1:
-            self.print_error("You must close a brace in the python command.\n\n"
+            self.print_error(f"You must close a brace in the {name} command."+"\n\n"
                              + corr_syn)
 
         # Find where the little script ends
@@ -682,9 +694,23 @@ class INP_File(object):
 
             if brack_num > 0:     new_lines.append(new_line)
             elif brack_num == 0:  break
+        
         end_line += self.line_num + 2
 
+        return end_line
+
+
+    def check_python_command(self, line):
+        """
+        Will check the syntax of a python command.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        end_line = self.__check_external_code__(line, "python")
+
         # Parse all the variables
+        rest_filetxt = '\n'.join(self.file_ltxt[self.line_num:])
         any_vars = re.findall(VAR_REGEX+" *=", rest_filetxt)
         any_vars = (var.strip('= ') for var in any_vars)
         for var in any_vars:
@@ -692,6 +718,15 @@ class INP_File(object):
 
         self.line_num = end_line
         return any_vars
+
+    def check_bash_command(self, line):
+        """
+        Will check the syntax of a bash command.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        self.__check_external_code__(line, "bash")
 
     def check_if_statement(self, line):
         """
@@ -768,8 +803,8 @@ class INP_File(object):
             elif self.line_declarations['script'](line):
                 self.parse_script_cmd(line)
 
-            elif self.line_declarations['python'](line):
-                self.parse_python_cmd(line)
+            elif self.line_declarations['inline_code'](line):
+                getattr(self, f"parse_{line.split()[0]}_cmd")(line)
 
             elif self.line_declarations['if'](line):
                 self.parse_if_cmd(line)
@@ -1441,8 +1476,40 @@ class INP_File(object):
         else:
             if words[2] == 'python':
                 self.exec_python_script(filepath)
+            elif words[2] == "bash":
+                self.exec_bash_script(filepath)
             else:
                 self.print_error(f"'{words[2]}' scripts not yet suported")
+
+    def exec_bash_script(self, filepath=False, script_txt=False):
+        """
+        Will execute a basj script from a filepath or the inputted txt
+
+        Inputs:
+            * filepath <str> => The filepath to load and execute.
+            * script_txt <str> => The script to be executed.
+        """
+        if script_txt is False and type(filepath) is str:
+            with open(filepath, 'r') as file_:
+                script_txt = file_.read()
+        elif type(script_txt) is str and filepath is False:
+            filepath = "inline-script"
+        else:
+            SystemError("'exec_bash_script' function used incorrectly!"
+                        +" Choose either script_txt or filepath")
+
+        script_txt = "\n".join([line.strip() for line in script_txt if line])
+        any_vars = re.findall(IN_STR_VAR_REGEX, script_txt)
+        for var_name in any_vars:
+            if var_name.strip('$') in self.variables:
+                str_var = repr(getattr(self, var_name.strip('$')))
+                str_var = f'"{str_var}"'
+                script_txt = script_txt.replace(var_name, str_var)
+
+        os.system(script_txt)
+        
+        
+
 
     def exec_python_script(self, filepath=False, script_txt=False):
         """
@@ -1453,8 +1520,8 @@ class INP_File(object):
             * script_txt <str> => The script to be executed.
         """
         if script_txt is False and type(filepath) is str:
-            with open(filepath, 'r') as sdiukndvqo_groeihbn:
-                script_txt = sdiukndvqo_groeihbn.read()
+            with open(filepath, 'r') as file_:
+                script_txt = file_.read()
         elif type(script_txt) is str and filepath is False:
             filepath = "inline-script"
         else:
@@ -1478,6 +1545,22 @@ class INP_File(object):
         for var_name in vars:
             setattr(self, var_name, vars[var_name])
             if var_name not in self.variables: self.variables.append(var_name)
+
+    def parse_bash_cmd(self, line):
+        """
+        Will execute a bash script from a string in the input file.
+
+        Inputs:
+            * filepath <str> => The filepath to load and execute.
+        """
+        # Find the code to run
+        end_line = self.get_end_brace()
+
+        script = self.file_ltxt[self.line_num+2:end_line]
+
+        self.exec_bash_script(script_txt=script)
+
+        self.line_num = end_line
 
     def parse_python_cmd(self, line):
         """

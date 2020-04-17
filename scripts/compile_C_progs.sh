@@ -10,16 +10,15 @@
 # It will only compile single C files and won't create object files.
 
 
-# To add new C programs just add values to the arrays below and remember to
-#  increase the NPROGRS variable.
+# To add new C programs just add values to the arrays below
 ###############################
 
-CALC_DIR="$PWD/src/calc"
+MISC_C_MOD_DIR="$PWD/src/misc_C_modules"
 BIN_DIR="$PWD/bin"
 # Declare the programs that need compiling and the necessary compilation flags
 
 # Don't put the .c extension on this
-declare -a C_DIR=($CALC_DIR)
+declare -a C_DIR=("$MISC_C_MOD_DIR/RDF")
 declare -a C_PROGRAMS=("RDF2_inter_tri")
 declare -a LIBS=("-lm")
 declare -a INCLUDES=("")

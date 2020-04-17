@@ -18,7 +18,7 @@ read $filepath_pos lammps_dump into pos
 # Set some useful parameters
 set system pos to pentacene
 pos['allow_boundaries'] = True
-pos['plot_layers'] = True
+pos['plot_layers'] = False
 
 # Actually calculate where the layers appear
 calc mol_layers from pos as layers

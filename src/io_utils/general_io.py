@@ -262,7 +262,7 @@ def remove_file_extension(filepath):
 	Inputs:
 		* filepath <str> => The filepath which should have the extension removed.
 	Outputs:
-		(<str>, <str>) The filepath with it's extension removed.
+		(<str>, <str>) The filepath with it's extension removed, extension.
 	"""
 	if '.' not in filepath:
 		return filepath

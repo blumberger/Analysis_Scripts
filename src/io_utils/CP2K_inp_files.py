@@ -36,7 +36,17 @@ class Read_INP(gen_io.DataFileStorage):
 		"""
 		Overload the str magic function.
 		"""
-		return write_inp(self.data)
+		return str(self.file_data)
+
+	def write(self, filepath):
+		count, orig_fpath = 0, filepath[:]
+		for i in self.file_data:
+			while os.path.isfile(filepath) and count < 1000:
+				fpath, ext = gen_io.remove_file_extension(orig_fpath)
+				filepath = f"fpath_{count}.{ext}"
+				count += 1
+			
+			self.file_data[i].write(filepath)
 
 	def append(self, val):
 		if type(val) == type(self):
@@ -312,25 +322,6 @@ class INP_File(dict):
 	def __reset_all_line_nums__(self):
 		"""Will reset all the line_numbers for each INP_Line object in the file."""
 		for i in range(len(self['lines'])): self['lines'][i].line_num = i
-
-
-class Write_INP(gen_io.Write_File):
-	"""
-	Inherit from gen_io.Write_File to write CP2K input file.
-
-	This is basically the same as the gen_io.Write_File class see that for more
-	details.
-
-	 Inputs:
-		* Data_Class <class> => The class containing all the data to be written
-		* filepath <str>     => The path to the file to be written.
-	"""
-	def __init__(self, Data_Class, filepath):
-		if 'cp2k_inp' not in Data_Class:
-			raise SystemError("\n\nCan't find the CP2K INP file data.\n\n")
-			
-		super().__init__(Data_Class['cp2k_inp'], filepath, "inp")
-
 
 class INP_Line(object):
 	"""

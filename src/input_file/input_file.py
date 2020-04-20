@@ -402,11 +402,11 @@ class INP_File(object):
 
         # Check we know how to write the requested filetype
         if len(words) == 5:
-           if words[4] not in f_dicts.write_fncs:
-               err_msg = "I don't know how to write that type of file.\n\n"
-               err_msg += "Please use one of:\n\t*"
-               err_msg += "\n\t*".join(list(f_dicts.write_fncs.keys()))
-               self.print_error(err_msg)
+            if words[4] not in f_dicts.write_fncs:
+                err_msg = "I don't know how to write that type of file.\n\n"
+                err_msg += "Please use one of:\n\t*"
+                err_msg += "\n\t*".join(list(f_dicts.write_fncs.keys()))
+                self.print_error(err_msg)
 
         self.files_written.append(gen_parse.rm_quotation_marks(words[2]))
 
@@ -1164,7 +1164,18 @@ class INP_File(object):
            ftype = Var['file_type']
 
         # Write the data
-        f_dicts.write_fncs[ftype](Var.data, fpath)
+        if callable(f_dicts.write_fncs[ftype]):
+            f_dicts.write_fncs[ftype](Var.data, fpath)
+
+        elif type(f_dicts.write_fncs[ftype]) == str:
+            f_str = f_dicts.write_fncs[ftype]
+            if 'self.' in  f_str:
+                write_func = getattr(Var.data[ftype], f_str.replace("self.", "") )
+                write_func(fpath)
+
+            else:
+                raise SystemError("\n\nDon't understand the pointer to the write function."
+                                  + "\n\n"+f"Pointer = '{f_str}'")
 
     def parse_echo_cmd(self, line):
         """

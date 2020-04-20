@@ -38,7 +38,7 @@ load_fncs = {
              'params': param_files.Params, "pseudo_ham": psu_ham.Pseudo_Ham
             }
 write_fncs = {
-              'cp2k_inp': CP2K_inp.Write_INP, 'xyz': xyz.Write_XYZ_File,
+              'cp2k_inp': "self.write", 'xyz': xyz.Write_XYZ_File,
               'json': json.write_json, 'csv': csv_files.Write_CSV,
               "psf": gen_io.Write_File,
              }

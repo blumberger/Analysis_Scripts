@@ -33,7 +33,8 @@ for (( i=0; i<$NPROGS; i++ ));
 do
     cd ${C_DIR[$i]};
     echo ${C_DIR[$i]};
-    make ${MAKE_CMD[$i]};
+    make ${MAKE_CMD[$i]} -s
+    exit
     cp $EXE_NAMES $BIN_DIR;
     cd -;
 done

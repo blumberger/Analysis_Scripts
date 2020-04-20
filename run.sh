@@ -75,6 +75,7 @@ done
 # Compile any C programs that need compiling
 ./scripts/compile_C_progs.sh
 ./scripts/make_all.sh
+
 if [ "$exit_code" != "0" ]
 then
     echo "Exit Code = $exit_code";

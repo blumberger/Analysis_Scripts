@@ -50,8 +50,11 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 	"""
 	required_data_types = ('pos',)
 	_defaults = {'NN_cutoff': 2, "coupling_calc_exe": "./bin/STO_proj_AOM_overlap",
-				 "show_timing": False, "number_processors": False}
-	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file", "NN_cutoff")
+				 "show_timing": False, "number_processors": False, 'molecule_numbers': 'all',
+				 "plot_coupling_connections": False, "save_coupling_connection_plot": False}
+	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file", "NN_cutoff",
+						 'molecule_numbers', 'scaling_factor', "plot_coupling_connections",
+						 "reorganisation_energy", "save_coupling_connection_plot")
 	AOM_mu = {
 			  'H': '1.0000',
 			  'C': '1.6083  1.0300',
@@ -69,14 +72,19 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 	dimer_filepaths = tuple(f"tmp_dimer_{i}.xyz" for i in range(nproc))
 
 	times = {}
-	data = {}
 
 	def _calc_(self):
 
 		t1 = time.time()
 
+
+
 		if type(self.metadata['number_processors']) == int:
+			# Decide how many procs to use.
 			self.nproc = self.metadata['number_processors']
+			if self.nproc > mp.cpu_count(): self.nproc = mp.cpu_count()
+			elif self.nproc < 1: self.nproc = 1
+
 			self.config_filepaths = tuple(f"tmp_config_{i}.txt"
 										  for i in range(self.nproc))
 			self.dimer_filepaths = tuple(f"tmp_dimer_{i}.xyz"
@@ -92,12 +100,16 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		cols = self.Var.data.get_xyz_cols()[0]
 
 		# Get the molecular coordinate
-		all_mol_crds = mol_utils.atoms_to_mols(xyz_data, self.ats_per_mol,
-                                               nstep=len(xyz_data))
+		all_mol_crds_orig = mol_utils.atoms_to_mols(xyz_data, self.ats_per_mol,
+                                                    nstep=len(xyz_data))
 		all_mol_cols = mol_utils.cols_to_mols(cols, self.ats_per_mol)
-		mol_centroids = np.mean(all_mol_crds, axis=2)
+
+
+		# Decide which molecules to calculate the coupling for.
+		all_mol_crds, all_mol_cols = self._get_correct_mol_inds_(all_mol_crds_orig, all_mol_cols)
 
 		# Get the nearest neighbours between molecular centroids
+		mol_centroids = np.mean(all_mol_crds, axis=2)
 		mol_NN = np.array([[calc_all_dists(pos_ind, step_data, self.metadata['NN_cutoff'])
 				   for pos_ind in range(len(step_data))] for step_data in mol_centroids])
 		
@@ -108,6 +120,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 
 		# Loop over all steps and molecules and calculate couplings
+		self.data = [{} for istep in range(len(xyz_data))]
 		for istep in range(len(xyz_data)):
 			self.step_NN = mol_NN[istep]
 			self.mol_cols = all_mol_cols[istep]
@@ -117,11 +130,13 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			mol_inds_for_each_proc = [np.arange(len_data_div*(i), len_data_div*(i+1))
 									  for i in range(self.nproc)]
 			args = [(mol_inds_for_each_proc[i], i) for i in range(self.nproc)]
-			pool = mp.Pool(self.nproc)
-			all_data = pool.map(self.__calc_mol_couplings__, args)
-			for i in all_data:	self.data.update(i)
+			if self.nproc > 1:
+				pool = mp.Pool(self.nproc)
+				all_data = pool.map(self.__calc_mol_couplings__, args)
+				for i in all_data:	self.data[istep].update(i)
+			else: self.data[istep] = self.__calc_mol_couplings__(args[0])
 
-
+		# Show some timing data if necessary
 		if self.metadata['show_timing']:
 			mean_times = {i: np.mean(self.times[i]) for i in self.times}
 			time_per_step = sum(mean_times.values())
@@ -131,7 +146,54 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			tot_time = time.time() - t1
 			print(f"Total Time Taken: {tot_time:.1f}s")
 
+		do_plot = self.metadata['plot_coupling_connections'] or bool(self.metadata['save_coupling_connection_plot'])
+		if do_plot:
+			all_centroids = np.mean(all_mol_crds_orig, axis=2)
+			for istep in range(len(xyz_data)):
+				f = plt.figure()
+				a1 = f.add_subplot(121, projection="3d"); a2 = f.add_subplot(122, projection="3d")
+				
+				min_Hab = self.metadata["reorganisation_energy"] / 100.
+				self._plot_coupling_connections_(mol_centroids[istep], self.data[istep], a1, min_Hab)
+				self._plot_mol_selection_(all_centroids[istep], mol_centroids[istep], a2)
+				plt.tight_layout()
+
+				if bool(self.metadata['save_coupling_connection_plot']):
+					plt.savefig(self.metadata['save_coupling_connection_plot'])
+					plt.close()
+				else:
+					plt.show()
+					
+		os.remove("AOM_dimer.include")
 		return self.data
+
+	def _get_correct_mol_inds_(self, all_mol_crds, all_mol_cols):
+		if type(self.metadata['molecule_numbers']) == str:
+			if self.metadata['molecule_numbers'] == 'all': pass
+			else:
+				raise SystemExit(f"String argument '{self.metadata['molecule_numbers']}' not understood"
+								 + " for parameter 'molecule_numbers'.")
+
+		elif type(self.metadata['molecule_numbers']) == list:
+			all_mol_crds = all_mol_crds[:, self.metadata['molecule_numbers']]
+			all_mol_cols = all_mol_cols[:, self.metadata['molecule_numbers']]
+
+		elif type(self.metadata['molecule_numbers']) == float:
+			if self.metadata['molecule_numbers'] <= 1.0:
+				mol_inds = np.arange(len(all_mol_crds[0]))
+				mol_inds = mol_inds[:int(len(mol_inds) * self.metadata['molecule_numbers'])]
+				all_mol_crds = all_mol_crds[:, mol_inds]
+				all_mol_cols = all_mol_cols[:, mol_inds]
+			else: 
+				raise SystemExit(f"Float argument '{self.metadata['molecule_numbers']}' not understood"
+								 + " for parameter 'molecule_numbers'.")
+
+		else:
+			raise SystemExit(f"Argument '{self.metadata['molecule_numbers']}' of type"
+							 + f"'{type(self.metadata['molecule_numbers'])}' not understood "
+							 + " for parameter 'molecule_numbers'.")	
+
+		return all_mol_crds, all_mol_cols
 
 	def __calc_mol_couplings__(self, args):#mol_nums, proc_num=0):
 		"""
@@ -157,10 +219,15 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 										     self.config_filepaths[proc_num],
 								             self.dimer_filepaths[proc_num])
 
-				data.setdefault(imol1, {})[imol2] = coupling * 2588.75
+				data.setdefault(imol1, {})[imol2] = coupling * 2462.2
 
-		os.remove(self.config_filepaths [proc_num])
-		os.remove(self.dimer_filepaths[proc_num])
+		if not os.path.isfile(self.dimer_filepaths[proc_num]):
+			print("\n\nWarning no coupling values found within given cutoff"
+			      + f"of {self.metadata['NN_cutoff']} for given mols.")
+		else:
+			os.remove(self.dimer_filepaths[proc_num])
+
+		os.remove(self.config_filepaths[proc_num])
 
 		return data
 
@@ -287,7 +354,109 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		with open(filepath, "w") as f:
 			f.write(f"{natom}" + "\n\n" + '\n'.join(xyz_body))
 
+	def __get_coupling_connections__(self, all_mol_crds, couplings, plot_params, convert=False, min_Hab=1):
+		"""
+		Will return dict with the coupling connection info for plotting.
 
+		Inputs:
+			* all_mol_crds <array> => The molecular coordinates
+			* couplings <array> => The coupling data.
+			* convert <bool> => Convert from Hartree to meV or not. (default no conversion)
+		"""
+		if convert is False:  conversion = 1
+		else:  conversion = consts.Ha_to_meV
+
+		# Loop over coupling mol nums (these are the integer indices in the coupling dict.)
+		graph_data = []
+		for mol1 in couplings:
+			if not isinstance(mol1, (int, np.int64)): continue
+			mol_couplings = couplings[mol1]
+
+			# Loop over the mols this mol is coupled with.
+			for mol2 in mol_couplings:
+				if mol1 != mol2:
+					Hab = abs(mol_couplings[mol2] * conversion)
+					if Hab < min_Hab: continue
+
+					for max_coup in plot_params:
+						if Hab >= max_coup:
+							plot_args = plot_params[max_coup][0]
+							break
+					else:
+						raise SystemExit("Something went wrong categorising the coupling colors")
+
+					pos1, pos2 = all_mol_crds[mol1], all_mol_crds[mol2]
+					point_data = {'pos': ((pos1[0], pos2[0]),
+										  (pos1[1], pos2[1]),
+										  (pos1[2], pos2[2])),
+								  'args': plot_args,
+								 }
+					graph_data.append(point_data)
+
+		return graph_data
+
+	def _plot_coupling_connections_(self, all_mol_crds, couplings, ax=False, min_Hab=10):
+		"""
+		Will plot the connections via coupling for the given molecular system.
+
+		Inputs:
+			* all_mol_crds <array> => The molecular coordinates
+			* couplings <array> => The coupling data.
+			* ax <plt.axis> OPTIONAL => The axis to plot on
+		"""
+		if ax is False:
+			fig = plt.figure()
+			ax = fig.add_subplot(111, projection="3d")
+
+		ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z");
+		ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([]);
+
+		reorg = self.metadata['reorganisation_energy']
+		plot_params = {reorg/2.: ({'color': 'r', 'lw': 3}, r"$H_{ab} \geq \frac{\lambda}{2}$"),
+					    reorg/10.: ({'color': 'g', 'lw': 1.5}, r"$\frac{\lambda}{2} > H_{ab} \geq \frac{\lambda}{10}$"),
+					    min_Hab: ({'color': 'b', 'lw': 0.3}, r"$\frac{\lambda}{10} > H_{ab} \geq \frac{\lambda}{100}$"),
+					  }
+		graph_data = self.__get_coupling_connections__(all_mol_crds, couplings, plot_params,
+			                  						   min_Hab=min_Hab)
+
+		self._plot_xyz_data(all_mol_crds, ax,
+				     		args={'ls': 'none', 'marker': '.', 'color': 'k'})
+		for plot_data in graph_data:
+			ax.plot(*plot_data['pos'], **plot_data['args'])
+
+		# a1.view_init(azim=64, elev=90)
+		# a2.view_init(azim=64, elev=0)
+
+		# if self.metadata['CC_plot_title']: ax.set_title(self.metadata['CC_plot_title'].replace("Layer", "").replace("_", " ").strip())
+
+		legend_elements = [Line2D([0], [0], label=plot_params[i][1], **plot_params[i][0]) for i in plot_params]
+		ax.legend(handles=legend_elements, loc="best")
+
+	def _plot_mol_selection_(self, all_mols, mol_selection, ax=False):
+		"""
+		Will plot the molecules selected within the full system.
+
+		Inputs:
+			* all_mols <array> => The full system
+			* mol_selection <array> => The selected molecules
+			* ax <plt.axis> OPTIONAL => The axis to plot on
+		"""
+		if ax is False:
+			fig = plt.figure()
+			ax = fig.add_subplot(111, projection="3d")
+
+		ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z");
+		ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([]);
+
+		# Plot the full system of molecules as black dots
+		self._plot_xyz_data(all_mols, ax,
+						    args={'ls': 'none', 'marker': '.', 'color': 'k'})
+
+		# Plot the selected molecules as red blobs
+		self._plot_xyz_data(mol_selection, ax,
+						    args={'ls': 'none', 'marker': 'o', 'color': 'r'})
+
+		return ax
 
 class Coupling_Connections(gen_calc.Calc_Type):
 	"""

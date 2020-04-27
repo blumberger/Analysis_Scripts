@@ -258,15 +258,15 @@ class INP_File(object):
 
             # Error check any for script commands
             elif self.line_declarations['script'](line):
-                vars = self.check_script_command(line)
-                for var in vars:
+                _vars = self.check_script_command(line)
+                for var in _vars:
                     if var not in variables: variables.append(var)
 
             # Error check any python commands
             elif self.line_declarations['inline_code'](line):
                 if self.line_declarations['python'](line):
-                    vars = self.check_python_command(line)
-                    for var in vars:
+                    _vars = self.check_python_command(line)
+                    for var in _vars:
                         if var not in variables: variables.append(var)
                 else:
                     # Run the check_{script_type}_command() fnc
@@ -439,7 +439,7 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from the input file.
         """
-        # Define some useful vars for later
+        # Define some useful _vars for later
         is_cond_var = lambda x: any(x.strip() == j for j in 'xyz') or type_check.is_num(x)
         is_cond = lambda x: any(x.strip() == j for j in '< <= > >= =='.strip())
 
@@ -720,11 +720,11 @@ class INP_File(object):
         # Parse any variables from the script (if a python script)
         if len(words) == 2 or words[2] == "python":
             with open(words[1], "r") as f:
-                vars = [i.strip('= ') for i in re.findall(VAR_REGEX+" *=", f.read())]
-            for var in vars:
+                _vars = [i.strip('= ') for i in re.findall(VAR_REGEX+" *=", f.read())]
+            for var in _vars:
                 self.set_var(var, "^EMPTY^")
 
-        return vars
+        return _vars
 
     def __check_external_code__(self, line, name):
         """
@@ -1612,21 +1612,22 @@ class INP_File(object):
                         +" Choose either script_txt or filepath")
 
         # Declare all the variables in the global scope so the user can use them
-        vars = {var_name: getattr(self, var_name) for var_name in self.variables}
+        _vars = {var_name: getattr(self, var_name) for var_name in self.variables}
 
         # Run the script in a try loop
         try:
-            exec(script_txt, vars)
+            exec(script_txt, _vars)
         except Exception as e:
-            err_msg = str(e)
-            if 'txt' in dir(e):
+            err_msg = repr(e)
+            if hasattr(e, 'txt'):
                 err_msg = "Error in your python code.\n\n"+f"Script: {filepath}" + "\n"
                 err_msg += f"Bad Line: {e.text}" + "\n" + f"Line Num: {e.lineno}"
                 err_msg += "\nError Msg: " + f"{e.msg}"
+            
             self.print_error(err_msg)
 
-        for var_name in vars:
-            setattr(self, var_name, vars[var_name])
+        for var_name in _vars:
+            setattr(self, var_name, _vars[var_name])
             if var_name not in self.variables: self.variables.append(var_name)
 
     def parse_bash_cmd(self, line):
@@ -1690,8 +1691,8 @@ class INP_File(object):
 
         # Check all variables have been declared
         any_vars = [i for i in re.findall(VAR_REGEX, statement)]
-        vars = [getattr(self, var.strip('$')).data for var in any_vars]
-        for var_name, var_val in zip(any_vars, vars):
+        _vars = [getattr(self, var.strip('$')).data for var in any_vars]
+        for var_name, var_val in zip(any_vars, _vars):
             statement = statement.replace(var_name, str(var_val))
 
         # Evaluate the if statement
@@ -1716,7 +1717,7 @@ class INP_File(object):
         Inputs:
             * line <str> => The line containing the for loop
         """
-        # Define some useful vars for later
+        # Define some useful _vars for later
         is_cond_var = lambda x: any(x.strip() == j for j in 'xyz') or type_check.is_num(x)
         is_xyz = lambda x: any(x.strip() == j for j in 'xyz')
         is_cond = lambda x: any(x.strip() == j for j in '< <= > >= =='.strip())

@@ -448,6 +448,12 @@ class Lammps_Dump(gen_io.DataFileStorage):
             else:
                 self.parse_dump(item_num)
 
+        # Add some useful metadata
+        unique_mols = self.csv_data['mol'].unique()
+        self.metadata['nmol'] = len(unique_mols)
+        self.metadata['natom'] = len(self.csv_data)
+        self.metadata['atoms_per_molecule'] = np.sum(self.csv_data['mol'] == unique_mols[0])
+
         # Fix periodic BCs
         self.csv_data['timestep'] = self.metadata['timestep']
         self.wrapped_csv = copy.deepcopy(self.csv_data)

@@ -1,6 +1,12 @@
-folder_crys = "/home/oem/Data/Pentacene_Crystal_Melt/xyz_md"
-folder_50ps = "/home/oem/Data/Final_Melt_Quench_50ps_quench/xyz_md"
-folder_1ns = "/home/oem/Data/Final_Pentacene_1ns_Quench"
+root_folder = "/home/matt/Data/Pentacene_Final_Data/"
+
+folder_crys = "$root_folder/Crystal_Run/xyz_md"
+folder_inst = "$root_folder/Instant_Quench/xyz_md"
+folder_50ps = "$root_folder/50ps_Quench/xyz_md"
+folder_1ns = "$root_folder/1ns_Quench"
+folder_10ns = "$root_folder/10ns_Quench"
+folder_100ns = "$root_folder/100ns_Quench"
+
 
 
 ## Crystal
@@ -8,38 +14,44 @@ load "$folder_crys/snapshot5000.dat" lammps_dump as crystal_data
 set system crystal_data to pentacene
 calc angular_dist from crystal_data as ang_crystal
 
-
-## Liquid
-load "$folder_crys/snapshot1000000.dat" lammps_dump as liquid_data
-set system liquid_data to pentacene
-calc angular_dist from liquid_data as ang_liquid
-
+## Instant Quench
+load "$folder_inst/snapshot2250002.dat" lammps_dump as inst_data
+set system inst_data to pentacene
+calc angular_dist from inst_data as ang_inst
 
 ## 50ps
 load "$folder_50ps/snapshot2250000.dat" lammps_dump as data_50ps
 set system data_50ps to pentacene
 calc angular_dist from data_50ps as ang_50ps
 
-
 ## 1ns
 load "$folder_1ns/snapshot3225000.dat" lammps_dump as data_1ns
 set system data_1ns to pentacene
 calc angular_dist from data_1ns as ang_1ns
 
+## 10ns
+load "$folder_10ns/snapshot9995000.dat" lammps_dump as data_10ns
+set system data_10ns to pentacene
+calc angular_dist from data_10ns as ang_10ns
 
+## 100ns
+load "$folder_100ns/snapshot99995000.dat" lammps_dump as data_100ns
+set system data_100ns to pentacene
+calc angular_dist from data_100ns as ang_100ns
 
 
 python {
     import matplotlib.pyplot as plt
 
     ax = ang_crystal.data.plot(label="Crystal")
-#    other_ax = [a.twinx() for a in ax]
-    other_ax = ang_liquid.data.plot(axes=ax, label="Liquid")
+    other_ax = ang_inst.data.plot(axes=ax, label="Liquid")
     other_ax = ang_50ps.data.plot(axes=other_ax, label="50ps")
     other_ax = ang_1ns.data.plot(axes=other_ax, label="1ns")
+    other_ax = ang_10ns.data.plot(axes=other_ax, label="10ns")
+    other_ax = ang_100ns.data.plot(axes=other_ax, label="100ns")
 
     for ax in other_ax:
-        ax.set_ylim([0, 4])
+        ax.set_ylim([0, 20])
 
     plt.legend()
     plt.show()

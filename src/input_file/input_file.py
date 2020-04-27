@@ -50,7 +50,7 @@ from src.input_file import function_dicts as f_dicts
 from src.input_file import input_file_types as inp_types
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
-            'script', 'python', 'if')
+            'script', 'python', 'if', "splice")
 SET_FOLDERPATH = "src/data/set"
 SET_TYPES = ("params", "system")
 VALID_FOR_FUNCS = ("range", "filepath", "list")
@@ -219,6 +219,10 @@ class INP_File(object):
                 self.check_variable_line(line)
                 name, _ = self.parse_variable_line(line)
                 variables.append(name)
+
+            # Error check any splice commands
+            elif self.line_declarations['splice'](line):
+                self.check_splice_command(line)
 
             # Error check any file loading commands
             elif self.line_declarations['load'](line):
@@ -427,6 +431,71 @@ class INP_File(object):
         if len(words) < 2:
             self.print_error("The syntax for declaring variables is: "
                                + "'<name> = <value>'")
+
+    def check_splice_command(self, line):
+        """
+        Will check the syntax of the line with the splice command
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from the input file.
+        """
+        # Define some useful vars for later
+        is_cond_var = lambda x: any(x.strip() == j for j in 'xyz') or type_check.is_num(x)
+        is_cond = lambda x: any(x.strip() == j for j in '< <= > >= =='.strip())
+
+        syntax = "splice <var name> (x-max > x > x-min y-max > y > y-min  z-max > z > z-min ) as <new var name> \n\n[All conditional statements are optional e.g. you can just use x-min if that's all that you need.]"
+        bad_syntax_msg = "Incorrect syntax: To splice data use the following syntax...\n    `%s`" % syntax
+        self.E_str = "check_splice_line"
+        if '(' not in line or ')' not in line:
+            self.print_error(bad_syntax_msg, errorFunc=SyntaxError)
+
+        # Separate the conditional statement and the rest of the syntax
+        conditions, rest_of_text = gen_parse.get_str_between_delims(line, "(", ")")
+        words = rest_of_text.split() 
+        if len(words) != 5:
+            self.print_error(bad_syntax_msg, errorFunc=SyntaxError)
+
+        # Check for the variables
+        if words[1] not in self.variables:
+            self.print_error(f"Can't find variable: {words[1]}", errorFunc=NameError)
+
+        # Check the conditional statements
+        cond_words = conditions.split()
+        if len(cond_words) < 2:
+            pass
+        else:
+            if all(idim not in conditions for idim in 'xyz'):
+                self.print_error("%s\n\nYou're missing either an 'x', 'y' and/or 'z'." % bad_syntax_msg, errorFunc=SyntaxError)
+            if all(j not in conditions for j in '<>'):
+                self.print_error("%s\n\n You're missing either any comparators." % bad_syntax_msg, errorFunc=SyntaxError)
+
+            errs  = []
+
+            # Check the first entry
+            _curr, _next = cond_words[0], cond_words[1]
+            msg = "%s\n\nCheck statement %s %s"  % (bad_syntax_msg, _curr, _next)
+            if is_cond(_curr): errs.append(msg)
+            elif not (is_cond(_next)): errs.append(msg)
+
+            # Check middle entries
+            for i in range(1, len(cond_words) - 1):
+                _prev, _curr, _next = cond_words[i-1], cond_words[i], cond_words[i+1]
+                
+                msg = "%s\n\nCheck statement %s %s %s"  % (bad_syntax_msg, _prev, _curr, _next)
+                if is_cond(_curr):
+                    if not (is_cond_var(_prev) or is_cond_var(_next)): errs.append(msg)
+                else:
+                    if not (is_cond(_prev) or is_cond(_next)): errs.append(msg)
+
+            # Check the last entry
+            _curr, _prev = cond_words[-1], cond_words[-2]
+            msg = "%s\n\nCheck statement %s %s"  % (bad_syntax_msg, _prev, _curr)
+            if is_cond(_curr): errs.append(msg)
+            elif not (is_cond(_prev)): errs.append(msg)
+
+            if errs:
+                errs = "\n\n______________________\n\n\n".join(errs)
+                self.print_error(errs, errorFunc=SyntaxError)
 
     def check_math_line(self, line):
         """
@@ -808,6 +877,9 @@ class INP_File(object):
 
             elif self.line_declarations['if'](line):
                 self.parse_if_cmd(line)
+
+            elif self.line_declarations['splice'](line):
+                self.parse_splice_cmd(line)
 
             # The end of control statements
             elif '}' in line:
@@ -1636,6 +1708,47 @@ class INP_File(object):
         self.line_num += 1
         if val is False:
             self.line_num = end_line
+
+    def parse_splice_cmd(self, line):
+        """
+        Will parse the data splicing line.
+
+        Inputs:
+            * line <str> => The line containing the for loop
+        """
+        # Define some useful vars for later
+        is_cond_var = lambda x: any(x.strip() == j for j in 'xyz') or type_check.is_num(x)
+        is_xyz = lambda x: any(x.strip() == j for j in 'xyz')
+        is_cond = lambda x: any(x.strip() == j for j in '< <= > >= =='.strip())
+
+        # Split the line up
+        conditions, rest_of_text = gen_parse.get_str_between_delims(line, "(", ")")
+        words = rest_of_text.split()
+
+        # Check the data is spliceable
+        data = getattr(self, words[1])
+        if not hasattr(data.data, "get_xyz_data"):
+            self.print_error(f"Can't splice data of type {data}", errorFunc=TypeError)
+
+        c_words = conditions.split()
+        param_dict = {}
+        for i in range(len(c_words)):
+            if i == 0: _prev, _curr, _next = "", c_words[i], c_words[i+1]
+            if i == len(c_words)-1: _prev, _curr, _next = c_words[i-1], c_words[i], ""
+            else: _prev, _curr, _next = c_words[i-1], c_words[i], c_words[i+1]
+
+            if is_xyz(_curr):
+                # ... > xyz
+                if _prev == '>': param_dict[f"{_curr}max"] = float(c_words[i-2])
+                # ... < xyz
+                elif _prev == '<': param_dict[f"{_curr}min"] = float(c_words[i-2])
+                # xyz > ...
+                if _next == '>': param_dict[f"{_curr}min"] = float(c_words[i+2])
+                # xyz < ...
+                elif _next == '<': param_dict[f"{_curr}max"] = float(c_words[i+2])
+
+        raise SystemExit
+        splice_data = data.data.splice_xyz_data(**param_dict)
 
     def get_end_brace(self):
         """

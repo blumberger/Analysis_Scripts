@@ -334,5 +334,42 @@ class Vars(dict):
             return np.array([csv_data[['x', 'y', 'z']][csv_data['timestep'] == i].to_numpy()
                              for i in unique_steps])
         else:
-            raise SystemEror("\n\nNo x, y, z data in the lammps dump file.\n\n")
+            raise SystemError("\n\nNo x, y, z data in the lammps dump file.\n\n")
 
+    def __get_csv_data_from_lammps_dump__(self):
+        pass
+
+    def splice_xyz_data(self, xmin=False, xmax=False, ymin=False, ymax=False, zmin=False, zmax=False):
+        """
+        Will splice the data and make changes inplace.
+        """
+        XYZ_DATA_KEYS = {'xyz': self.__splice_xyz_data_in_xyz__,
+                         'lammps_dump': self.__splice_xyz_data_in_lammps_dump__}
+
+        for i in XYZ_DATA_KEYS:
+            if i in self:
+                XYZ_DATA_KEYS[i](xmin, xmax, ymin, ymax, zmin, zmax)
+
+
+    def __splice_xyz_data_in_lammps_dump__(self, xmin=False, xmax=False, ymin=False, ymax=False, zmin=False, zmax=False):
+        """Splice xyz data from lammps dump file."""
+        csv_data = self['lammps_dump'].csv_data
+
+        print(csv_data)
+        raise SystemExit
+
+
+    def __splice_xyz_data_in_xyz__(self, xmin=False, xmax=False, ymin=False, ymax=False, zmin=False, zmax=False):
+        """Splice xyz data from a xyz file."""
+        xyz_data = __get_xyz_data_from_xyz__()
+
+        mask = np.array([np.ones(np.shape(i)[:-1], dtype=bool) for i in xyz_data])
+
+        if xmin: mask = mask & (xyz_data[:, :, 0] > xmin)
+        if xmax: mask = mask & (xyz_data[:, :, 0] < xmax)
+        if ymin: mask = mask & (xyz_data[:, :, 1] > ymin)
+        if ymax: mask = mask & (xyz_data[:, :, 1] < ymax)
+        if zmin: mask = mask & (xyz_data[:, :, 2] > zmin)
+        if zmax: mask = mask & (xyz_data[:, :, 2] < zmax)
+
+        return np.array([xyz_data[i][mask[i]] for i in range(len(xyz_data))])

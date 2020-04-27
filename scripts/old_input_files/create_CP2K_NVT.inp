@@ -1,0 +1,87 @@
+###
+# Read the positions
+###
+folder = "~/Data/Pentacene_Final_Data/Instant_Quench/xyz_md"
+filename = "snapshot2250002.dat"
+pos_filename = "$folder/$filename"
+
+read $pos_filename lammps_dump as pos
+set system pos to pentacene
+
+###
+# Read the CP2K input files
+###
+#run.inp
+cp_folder = "CP2K_Equilib"
+run_inp_filename = "$cp_folder/run.inp"
+FORCE_EVAL_filename = "$cp_folder/FORCE_EVAL.include"
+TOPOLOGY_filename = "$cp_folder/TOPOLOGY.include"
+
+read $run_inp_filename cp2k_inp as run_inp
+read $FORCE_EVAL_filename cp2k_inp as FE_inp
+read $TOPOLOGY_filename cp2k_inp as TOP_inp
+
+
+###
+# Create a new directory for our sim folder
+# Copy the psf and prm files across
+###
+sim_folder = "amorph_sim"
+bash {
+    if [ -d "$sim_folder" ]
+    then
+        rm -rf $sim_folder
+    fi
+    mkdir $sim_folder
+
+    cp $cp_folder/*.psf $sim_folder
+    cp $cp_folder/*.prm $sim_folder
+}
+
+
+###
+# Write the positions to the folder as pos-init.xyz
+###
+pos['coordinate_wrapping'] = "unwrapped"
+write pos "$sim_folder/pos-init.xyz" as xyz
+python {
+    import numpy as np
+    # need to convert from ang/fs to bohr/au_t
+    cvt_num = 1.8897161646320724 * 2.4188843265857e-2
+    np.savetxt("amorph_sim/VELOC.init",
+               pos.data['lammps_dump'].csv_data[['vx', 'vy', 'vz']].to_numpy() * cvt_num,
+               fmt="%.5f")
+}
+
+###
+# Ammend the inp files and write those
+###
+python {
+    # run.inp
+    run_inp.data['cp2k_inp'].data.change_param(['MOTION', 'PRINT', 'TRAJECTORY', 'EACH', 'MD'], 10000)
+    run_inp.data['cp2k_inp'].data.change_param(['MOTION', 'PRINT', 'VELOCITIES', 'EACH', 'MD'], 10000)
+    run_inp.data['cp2k_inp'].data.change_param(['MOTION', 'MD', 'STEPS'], 2000000)
+
+    run_inp.data['cp2k_inp'].write("amorph_sim/run.inp")
+
+    # Topology
+    A=pos.data['lammps_dump'].metadata['a'][0]
+    B=pos.data['lammps_dump'].metadata['b'][1]
+    C=pos.data['lammps_dump'].metadata['c'][2]
+    TOP_inp.data['cp2k_inp'].data.change_param(['CELL', 'ABC'],
+                                               f"{A:.3f}  {B:.3f}  {C:.3f}")
+    TOP_inp.data['cp2k_inp'].data.change_param(['CELL', 'ALPHA_BETA_GAMMA'],
+                                               "90  90  90")
+    TOP_inp.data['cp2k_inp'].data.change_param(['TOPOLOGY', 'MOL_SET', 'MOLECULE', 'NMOL'],
+                                      str(pos.data['lammps_dump'].metadata['nmol']))
+    TOP_inp.data['cp2k_inp'].data.change_param(['TOPOLOGY', 'MOL_SET', 'MOLECULE',
+                                                'CONN_FILE_NAME'],
+                                               "pentacene.psf")
+    TOP_inp.data['cp2k_inp'].write("amorph_sim/TOPOLOGY.include")
+
+    # FORCE EVAL
+    FE_inp.data['cp2k_inp'].data.change_param(['FORCE_EVAL', 'MM', 'FORCEFIELD',
+                                               'PARM_FILE_NAME'],
+                                              "PENCEN01_HOLE_beta_0.910.prm")
+    FE_inp.data['cp2k_inp'].write("amorph_sim/FORCE_EVAL.include")
+}

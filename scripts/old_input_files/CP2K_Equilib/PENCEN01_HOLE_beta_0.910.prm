@@ -1,0 +1,77 @@
+BONDS
+
+ CB   HA    345.800    1.086
+ CT   HA    345.800    1.086
+ CM   HA    345.800    1.086
+ CA   HA    345.800    1.086
+ CA   CB    461.100    1.388809  !shrink
+ CA   CA    461.100    1.398
+ CB   CK    461.100    1.411468  !growing
+ CT   CK    461.100    1.385533  !shrink
+ CK   CK    461.100    1.390993  !shrink
+ CT   CM    461.100    1.408465  !growing
+ CM   CM    461.100    1.385169  !shrink
+
+ANGLES
+
+ CA   CB   HA     48.200  119.880
+ CA   CA   HA     48.200  119.880
+ CK   CB   HA     48.200  119.880
+ CK   CT   HA     48.200  119.880
+ CT   CM   HA     48.200  119.880
+ CM   CT   HA     48.200  119.880
+ CM   CM   HA     48.200  119.880
+ CA   CB   CK     66.600  120.020
+ CA   CA   CB     66.600  120.020
+ CA   CA   CA     66.600  120.020
+ CB   CK   CT     66.600  120.020
+ CB   CK   CK     66.600  120.020
+ CK   CT   CM     66.600  120.020
+ CT   CK   CK     66.600  120.020
+ CT   CM   CM     66.600  120.020
+
+DIHEDRALS
+
+ HA   CA   CA   HA      3.625    2  180.000
+ CA   CA   CB   HA      3.625    2  180.000
+ CA   CA   CA   HA      3.625    2  180.000
+ CB   CA   CA   HA      3.625    2  180.000
+ CB   CK   CT   HA      3.625    2  180.000
+ CK   CT   CM   HA      3.625    2  180.000
+ CK   CK   CT   HA      3.625    2  180.000
+ CK   CK   CB   HA      3.625    2  180.000
+ CT   CK   CB   HA      3.625    2  180.000
+ CT   CM   CM   HA      3.625    2  180.000
+ CM   CM   CT   HA      3.625    2  180.000
+ !! HA   CT   CM   HA      3.625    2  180.000
+ HA   CM   CM   HA      3.625    2  180.000
+ HA   CM   CT   HA      3.625    2  180.000
+ !! CA   CA   CA   HA      1.100    2  180.000
+ CA   CB   CK   CT      3.625    2  180.000
+ CA   CB   CK   CK      3.625    2  180.000
+ CA   CA   CB   CK      3.625    2  180.000
+ CA   CA   CA   CA      3.625    2  180.000
+ CA   CA   CA   CB      3.625    2  180.000
+ CB   CA   CA   CB      3.625    2  180.000
+ CB   CK   CT   CM      3.625    2  180.000
+ CB   CK   CK   CT      3.625    2  180.000
+ CB   CK   CK   CB      3.625    2  180.000
+ CK   CT   CM   CM      3.625    2  180.000
+ CK   CK   CT   CM      3.625    2  180.000
+ CT   CK   CK   CT      3.625    2  180.000
+ CT   CM   CM   CT      3.625    2  180.000
+
+
+NONBONDED
+
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+CA       0.000000000    0.086000000    1.908000000
+CB       0.000000000    0.086000000    1.908000000
+CK       0.000000000    0.086000000    1.908000000
+CT       0.000000000    0.086000000    1.908000000
+CM       0.000000000    0.086000000    1.908000000
+HA        0.000000000    0.015700000    1.450000000
+END
+
+

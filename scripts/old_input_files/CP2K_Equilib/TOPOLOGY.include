@@ -1,0 +1,42 @@
+
+                
+                &CELL
+                        ABC                    6.2753    7.7138    14.4424
+                        ALPHA_BETA_GAMMA       76.75    88.01    84.52
+                        PERIODIC               XYZ
+                &END CELL
+
+                
+                &KIND CP
+                        ELEMENT C
+                &END KIND
+                &KIND H
+                        ELEMENT H
+                &END KIND
+                &KIND CN
+                        ELEMENT C
+                &END KIND
+
+                &TOPOLOGY
+                        COORD_FILE_FORMAT XYZ
+                        COORD_FILE_NAME   pos-init.xyz
+                        NUMBER_OF_ATOMS                   72
+                        CONN_FILE_FORMAT  MOL_SET
+                        &MOL_SET
+                
+                               &MOLECULE
+                                   NMOL              1
+                                   CONN_FILE_NAME    ../topologies/PENCEN01_NEUTRAL_NO_CHARGE.psf
+                                   CONN_FILE_FORMAT  UPSF
+                              &END MOLECULE
+                      
+                        &END MOL_SET
+                        &DUMP_PSF
+                                &EACH
+                                   MD          1
+                                &END EACH
+                                FILENAME ./input
+                        &END DUMP_PSF
+                &END TOPOLOGY
+                 
+            

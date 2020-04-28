@@ -12,14 +12,16 @@ from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
 from src.calc import geometry as geom
 
+
 class Molecular_Layers(gen_calc.Calc_Type):
 	"""
 	Will get the distribution of couplings from hamiltonian data for each predefined layer. 
 	"""
 	required_data_types = ('pos', )
 	required_calc = ("long_ax_rotation", )
-	_defaults = {'allow_boundaries': False, "plot_layers": False}
-	required_metadata = ("atoms_per_molecule", )
+	_defaults = {'allow_boundaries': False, "plot_layers": False, 'rotate': False}
+	required_metadata = ("atoms_per_molecule", 'rotate', )
+	metadata = {'file_type': 'json'}
 	name = "Molecular Layers"
 
 	def _calc_(self):
@@ -43,12 +45,13 @@ class Molecular_Layers(gen_calc.Calc_Type):
 				mol_col = mol_utils.cols_to_mols(cols, self.metadata['atoms_per_molecule'])
 
 				COM = mol_utils.get_COM_split_mols(mol_crds, mol_col)
-				self.rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
+				if self.metadata['rotate']:	 self.rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
+				else:						 self.rotated_COM = COM
 
 				self.sys_info = geom.get_system_size_info(self.rotated_COM)
 
 				self.layer_starts = self.get_layers(self.rotated_COM)
-				self.layer_mols = self.get_layer_mols(self.rotated_COM)
+				self.layer_mols, self.layer_inds = self.get_layer_mols(self.rotated_COM)
 
 				if self.metadata['plot_layers'] is True:
 					self.plot_layers()
@@ -63,14 +66,27 @@ class Molecular_Layers(gen_calc.Calc_Type):
 		Outputs:
 			* <list> The molecules arranged into layers
 		"""
-		layer_mols = []
+		# Get those mols before the first layer boundary
+		mask = mols[:, 2] < self.layer_starts[0]
+		all_inds = np.arange(len(mols))
+
+		layer_mols = [mols[mask]]
+		layer_inds = [all_inds[mask]]
+
+		# Get mols in between layers
 		for ilayer in range(len(self.layer_starts)-1):
 			start, end = self.layer_starts[ilayer], self.layer_starts[ilayer+1]
 			mask = (mols[:, 2] < end) & (mols[:, 2] > start)
 
 			layer_mols.append(mols[mask])
+			layer_inds.append(all_inds[mask])
 
-		return layer_mols
+		# Get the rest of the mols
+		mask = mols[:, 2] > self.layer_starts[-1]
+		layer_mols.append(mols[mask])
+		layer_inds.append(all_inds[mask])
+
+		return layer_mols, layer_inds
 
 
 	def get_layers(self, xyz):
@@ -97,9 +113,12 @@ class Molecular_Layers(gen_calc.Calc_Type):
 		# self.smoothed_df['gradient'] = np.abs(self.smoothed_df['num'] - np.roll(self.smoothed_df['num'], 10))
 		self.smoothed_df.index = np.arange(len(self.smoothed_df))
 
+
 		# Get some starting points for the minima
 		max_data, min_data = np.max(self.smoothed_df['num']), np.min(self.smoothed_df['num'])
 		data_range = max_data - min_data
+
+		self.smoothed_df.to_csv("test.csv", index=False)
 
 		# Use a steepest descent-eqsue algorithm to get true local minima
 		true_min = []
@@ -111,7 +130,7 @@ class Molecular_Layers(gen_calc.Calc_Type):
 			if new_ind is not False:
 				true_min.append(self.smoothed_df.loc[new_ind, 'z'])
 
-		_, true_min = geom.cluster_1D_points(true_min, np.diff(init_z)[0])
+		_, true_min = geom.cluster_1D_points(true_min, np.diff(init_z)[0]*0.2)
 
 		return true_min
 
@@ -141,26 +160,18 @@ class Molecular_Layers(gen_calc.Calc_Type):
 		plt.tight_layout()
 		return a2D
 		
-
-
-	def get_mol_nums_in_layer(self, mol_crds):
+	def json_data(self):
 		"""
-		Will get the molecule numbers of molecules in a layer.
+		Will return the json data
 		"""
-		xmin, xmax = self.metadata['xmin'], self.metadata['xmax']
-		ymin, ymax = self.metadata['ymin'], self.metadata['ymax']
-		zmin, zmax = self.metadata['zmin'], self.metadata['zmax']
+		write_data =  {
+			   		    'nmol': len(self.layer_inds),
+			   		    'layer_starts': self.layer_starts.tolist(),
+			   		  }
+		for i in range(len(self.layer_inds)):
+			write_data[f'layer_{i}'] = {
+						  				'mol_inds': self.layer_inds[i].tolist()
+									   }
 
-		nmol = np.shape(mol_crds)[0]
-		mask = np.ones(nmol, dtype=bool)
-		if xmax != 'all': mask = (mask) & (mol_crds[:, 0] > xmin)
-		if xmax != 'all': mask = (mask) & (mol_crds[:, 0] < xmax)
-		if ymin != 'all': mask = (mask) & (mol_crds[:, 1] > ymin)
-		if ymin != 'all': mask = (mask) & (mol_crds[:, 1] < ymax)
-		if zmin != 'all': mask = (mask) & (mol_crds[:, 2] > zmin)
-		if zmin != 'all': mask = (mask) & (mol_crds[:, 2] < zmax)
-
-		mol_nums = np.arange(nmol)
-		mols_in_layer = mol_nums[mask]
-
-		return mols_in_layer
+		return write_data
+	

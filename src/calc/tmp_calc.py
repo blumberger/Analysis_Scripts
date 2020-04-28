@@ -35,8 +35,8 @@ class TMP(gen_calc.Calc_Type):
 	"""
 	#required_calc = ('mol_layers', )
 	def _calc_(self):
-		print("BOB")
-
+		print("Need to write some code in the Tmp_Calc class.")
+		self._calc__crystal_layers_()
 
 
 

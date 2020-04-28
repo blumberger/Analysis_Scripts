@@ -40,7 +40,7 @@ load_fncs = {
 write_fncs = {
               'cp2k_inp': "self.write", 'xyz': xyz.Write_XYZ_File,
               'json': json.write_json, 'csv': csv_files.Write_CSV,
-              "psf": gen_io.Write_File,
+              "psf": gen_io.Write_File, "mol_layers": json.write_json,
              }
 calc_fncs = {
              'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,

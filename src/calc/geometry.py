@@ -8,6 +8,7 @@ These include things like: calculate rotation angle, get rotation matricies
 
 import numpy as np
 import pandas as pd
+import math
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import DBSCAN
 
@@ -170,7 +171,67 @@ def cluster_1D_points(points_1D, eps=0.02, min_samples=1):
     clustered_means = [np.mean(points_1D[db.labels_ == i]) for i in set(db.labels_)]
     return db, clustered_means
 
-def find_local_min(y, start_ind, allow_boundaries=False):
+def _get_downhill_direction_(arr, ind, tolerance=1e-12):
+    """
+    Will get the direction that the data decreases (if it does).
+
+    N.B This will move right in flat sections.
+
+    Inputs:
+        * arr <array> => The array with the data
+        * ind <int> => Which index to check
+        * tolerance <float> => The tolerance to use in declaring a change result
+
+    Ouputs:
+        <int | bool> Will output:
+                         False => ind isn't in bounds of data
+                         0     => both directions are uphill
+                         2     => both directions are flat
+                         3     => right flat and left uphill
+                         4     => left flat and right uphill
+
+                        +1     => right downhill (if none of the above)
+                        -1     => left downhill (if none of the above)
+    """
+    # Check we are looking at indices within the range of the data.
+    index = np.arange(len(arr))
+    if not (ind in index and ind - 1 in index and ind + 1 in index):
+        return False
+
+    # Get left, current and right points
+    left, curr, right = arr[ind - 1], arr[ind], arr[ind + 1]
+
+    # Both are uphill
+    if left > curr and right > curr: return 0
+
+    # Right is flat
+    elif math.isclose(right, curr, abs_tol=tolerance):
+        # Both flat
+        if math.isclose(left, curr, abs_tol=tolerance): direction = 2
+        # Left uphill
+        elif left > curr: direction = 3
+        # Left downhill
+        else: direction = -1
+
+    # left is flat
+    elif math.isclose(left, curr, abs_tol=tolerance):
+        # Right uphill
+        if right > curr: direction = 4
+        # Right downhill (go right)
+        else: direction = +1
+
+    # Right is downhill
+    elif right < curr: direction = +1
+
+    # Left is downhill
+    else: direction = -1
+
+    return direction
+
+
+
+
+def find_local_min(y, start_ind, allow_boundaries=False, flatness_tol=1e-2):
     """
     Apply a steepest descent like algorithm to get a local minima.
 
@@ -186,6 +247,8 @@ def find_local_min(y, start_ind, allow_boundaries=False):
         * start_ind <int> => where to start looking for the local minima
         * allow_boundaries <bool> => Whether to allow the ends/boundaries of the data or 
                                      only 'true' minima.
+        * flatness_tol <float> => A tolerance for the gradient of the curve that is
+                                  required before a section is considered flat.
 
     Outputs:
         <ind>, <float> The index of the local minima and its value.
@@ -196,10 +259,9 @@ def find_local_min(y, start_ind, allow_boundaries=False):
         return False, (False, False)
 
     # Find whether to go left or right
-    cond = True
-    if y[start_ind - 1] < y[start_ind]:  step = -1
-    elif y[start_ind + 1] < y[start_ind]:  step = +1
-    else: cond = False
+    step = _get_downhill_direction_(y, start_ind, flatness_tol)
+    if step > 1: step = 1
+    cond = step != 0
 
     # Keep stepping left or right until the value stops decreasing
     while cond:
@@ -207,8 +269,14 @@ def find_local_min(y, start_ind, allow_boundaries=False):
         if not (start_ind in index and start_ind + step in index):
             break
 
-        if y[start_ind + step] >= y[start_ind]:
+
+        # If there's an uphill bit within tolerance stop
+        if y[start_ind + step] > y[start_ind] + flatness_tol:
             cond = False
+        # If there's a flat bit to left and we are going left, stop
+        if step == -1 and math.isclose(y[start_ind - 1], y[start_ind], abs_tol=flatness_tol):
+            cond = False
+
 
     # if we hit a boundary (not a 'proper' minima) then return False
     if cond and allow_boundaries is False:

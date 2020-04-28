@@ -30,12 +30,13 @@ class Angular_Dist(gen_calc.Calc_Type):
         * data <*> => The data that has been calculated.
     """
     _write_types = ('json', )
-    required_metadata = ('atoms_per_molecule',)
+    required_metadata = ('atoms_per_molecule', 'plot_angular_distribution')
     _defaults = {'number_bins': 'auto', 'histogram_density': True,
                  'short_axis_atoms': [[5, 6], [4, 7], [3, 8], [1, 28], [0, 18],
                                       [10, 19], [27, 20], [26, 21], [25, 22],
                                       [24, 23]],
                  'long_axis_atoms': [[24, 5], [23, 6]],
+                 'plot_angular_distribution': False,
                 }
     # Need these 3 attributes to create a new variable type
     data = {}
@@ -64,7 +65,7 @@ class Angular_Dist(gen_calc.Calc_Type):
         else: short_ax_ats = self.Var.metadata['short_axis_atoms']
 
         # Divide atomic coordinates into molecular coordinates
-        
+
 
         # This line means we will only work with the first file that has xyz data.
         # This will need changing to make it more general.
@@ -107,6 +108,9 @@ class Angular_Dist(gen_calc.Calc_Type):
             self.short_counts, self.short_bin_edges = np.histogram(self.short_angles,
                                   density=True, bins=self.metadata['number_bins'])
 
+        if self.metadata['plot_angular_distribution'] is True:
+            self.plot()
+            plt.show()
 
     def get_angles_between_vecs(self, vec_ind, vecs, mags):
         """
@@ -259,6 +263,9 @@ class Angular_Dist(gen_calc.Calc_Type):
 
         if label:
             axes[0].legend(fontsize=16)
+            axes[1].legend(fontsize=16)
+
+        plt.legend()
 
         #for i, ax in enumerate(axes):
         #    ax.set_xlim([-1.05, 1.05])

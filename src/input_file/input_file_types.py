@@ -104,7 +104,7 @@ class Variable(object):
     def __add__(self, val):
         """
         Will add the data stored in this variable by a value.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -146,7 +146,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for adding data.\n\nTrying to multiply"
                                 + f"{self.data} + {val}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -154,13 +154,13 @@ class Variable(object):
                     self.data[key] = self.data[key] + val
             else:
                 self.data = self.data + val
-                
+
         return self
 
     def __radd__(self, val):
         """
         Will add the data stored in this variable by a value on the right.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -202,7 +202,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for adding data.\n\nTrying to multiply"
                                 + f"{val} + {self.data}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -210,13 +210,13 @@ class Variable(object):
                     self.data[key] = val + self.data[key]
             else:
                 self.data = val + self.data
-                
+
         return self
 
     def __sub__(self, val):
         """
         Will subtract the data stored in this variable by a value.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -258,7 +258,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for subtracting data.\n\nTrying to multiply"
                                 + f"{self.data} - {val}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -266,13 +266,13 @@ class Variable(object):
                     self.data[key] = self.data[key] - val
             else:
                 self.data = self.data - val
-                
+
         return self
 
     def __rsub__(self, val):
         """
         Will subtract the data stored in this variable by a value on the right.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -314,7 +314,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for subtracting data.\n\nTrying to multiply"
                                 + f"{val} - {self.data}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -322,13 +322,13 @@ class Variable(object):
                     self.data[key] = val - self.data[key]
             else:
                 self.data = val - self.data
-                
+
         return self
 
     def __mul__(self, val):
         """
         Will multiply the data stored in this variable by a value.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -370,7 +370,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
                                 + f"{self.data} * {val}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -378,13 +378,13 @@ class Variable(object):
                     self.data[key] = self.data[key] * val
             else:
                 self.data = self.data * val
-                
+
         return self
 
     def __rmul__(self, val):
         """
         Will multiply the data stored in this variable by a value on the right.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -426,7 +426,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
                                 + f"{val} * {self.data}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -440,7 +440,7 @@ class Variable(object):
     def __truediv__(self, val):
         """
         Will divide the data stored in this variable by a value.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -482,7 +482,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for dividing data.\n\nTrying to divide"
                                 + f"{self.data} / {val}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -490,13 +490,13 @@ class Variable(object):
                     self.data[key] = self.data[key] / val
             else:
                 self.data = self.data / val
-                
+
         return self
 
     def __rtruediv__(self, val):
         """
         Will divide the data stored in this variable by a value on the right.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -538,7 +538,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
                                 + f"{val} / {self.data}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -546,13 +546,13 @@ class Variable(object):
                     self.data[key] = val / self.data[key]
             else:
                 self.data = val / self.data
-                
+
         return self
 
     def __floordiv__(self, val):
         """
         Will divide the data stored in this variable by a value and truncate to an integer.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -595,7 +595,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for dividing data.\n\nTrying to divide"
                                 + f"{self.data} // {val}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -603,13 +603,13 @@ class Variable(object):
                     self.data[key] = self.data[key] // val
             else:
                 self.data = self.data // val
-                
+
         return self
 
     def __rfloordiv__(self, val):
         """
         Will divide the data stored in this variable by a value on the right and truncate to an integer.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -651,7 +651,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
                                 + f"{val} // {self.data}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -659,13 +659,13 @@ class Variable(object):
                     self.data[key] = val // self.data[key]
             else:
                 self.data = val // self.data
-                
+
         return self
 
     def __pow__(self, val):
         """
         Will exponentiate the data stored in this variable by a value.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -707,7 +707,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for exponentiating data.\n\nTrying to exponentiate"
                                 + f"{self.data} ** {val}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -715,13 +715,13 @@ class Variable(object):
                     self.data[key] = self.data[key] ** val
             else:
                 self.data = self.data ** val
-                
+
         return self
 
     def __rpow__(self, val):
         """
         Will exponentiate the data stored in this variable by a value on the right.
-    
+
         Because this data structure has become a bit complicated the mathematical
         operations need to be handled in a special way.
 
@@ -763,7 +763,7 @@ class Variable(object):
             else:
                 raise SystemError("No scheme for exponentiating data.\n\nTrying to raise"
                                 + f"{val} to the power of {self.data}")
-        
+
         # If the val isn't a dict
         else:
             if self.is_dict:
@@ -771,7 +771,7 @@ class Variable(object):
                     self.data[key] = val ** self.data[key]
             else:
                 self.data = val ** self.data
-                
+
         return self
 
 
@@ -815,7 +815,7 @@ class Vars(dict):
     def __get_ats_per_mol_from_lammps_dump__(self, df):
         """
         Will get the number of atoms per molecule from the lammps dump file.
-        
+
         Inputs:
             * df <DataFrame> => The lammps dump data.
 
@@ -838,7 +838,8 @@ class Vars(dict):
                            + "\n\nSet this by using the command:\n\n\t`set system <data_name>"
                            + " to <mol_type>`\n\nin the input file.")
 
-        df = self['lammps_dump'].csv_data
+        df = self.__get_lammps_csv_data__()
+
         ats_per_mol = self.__get_ats_per_mol_from_lammps_dump__(df)
 
         # Error check
@@ -897,7 +898,7 @@ class Vars(dict):
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_cols_from_xyz__,
                          'lammps_dump': self.__get_xyz_cols_from_lammps_dump__}
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
-                
+
         return np.array(xyz_data)
 
     ###########################################
@@ -914,7 +915,7 @@ class Vars(dict):
     def __get_xyz_timesteps_from_xyz__(self):
         """Will get the xyz timesteps from xyz file container."""
         return self['xyz'].timesteps
-    
+
     def __get_xyz_timesteps_from_lammps_dump__(self):
         """Will return the xyz timesteps from lammps dump file container."""
         return self['lammps_dump'].csv_data['timestep'].unique()
@@ -942,14 +943,7 @@ class Vars(dict):
     def __get_xyz_data_from_lammps_dump__(self):
         """Will return the xyz data from a lammps dump file type."""
         xyz = ('x', 'y', 'z',)
-        wrapped = True
-        if 'coordinate_wrapping' in self.metadata:
-            if self.metadata['coordinate_wrapping'] == 'unwrapped':
-                wrapped = False
-
-        # Set which data to use
-        if wrapped:  csv_data = self['lammps_dump'].wrapped_csv
-        else:        csv_data = self['lammps_dump'].unwrapped_csv
+        csv_data = self.__get_lammps_csv_data__()
 
         # Return the wrapped data
         if all(j in csv_data for j in xyz):
@@ -960,8 +954,26 @@ class Vars(dict):
         else:
             raise SystemError("\n\nNo x, y, z data in the lammps dump file.\n\n")
 
-    def __get_csv_data_from_lammps_dump__(self):
-        pass
+    def __get_lammps_csv_data__(self):
+        """Will return the correct csv data from a Lammps file obj."""
+        wrap = ""
+        if 'coordinate_wrapping' in self.metadata:
+            if self.metadata['coordinate_wrapping'] == 'unwrapped':
+                wrap = "unwrap"
+            elif self.metadata['coordinate_wrapping'] == 'remove_split_mols':
+                self['lammps_dump'].remove_split_mols()
+                wrap = "rem_split"
+            elif self.metadata['coordinate_wrapping'] == "wrapped":
+                wrap = "wrap"
+
+        # Set which data to use
+        if wrap == "":  csv_data = self['lammps_dump'].csv_data
+        elif wrap == "unwrap": csv_data = self['lammps_dump'].unwrapped_csv
+        elif wrap == "rem_split": csv_data = self['lammps_dump'].rm_split_mols
+        elif wrap == "wrap": csv_data = self['lammps_dump'].wrapped_csv
+
+        csv_data.index = range(len(csv_data))
+        return csv_data
 
     def splice_xyz_data(self, xmin=False, xmax=False, ymin=False, ymax=False, zmin=False, zmax=False):
         """

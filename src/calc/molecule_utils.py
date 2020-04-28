@@ -185,7 +185,7 @@ def get_bonding_info(all_mol_crds, bond_info, cols, types, NN=False, cutoff=5):
                 if float(dist) < cutoff:
 
                     # If the first atom doesn't match the regex then skip it
-                    for at1_regex in bond_info:    
+                    for at1_regex in bond_info:
                         if substring_is_in(at1_regex, at1_name):
                             break
                     else:  continue
@@ -194,7 +194,7 @@ def get_bonding_info(all_mol_crds, bond_info, cols, types, NN=False, cutoff=5):
                     for at2_regex in bond_info[at1_regex]:
                         if substring_is_in(at2_regex, a_type):
                             inds.append(int(ind))
-                            break                         
+                            break
 
 
             # Add the atoms to the bonding dict
@@ -298,7 +298,7 @@ def get_COM(all_mol_crds, mol_col):
 
     if add_ax:
         COMs = COMs[0]
-    
+
     return COMs
 
 def get_split_mols(all_mol_crds):
@@ -339,7 +339,7 @@ def get_COM_split_mols(all_mol_crds, mol_col):
     # Loop over all mols and get COM
     split_mols, non_split_mols, mask = get_split_mols(all_mol_crds)
     non_split_col = mol_col[~mask[0]]
-    
+
     # Handle the non-split molecules
     masses = get_atom_masses(non_split_col)
     mass_1_mol = np.sum(masses[0])
@@ -422,5 +422,5 @@ def get_topo_info(all_mol_crds, angle_info, all_bonds, cols, types, NN=False):
                     at_angs[iat+1].append(ang)
 
         all_angs.append(at_angs)
-        
+
     return all_angs

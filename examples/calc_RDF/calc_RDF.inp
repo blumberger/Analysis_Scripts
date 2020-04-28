@@ -16,7 +16,7 @@ for i in range(0, 10000, 5000) {
 set system data to pentacene
 
 # set some params
-data['show_plot'] = False
+data['show_RDF_plot'] = False
 data['dr'] = "auto"
 data['cutoff'] = "auto"
 

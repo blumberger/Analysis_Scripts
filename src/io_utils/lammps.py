@@ -452,12 +452,13 @@ class Lammps_Dump(gen_io.DataFileStorage):
         unique_mols = self.csv_data['mol'].unique()
         self.metadata['nmol'] = len(unique_mols)
         self.metadata['natom'] = len(self.csv_data)
-        self.metadata['atoms_per_molecule'] = np.sum(self.csv_data['mol'] == unique_mols[0])
+        if 'atoms_per_molecule' not in self.metadata:
+            self.metadata['atoms_per_molecule'] = np.sum(self.csv_data['mol'] == unique_mols[0])
 
         # Fix periodic BCs
         self.csv_data['timestep'] = self.metadata['timestep']
         self.wrapped_csv = copy.deepcopy(self.csv_data)
-        self.fix_wrapping()
+        self.unwrap_coords()
 
     def set_data(self):
         """
@@ -560,7 +561,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
     def proj(self, vec1, vec2):
         return np.dot(vec1, vec2) / np.linalg.norm(vec1)
 
-    def fix_wrapping(self):
+    def unwrap_coords(self):
         """
         Will translate atom coords to fix wrapping of coords in periodic systems
         """
@@ -579,37 +580,28 @@ class Lammps_Dump(gen_io.DataFileStorage):
                 if unit_vec[idim] != 0:
                     self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
 
-    def unwrap_split_mols(self):
+    def remove_split_mols(self):
         """
-        Will only unwrap the molecules that have been split by the periodic wrapping.
+        Will remove the split molecules from the system (keeping only the whole mols in the center).
         """
         self.unwrapped_avail = True
-        self.unwrapped_csv = copy.deepcopy(self.csv_data)
+        self.rm_split_mols = copy.deepcopy(self.csv_data)
+
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
 
         # Check we can do the wrapping
-        if not all(j in self.unwrapped_csv.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z', 'mol')):
+        if not all(j in self.rm_split_mols.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z', 'mol')):
             self.unwrapped_avail = False
-            return self.unwrapped_csv
+            return self.rm_split_mols
 
         # Find the split mols
-        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
-        mol_crds = self.unwrapped_csv[['mol', 'x', 'y', 'z']].groupby("mol", axis=0).std()
-        split_mols = mol_crds.index[(mol_crds['x'] > 7) | (mol_crds['y'] > 7) | (mol_crds['z'] > 7)]
+        mol_crds = self.rm_split_mols[['mol', 'ix', 'iy', 'iz']].groupby("mol", axis=0).std()
+        mask = (mol_crds['ix'] != 0) | (mol_crds['iy'] != 0) | (mol_crds['iz'] != 0)
+        split_mols = mol_crds[mask].index
+        self.rm_split_mols['split'] = self.rm_split_mols['mol'].apply(lambda x: x in split_mols)
 
-        # Now ammend the ix, iy, iz
-        split_mask = np.ones(len(self.unwrapped_csv['mol']), dtype=bool)
-        split_mask = [i not in split_mols for i in self.unwrapped_csv['mol']]
-        self.unwrapped_csv.loc[split_mask, ['ix', 'iy', 'iz']] = 0
-
-        # self.unwrapped_csv['ix'] = 0 #(self.unwrapped_csv['ix'] / np.abs(self.unwrapped_csv['ix'])).fillna(0)
-        # self.unwrapped_csv['iy'] = 0 #(self.unwrapped_csv['iy'] / np.abs(self.unwrapped_csv['iy'])).fillna(0)
-        # self.unwrapped_csv['iz'] = (self.unwrapped_csv['iz'] / np.abs(self.unwrapped_csv['iz'])).fillna(0)
-        for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
-            for idim, dim in enumerate('xyz'):
-                if unit_vec[idim] != 0:
-                    self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
-       
-        # raise SystemExit("BREAK")
+        # Bring the split molecules together.
+        self.rm_split_mols = self.rm_split_mols[self.rm_split_mols['split'] == False]
 
     def append(self, val):
         """

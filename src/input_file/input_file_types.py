@@ -24,7 +24,10 @@ class Variable(object):
     name = "Input Variable"
     def __init__(self, var_name, var_data, metadata={}):
        self.name = var_name
+
+       self.is_dict = False
        if type(var_data) == dict:
+            self.is_dict = False
             self.data = Vars(var_data)
        else:
             self.data = var_data
@@ -79,6 +82,15 @@ class Variable(object):
                 else:
                     self.data.data = attr
 
+    def get_xyz_data(self):
+        return self.data.get_xyz_data()
+
+    def get_xyz_cols(self):
+        return self.data.get_xyz_cols()
+
+    def get_xyz_timesteps(self):
+        return self.data.get_xyz_timesteps()
+
     def __len__(self):
         """
         Return a length of the variable
@@ -90,64 +102,676 @@ class Variable(object):
 
     # Overload mathematical operators
     def __add__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] += val
+        """
+        Will add the data stored in this variable by a value.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = self.data[key] + val[val_keys[0]]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : self.data + val[val_keys[0]]})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = self.data[key] + val[key]
+                else:
+                    raise SystemError("No scheme for adding data.\n\nTrying to multiply"
+                                + f"{self.data} + {val}")
+
+            else:
+                raise SystemError("No scheme for adding data.\n\nTrying to multiply"
+                                + f"{self.data} + {val}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = self.data[key] + val
+            else:
+                self.data = self.data + val
+                
         return self
+
     def __radd__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] += val
+        """
+        Will add the data stored in this variable by a value on the right.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = val[val_keys[0]] + self.data[key]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : val[val_keys[0]] + self.data})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = val[key] + self.data[key]
+                else:
+                    raise SystemError("No scheme for adding data.\n\nTrying to multiply"
+                                + f"{val} + {self.data}")
+
+            else:
+                raise SystemError("No scheme for adding data.\n\nTrying to multiply"
+                                + f"{val} + {self.data}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = val + self.data[key]
+            else:
+                self.data = val + self.data
+                
         return self
+
     def __sub__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] -= val
+        """
+        Will subtract the data stored in this variable by a value.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = self.data[key] - val[val_keys[0]]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : self.data - val[val_keys[0]]})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = self.data[key] - val[key]
+                else:
+                    raise SystemError("No scheme for subtracting data.\n\nTrying to multiply"
+                                + f"{self.data} - {val}")
+
+            else:
+                raise SystemError("No scheme for subtracting data.\n\nTrying to multiply"
+                                + f"{self.data} - {val}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = self.data[key] - val
+            else:
+                self.data = self.data - val
+                
         return self
+
     def __rsub__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] -= val
+        """
+        Will subtract the data stored in this variable by a value on the right.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = val[val_keys[0]] - self.data[key]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : val[val_keys[0]] - self.data})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = val[key] - self.data[key]
+                else:
+                    raise SystemError("No scheme for subtracting data.\n\nTrying to multiply"
+                                + f"{val} - {self.data}")
+
+            else:
+                raise SystemError("No scheme for subtracting data.\n\nTrying to multiply"
+                                + f"{val} - {self.data}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = val - self.data[key]
+            else:
+                self.data = val - self.data
+                
         return self
+
     def __mul__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] *= val
+        """
+        Will multiply the data stored in this variable by a value.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = self.data[key] * val[val_keys[0]]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : self.data * val[val_keys[0]]})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = self.data[key] * val[key]
+                else:
+                    raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{self.data} * {val}")
+
+            else:
+                raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{self.data} * {val}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = self.data[key] * val
+            else:
+                self.data = self.data * val
+                
         return self
+
     def __rmul__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] *= val
+        """
+        Will multiply the data stored in this variable by a value on the right.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = val[val_keys[0]] * self.data[key]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : val[val_keys[0]] * self.data})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = val[key] * self.data[key]
+                else:
+                    raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{val} * {self.data}")
+
+            else:
+                raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{val} * {self.data}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = val * self.data[key]
+            else:
+                self.data = val * self.data
+
         return self
+
     def __truediv__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] /= val
+        """
+        Will divide the data stored in this variable by a value.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = self.data[key] / val[val_keys[0]]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : self.data / val[val_keys[0]]})
+
+            # If there are multiple keys check we can divide the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = self.data[key] / val[key]
+                else:
+                    raise SystemError("No scheme for dividing data.\n\nTrying to divide"
+                                + f"{self.data} / {val}")
+
+            else:
+                raise SystemError("No scheme for dividing data.\n\nTrying to divide"
+                                + f"{self.data} / {val}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = self.data[key] / val
+            else:
+                self.data = self.data / val
+                
         return self
+
     def __rtruediv__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] = val / self.data
+        """
+        Will divide the data stored in this variable by a value on the right.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = val[val_keys[0]] / self.data[key]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : val[val_keys[0]] / self.data})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = val[key] / self.data[key]
+                else:
+                    raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{val} / {self.data}")
+
+            else:
+                raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{val} / {self.data}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = val / self.data[key]
+            else:
+                self.data = val / self.data
+                
         return self
+
     def __floordiv__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] //= val
+        """
+        Will divide the data stored in this variable by a value and truncate to an integer.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = self.data[key] // val[val_keys[0]]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : self.data // val[val_keys[0]]})
+
+
+            # If there are multiple keys check we can divide the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = self.data[key] // val[key]
+                else:
+                    raise SystemError("No scheme for dividing data.\n\nTrying to divide"
+                                + f"{self.data} // {val}")
+
+            else:
+                raise SystemError("No scheme for dividing data.\n\nTrying to divide"
+                                + f"{self.data} // {val}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = self.data[key] // val
+            else:
+                self.data = self.data // val
+                
         return self
+
     def __rfloordiv__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] = val // self.data
+        """
+        Will divide the data stored in this variable by a value on the right and truncate to an integer.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = val[val_keys[0]] // self.data[key]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : val[val_keys[0]] // self.data})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = val[key] // self.data[key]
+                else:
+                    raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{val} // {self.data}")
+
+            else:
+                raise SystemError("No scheme for multiplying data.\n\nTrying to multiply"
+                                + f"{val} // {self.data}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = val // self.data[key]
+            else:
+                self.data = val // self.data
+                
         return self
+
     def __pow__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] **= val
+        """
+        Will exponentiate the data stored in this variable by a value.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = self.data[key] ** val[val_keys[0]]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : self.data ** val[val_keys[0]]})
+
+            # If there are multiple keys check we can exponentiate the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = self.data[key] ** val[key]
+                else:
+                    raise SystemError("No scheme for exponentiating data.\n\nTrying to exponentiate"
+                                + f"{self.data} ** {val}")
+
+            else:
+                raise SystemError("No scheme for exponentiating data.\n\nTrying to exponentiate"
+                                + f"{self.data} ** {val}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = self.data[key] ** val
+            else:
+                self.data = self.data ** val
+                
         return self
+
     def __rpow__(self, val):
-        """Ammend data attribute and return self"""
-        for key in self.data:
-            self.data[key] **= val
+        """
+        Will exponentiate the data stored in this variable by a value on the right.
+    
+        Because this data structure has become a bit complicated the mathematical
+        operations need to be handled in a special way.
+
+        The general scheme is outlined below:
+
+            * If the val to operate on this data is a dict (Vars) obj then check the keys.
+                * If there is only one key, use that as the data.
+                * If there are many keys and if the keys are the same as in this structure
+                  then use the operator on like keys.
+
+            * If the val isn't a dict then try operating on all data in this structure.
+        """
+        # Check if the variable is a dictionary or not.
+        self.is_dict = type(self.data) == Vars
+
+        # If the val is a dict
+        if type(val) == Vars:
+            val_keys = list(val.keys())
+
+            # If there is only one key then treat the val like 1 variable
+            if len(val_keys) == 1:
+                if self.is_dict:
+                    for key in self.data:
+                        self.data[key] = val[val_keys[0]] ** self.data[key]
+                else:
+                    self.is_dict = True
+                    self.data = Vars({val_keys[0] : val[val_keys[0]] ** self.data})
+
+            # If there are multiple keys check we can multiply the data
+            elif self.is_dict:
+                self_keys = list(self.data.keys())
+                if self_keys == val_keys:
+                    for key in self.data:
+                        self.data[key] = val[key] ** self.data[key]
+                else:
+                    raise SystemError("No scheme for exponentiating data.\n\nTrying to raise"
+                                + f"{val} to the power of {self.data}")
+
+            else:
+                raise SystemError("No scheme for exponentiating data.\n\nTrying to raise"
+                                + f"{val} to the power of {self.data}")
+        
+        # If the val isn't a dict
+        else:
+            if self.is_dict:
+                for key in self.data:
+                    self.data[key] = val ** self.data[key]
+            else:
+                self.data = val ** self.data
+                
         return self
 
 

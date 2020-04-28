@@ -40,13 +40,12 @@ class Read_INP(gen_io.DataFileStorage):
 
 	def write(self, filepath):
 		count, orig_fpath = 0, filepath[:]
-		for i in self.file_data:
-			while os.path.isfile(filepath) and count < 1000:
-				fpath, ext = gen_io.remove_file_extension(orig_fpath)
-				filepath = f"fpath_{count}.{ext}"
-				count += 1
-			
-			self.file_data[i].write(filepath)
+		while os.path.isfile(filepath) and count < 1000:
+			fpath, ext = gen_io.remove_file_extension(orig_fpath)
+			filepath = f"fpath_{count}.{ext}"
+			count += 1
+		
+		self.data.write(filepath)
 
 	def append(self, val):
 		if type(val) == type(self):
@@ -104,7 +103,7 @@ class INP_File(dict):
 
 		return is_sect, e
 
-	def add(self, section_path, new_val, throw_err=False):
+	def add(self, section_path, new_val, throw_err=True):
 		"""
 		Will add a section or parameter in the inp file.
 
@@ -150,7 +149,7 @@ class INP_File(dict):
 		self['lines'].insert(add_line_num, New_Line)
 		self.__reset_all_line_nums__()
 
-	def remove(self, section_path, throw_err=False):
+	def remove(self, section_path, throw_err=True):
 		"""
 		Will remove a section or parameter in the inp file.
 
@@ -191,7 +190,7 @@ class INP_File(dict):
 		else:
 			raise SystemExit("Still need to implement section removal!")
 	
-	def change_param(self, parameter_path, new_val, throw_err=False):
+	def change_param(self, parameter_path, new_val, throw_err=True):
 		"""
 		Will change a parameter in the inp file.
 
@@ -391,6 +390,8 @@ class INP_Line(object):
 			elif 'set' in words[0].lower():
 				self.is_set = True
 				self.set_txt = '  '.join(self.edit_line.split()[1:])
+			elif 'if' in words[0].lower():
+				self.parse_if_statement(words)
 			else:
 				print("WARNING: I don't understand the line '%s'" % self.line)
 		else:
@@ -409,6 +410,22 @@ class INP_Line(object):
 				self.is_parameter = True
 				self.parse_paramter_line()
 
+	def parse_if_statement(self, words):
+		"""
+		Will save various variables from the if control statement.
+
+		Inputs:
+			* words <list<str>> => The line split by ' ' into words.
+		"""
+		if 'endif' in words[0].lower():
+			self.is_if = True
+			self.is_end_if = True
+		else:
+			self.is_if = True
+			self.is_end_if = False
+			self.if_var_1 = words[1].strip("${} ")
+			self.comparator = words[2].strip()
+			self.if_var_2 = words[3].strip()
 
 	def parse_section_line(self):
 		"""

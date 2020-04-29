@@ -57,7 +57,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				 "plot_coupling_annotations": "auto", "plot_coupling_atoms": False,
 				 "plot_coupling_mol_numbers": False, 'xmax': False, 'xmin': False,
 				 'ymax': False, 'ymin': False, 'zmax': False, 'zmin': False,
-				 "coordinate_wrapping": "wrapped",
+				 "coordinate_wrapping": "wrapped", "delete_files": True,
 				 }
 	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file",
 						 "reorganisation_energy",)
@@ -187,7 +187,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				else:
 					plt.show()
 
-		os.remove("AOM_dimer.include")
+		if self.metadata['delete_files']:
+			os.remove("AOM_dimer.include")
 		return self.data
 
 	def _apply_boundaries_(self, mol_centres, do_mol_nums=False):
@@ -306,9 +307,11 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			print("\n\nWarning no coupling values found within given cutoff"
 				  + f"of {self.metadata['NN_cutoff']} for given mols.")
 		else:
-			os.remove(self.dimer_filepaths[proc_num])
+			if self.metadata['delete_files']:
+				os.remove(self.dimer_filepaths[proc_num])
 
-		os.remove(self.config_filepaths[proc_num])
+		if self.metadata['delete_files']:
+			os.remove(self.config_filepaths[proc_num])
 
 		return data
 

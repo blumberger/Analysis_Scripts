@@ -611,8 +611,11 @@ class INP_File(object):
         required_calc = f_dicts.calc_fncs[calc_type].required_calc
         for calc in required_calc:
             if calc not in f_dicts.calc_fncs:
+                bullet = "\n\t* "
                 err_msg = f"Calculation of '{calc}' required for calculation of "
                 err_msg += f"'{calc_type}'. This currently can't be calculated."
+                err_msg += f"The full list of things that can be calculated is below:{bullet}"
+                err_msg += f"{bullet.join(f_dicts.calc_fncs.keys())}"
                 self.print_error(err_msg)
 
         # Set the new var attribute to help error checking later.

@@ -106,10 +106,16 @@ class Calc_Type(object):
         A placeholder method. In child classes this should be replaced with the appropriate calc
         function.
         """
+        # Handle the metadata used to calculate things
         curr_metadata = self.Var.metadata.copy()
+
+        for key in self.Var.metadata:
+            if key not in self.metadata:
+                self.metadata[key] = self.Var.metadata[key]
+
         # Calculate and prerequisites and save them in the new object
         for calc in self.required_calc:
-            print(f"Calculating {calc}")
+            print(f"Calculating {calc}")           
             Calculated_Object = f_dicts.calc_fncs[calc](self.Var)
             Calculated_Object.calc()
             setattr(self, calc, Calculated_Object)

@@ -22,7 +22,15 @@ from src.io_utils import CP2K_inp_files as cp2k_inp
 
 from src.data import consts
 
+from statistics import NormalDist
 
+
+
+coupling_pairs = {
+"P_dir" : [(i, i+40) for i in range(1, 761)],
+"T1_dir" : [(i, i+3) for i in range(1, 798, 2)] + [(i, i+41) for i in range(1, 760, 2)],
+"T2_dir" : [(i, i+1) for i in range(1, 800, 2)] + [(i, i+43) for i in range(1, 760, 2)],
+}
 class TMP(gen_calc.Calc_Type):
 	"""
 	A class to be alterred however anyone wants to.
@@ -33,18 +41,47 @@ class TMP(gen_calc.Calc_Type):
 
 	To use just edit the _calc_ function below.
 	"""
-	#required_calc = ('mol_layers', )
+	required_calc = ('all_AOM_couplings', )
 	def _calc_(self):
-		print("Need to write some code in the Tmp_Calc class.")
-		self._calc__crystal_layers_()
+		
+		print("Sorting the couplings into directions")
+
+		data = {i: [] for i in coupling_pairs}
+		for coup_dir in coupling_pairs:
+			for (imol1, imol2) in coupling_pairs[coup_dir]:
+				i = imol1 - 1
+				j = imol2 - 1
+				if i not in self.all_AOM_couplings.data[0]:
+					if j not in self.all_AOM_couplings.data[0]:
+						print(f"Can't find {i}, {j}")
+						continue
+
+					couplings = self.all_AOM_couplings.data[0][j]
+					next_mol = i
+
+				else:
+					couplings = self.all_AOM_couplings.data[0][i]
+					next_mol = j
+
+				if next_mol not in couplings:
+					print(f"Can't find {i}, {j}")
+					continue
+
+				data[coup_dir].append(couplings[next_mol])
 
 
+		for i in data:
+			plt.hist(data[i], bins="auto")
 
+			# data = [0.7237248252340628, 0.6402731706462489, -1.0616113628912391, -1.7796451823371144, -0.1475852030122049, 0.5617952240065559, -0.6371760932160501, -0.7257277223562687, 1.699633029946764, 0.2155375969350495, -0.33371076371293323, 0.1905125348631894, -0.8175477853425216, -1.7549449090704003, -0.512427115804309, 0.9720486316086447, 0.6248742504909869, 0.7450655841312533, -0.1451632129830228, -1.0252663611514108]
+			norm = NormalDist.from_samples(data[i])
+			# NormalDist(mu=-0.12836704320073597, sigma=0.9240861018557649)
+			print(norm.mean)
+			# -0.12836704320073597
+			print(norm.stdev)
+			print(norm)
 
-
-
-
-
+		plt.show()
 
 
 

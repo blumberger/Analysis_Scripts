@@ -45,12 +45,13 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 	N.B.
 
 	At the moment the interface with Orestis's AOM coupling calculator is via files
-	written to disk. Obviously this isn't a very optimised interface so at some point
-	I'll write a C wrapper for the C code like the RDF calculator.
+	written to disk. Obviously this isn't a very optimised interface and will be painfully
+	slow on computers with slow disk writes so at some point I'll write a C wrapper for
+	the C code like the RDF calculator.
 	"""
 	required_data_types = ('pos',)
 	_defaults = {
-				 'NN_cutoff': 2, "coupling_calc_exe": "./bin/STO_proj_AOM_overlap",
+				 'NN_cutoff': 10, "coupling_calc_exe": "./bin/STO_proj_AOM_overlap",
 				 "show_timing": False, "number_processors": False, 'molecule_numbers': 'all',
 				 "plot_coupling_connections": False, "save_coupling_connection_plot": False,
 				 "plot_coupling_annotations": "auto", "plot_coupling_atoms": False,
@@ -58,18 +59,15 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				 'ymax': False, 'ymin': False, 'zmax': False, 'zmin': False,
 				 "coordinate_wrapping": "wrapped",
 				 }
-	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file", "NN_cutoff",
-						 'molecule_numbers', 'AOM_scaling_factor',
-						 "plot_coupling_connections", "reorganisation_energy",
-						 "save_coupling_connection_plot", "plot_coupling_annotations",
-						 "plot_coupling_atoms", "plot_coupling_mol_numbers", "xmax",
-						 "xmin", "ymin", "ymax", "zmin", "zmax")
+	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file",
+						 "reorganisation_energy",)
+
 	AOM_mu = {
 			  'H': '1.0000',
-			  'C': '1.6083  1.0300',
-			  'N': '1.9237  1.2050',
+			  'C': '1.6083  1.0000',
+			  'N': '1.9237  1.5000',
 			  'O': '2.2458  2.2266',
-			  'S': '2.1223  1.5850',
+			  'S': '2.1223  1.8273',
 			 }
 
 	metadata = {'file_type': 'json'}
@@ -88,17 +86,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		t1 = time.time()
 
 
-		if type(self.metadata['number_processors']) == int:
-			# Decide how many procs to use.
-			self.nproc = self.metadata['number_processors']
-			if self.nproc > mp.cpu_count(): self.nproc = mp.cpu_count()
-			elif self.nproc < 1: self.nproc = 1
-
-			self.config_filepaths = tuple(f"tmp_config_{i}.txt"
-										  for i in range(self.nproc))
-			self.dimer_filepaths = tuple(f"tmp_dimer_{i}.xyz"
-										 for i in range(self.nproc))
-
 		self.ats_per_mol = self.metadata['atoms_per_molecule']
 
 		# Only act on the first pos file.
@@ -115,23 +102,31 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 		# Decide which molecules to calculate the coupling for.
 		all_centroids = mol_utils.get_COM_split_mols(all_mol_crds_orig, all_mol_cols_orig[0])
-		all_mol_crds, all_mol_cols = self._get_correct_mol_inds_(all_mol_crds_orig, all_mol_cols_orig)
+		all_mol_crds, all_mol_cols = self._get_mol_nums_(all_mol_crds_orig, all_mol_cols_orig)
+		mol_centroids = np.array([cent[mask] for cent, mask in zip(all_centroids, self.mol_nums)])
 
-		# Get the nearest neighbours between molecular centroids
-		mol_centroids = mol_utils.get_COM_split_mols(all_mol_crds, all_mol_cols[0])
-		mol_centroids = self._apply_boundaries_(mol_centroids)
+		mol_centroids, mol_mask = self._apply_boundaries_(mol_centroids, do_mol_nums=True)
+		mol_cols = np.array([col[mask] for col, mask in zip(all_mol_cols, mol_mask)])
+		mol_crds = np.array([crds[mask] for crds, mask in zip(all_mol_crds, mol_mask)])
 
-		self.spliced_mols = np.array([data[inds] for data, inds in zip(all_mol_crds_orig, self.mol_nums)])
+		# Decide how many procs to use
+		self._set_nproc_(mol_crds)
+		self.config_filepaths = tuple(f"tmp_config_{i}.txt"
+									  for i in range(self.nproc))
+		self.dimer_filepaths = tuple(f"tmp_dimer_{i}.xyz"
+									 for i in range(self.nproc))
+
+		# Get the nearest neighbours between molecular centroids (just for writing)
+		self.spliced_crds = np.array([data[inds] for data, inds in zip(all_mol_crds_orig, self.mol_nums)])
 		self.spliced_cols = np.array([data[inds] for data, inds in zip(all_mol_cols_orig, self.mol_nums)])
 
+		# Get the Nearest neighbour dict
 		mol_NN = np.array([
 							[calc_all_dists(pos_ind, step_data, self.metadata['NN_cutoff'])
 							 for pos_ind in range(len(step_data))]
 						   for step_data in mol_centroids])
 
-
-		# print(geom.get_system_size_info(mol_centroids))
-
+		# Create all the configuration files that will be needed.
 		unique_elm = self.__get_unique_elements__(all_mol_cols)
 		for dimer_file, config_file in zip(self.dimer_filepaths, self.config_filepaths):
 			self._create_config_file_(dimer_file, config_file, unique_elm)
@@ -140,18 +135,22 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		self.data = [{} for istep in range(len(xyz_data))]
 		for istep in range(len(xyz_data)):
 			self.step_NN = mol_NN[istep]
-			self.mol_cols = all_mol_cols[istep]
-			self.mol_crds = all_mol_crds[istep]
+			self.mol_cols = mol_cols[istep]
+			self.mol_crds = mol_crds[istep]
 
 			len_data_div = len(self.step_NN) // self.nproc
 			mol_inds_for_each_proc = [np.arange(len_data_div*(i), len_data_div*(i+1))
 									  for i in range(self.nproc)]
+
 			args = [(mol_inds_for_each_proc[i], i) for i in range(self.nproc)]
 			if self.nproc > 1:
 				pool = mp.Pool(self.nproc)
 				all_data = pool.map(self.__calc_mol_couplings__, args)
 				for i in all_data:	self.data[istep].update(i)
 			else: self.data[istep] = self.__calc_mol_couplings__(args[0])
+
+		# For some reason multiprocessing isn't terminating the processes before here.
+		if self.nproc > 1: pool.terminate()
 
 		# Show some timing data if necessary
 		if self.metadata['show_timing']:
@@ -175,12 +174,13 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				min_Hab = self.metadata["reorganisation_energy"] / 100.
 				self._plot_coupling_connections_(mol_centroids[istep], self.data[istep], a1, min_Hab)
 				if self.metadata['plot_coupling_atoms']:
-					self._plot_coupling_atoms_(self.spliced_mols[istep], self.spliced_cols[istep], a1)
+					self._plot_coupling_atoms_(self.spliced_crds[istep], self.spliced_cols[istep], a1)
 				if self.metadata['plot_coupling_mol_numbers']:
 					self._plot_mol_nums_(mol_centroids[istep], istep, a1)
 				self._plot_mol_selection_(all_centroids[istep], mol_centroids[istep], a2)
 				plt.tight_layout()
 
+				# Decide how to handle the plotted data
 				if bool(self.metadata['save_coupling_connection_plot']):
 					plt.savefig(self.metadata['save_coupling_connection_plot'])
 					plt.close()
@@ -190,7 +190,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		os.remove("AOM_dimer.include")
 		return self.data
 
-	def _apply_boundaries_(self, mol_centres):
+	def _apply_boundaries_(self, mol_centres, do_mol_nums=False):
 		"""
 		Will splice the molecular centres with the x, y, z min/max.
 
@@ -207,46 +207,68 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		zmin, zmax = self.metadata['zmin'], self.metadata['zmax']
 
 		# Add steps to the mol_nums if they aren't there
+		self.mol_nums = np.array(self.mol_nums)
 		if len(self.mol_nums.shape) == 1:
 			self.mol_nums = [self.mol_nums for i in range(len(mol_centres))]
 
+		# Remove the coordinate axis in the mask's shape
+		crd_ax = geom._get_crd_ax_(mol_centres, 3)
+		shape = list(np.shape(mol_centres))
+		del shape[crd_ax]
+		shape = tuple(shape)
+
 		# Create the mask
-		mask = np.ones((len(mol_centres), len(mol_centres[0])), dtype=bool)
-		if xmax: mask = mask & (mol_centres[:, :, 0] < xmax)
-		if xmin: mask = mask & (mol_centres[:, :, 0] > xmin)
-		if ymax: mask = mask & (mol_centres[:, :, 1] < ymax)
-		if ymin: mask = mask & (mol_centres[:, :, 1] > ymin)
-		if zmax: mask = mask & (mol_centres[:, :, 2] < zmax)
-		if zmin: mask = mask & (mol_centres[:, :, 2] > zmin)
+		mask = np.ones(shape, dtype=bool)
+		if xmin: mask = mask & (np.take(mol_centres, 0, crd_ax) > xmin)
+		if xmax: mask = mask & (np.take(mol_centres, 0, crd_ax) < xmax)
+		if ymin: mask = mask & (np.take(mol_centres, 1, crd_ax) > ymin)
+		if ymax: mask = mask & (np.take(mol_centres, 1, crd_ax) < ymax)
+		if zmin: mask = mask & (np.take(mol_centres, 2, crd_ax) > zmin)
+		if zmax: mask = mask & (np.take(mol_centres, 2, crd_ax) < zmax)
 
 		# Apply the mask
-		self.mol_nums = np.array([nums[mask[i]] for i, nums in enumerate(self.mol_nums)])
-		mol_centres = np.array([cent[mask[i]] for i, cent in enumerate(mol_centres)])
+		if do_mol_nums:
+			self.mol_nums = np.array([nums[mask[i]] for i, nums in enumerate(self.mol_nums)])
 
-		return mol_centres
+		return np.array([cent[mask[i]] for i, cent in enumerate(mol_centres)]), mask
 
-	def _get_correct_mol_inds_(self, all_mol_crds, all_mol_cols):
+	def _set_nproc_(self, xyz_data):
+		""" Will refine the number of processors to use."""
+		min_mol_per_proc = 30 # absolute min is actually 31/2 per proc
+
+		if type(self.metadata['number_processors']) == int:
+			self.nproc = self.metadata['number_processors']
+
+		# Decide how many procs to use.
+		if self.nproc > mp.cpu_count(): self.nproc = mp.cpu_count()
+		elif self.nproc < 1: self.nproc = 1
+		
+		max_proc = np.ceil(xyz_data.shape[1] / min_mol_per_proc)
+		if self.nproc > max_proc: self.nproc = max_proc
+
+		self.nproc = int(self.nproc)
+
+	def _get_mol_nums_(self, all_mol_crds, all_mol_cols):
+		"""
+		Will create the molecule numbers array.
+
+		Inputs:
+			* all_mol_crds <array> => This is the molecular coordinates array
+			* all_mol_crds <array> => This is the element type of each atom in the shape (nmol, nat_per_mol, 3)
+		"""
 		if type(self.metadata['molecule_numbers']) == str:
 			if self.metadata['molecule_numbers'] == 'all':
-				self.mol_nums = np.arange(self.nmol)
+				# Create the molecule numbers/indicess
+				self.mol_nums = np.array([np.arange(len(i)) for i in all_mol_crds])
 			else:
 				raise SystemExit(f"String argument '{self.metadata['molecule_numbers']}' not understood"
 								 + " for parameter 'molecule_numbers'.")
 
+		# If the molecular numbers type is a list then use them as indices
 		elif isinstance(self.metadata['molecule_numbers'], (list, type(np.array(1)))):
 			all_mol_crds = all_mol_crds[:, self.metadata['molecule_numbers']]
 			all_mol_cols = all_mol_cols[:, self.metadata['molecule_numbers']]
-			self.mol_nums = self.metadata['molecule_numbers']
-
-		elif type(self.metadata['molecule_numbers']) == float:
-			if self.metadata['molecule_numbers'] <= 1.0:
-				self.mol_nums = np.arange(self.nmol)
-				self.mol_nums = self.mol_nums[:int(len(self.mol_nums) * self.metadata['molecule_numbers'])]
-				all_mol_crds = all_mol_crds[:, self.mol_nums]
-				all_mol_cols = all_mol_cols[:, self.mol_nums]
-			else:
-				raise SystemExit(f"Float argument '{self.metadata['molecule_numbers']}' not understood"
-								 + " for parameter 'molecule_numbers'.")
+			self.mol_nums = np.array([self.metadata['molecule_numbers'] for i in all_mol_crds])
 
 		else:
 			raise SystemExit(f"Argument '{self.metadata['molecule_numbers']}' of type"
@@ -268,7 +290,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		"""
 		mol_nums, proc_num = args
 		data = {}
-
 		for imol1 in mol_nums:
 			nearest_mols = self.step_NN[imol1]
 
@@ -334,6 +355,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		# Get mol crds
 		dimer_crds = mol_crds[[imol1, imol2]]
 		dimer_cols = mol_cols[[imol1, imol2]]
+
 		natom = np.shape(dimer_crds)[1] * 2
 		t2 = time.time()
 
@@ -381,7 +403,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				]
 
 		if not os.path.isfile(self.metadata['AOM_COEFF_file']):
-			raise SystemError("Can't find single mol AOM file. Please specify it via <var>['AOM_COEFF_file'] in the input file.")
+			raise SystemError(f"Can't find single mol AOM file. The path {self.metadata['AOM_COEFF_file']} doesn't exist.")
+
 		with open(self.metadata['AOM_COEFF_file'], "r") as f_read:
 			AOM_txt = f_read.read() * 2
 			with open("AOM_dimer.include", "w") as f_write:
@@ -415,6 +438,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		xyz_body = np.char.add(dimer_write_cols, dimer_write_crds)
 		with open(filepath, "w") as f:
 			f.write(f"{natom}" + "\n\n" + '\n'.join(xyz_body))
+
 
 	def __get_coupling_connections__(self, all_mol_crds, couplings, plot_params, convert=False, min_Hab=1):
 		"""
@@ -613,8 +637,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 	def get_xyz_data(self):
 		"""Will return the xyz data from the class."""
-		return np.array([np.reshape(self.spliced_mols,
-									(self.spliced_mols.shape[1] * self.spliced_mols.shape[2], 3))])
+		return np.array([np.reshape(self.spliced_crds,
+									(self.spliced_crds.shape[1] * self.spliced_crds.shape[2], 3))])
 
 	def get_xyz_cols(self):
 		"""Will return the columns of the xyz data"""

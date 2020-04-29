@@ -28,7 +28,7 @@ def rotate_crds(xyz, rot_mat):
     crds_dim = len(rot_mat)
 
     # First find the coordinate axis
-    coord_axis = _get_crd_ax(xyz, crds_dim)
+    coord_axis = _get_crd_ax_(xyz, crds_dim)
     rotate_vec = lambda vec: np.matmul(rot_mat, vec)
 
     return np.apply_along_axis(rotate_vec, coord_axis, xyz)
@@ -106,7 +106,7 @@ def get_system_size_info(xyz):
     sys_info = {}
 
     # Get which axis contains coordinate info
-    coord_axis = _get_crd_ax(xyz, 3)
+    coord_axis = _get_crd_ax_(xyz, 3)
 
     # Get the coordinate info
     x, y, z = np.take(xyz, 0, coord_axis), np.take(xyz, 1, coord_axis), np.take(xyz, 2, coord_axis)
@@ -122,7 +122,7 @@ def get_system_size_info(xyz):
 
     return sys_info
 
-def _get_crd_ax(xyz, dim=3):
+def _get_crd_ax_(xyz, dim=3):
     """
     Will get which axis is the coordinate axis
 

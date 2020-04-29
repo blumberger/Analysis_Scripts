@@ -1,0 +1,56 @@
+#############################################################
+# Will create the NVE run files from the CP2K NVT output    #
+#############################################################
+
+root_folder = "~/Data/CP2K_NVT"
+
+###
+# Read the positions amd velocities
+###
+pos_filename = "$root_folder/run-pos-1.xyz"
+vel_filename = "$root_folder/run-vel-1.xyz"
+
+read $pos_filename lammps_dump as pos
+read $vel_filename lammps_dump as vel
+set system pos to pentacene
+
+###
+# Read the CP2K input file
+###
+run_inp_filename = "$root_folder/run.inp"
+read $run_inp_filename cp2k_inp as run_inp
+
+###
+# Create a new directory for our sim folder
+# Copy the psf and prm files across
+###
+sim_folder = "Amorph_NVE"
+bash {
+    if [ -d "$sim_folder" ]
+    then
+        rm -rf $sim_folder
+    fi
+    mkdir $sim_folder
+
+    cp $root_folder/*.psf $sim_folder
+    cp $root_folder/*.prm $sim_folder
+}
+
+
+###
+# Write the positions to the folder as pos-init.xyz
+###
+
+
+###
+# Ammend the inp files and write those
+###
+python {
+    # run.inp
+    run_inp.data['cp2k_inp'].data.change_param(['MOTION', 'MD', 'ENSEMBLE'], "NVE")
+    run_inp.data['cp2k_inp'].data.remove(["MOTION", "MD", "TEMPERATURE"])
+    run_inp.data['cp2k_inp'].data.remove(["MOTION", "MD", "THERMOSTAT"])
+
+    run_inp.data['cp2k_inp'].write("Amorph_NVE/run.inp")
+
+}

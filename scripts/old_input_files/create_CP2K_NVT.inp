@@ -1,8 +1,8 @@
 ###
 # Read the positions
 ###
-folder = "~/Data/Pentacene_Final_Data/Instant_Quench/xyz_md"
-filename = "snapshot2250002.dat"
+folder = "/home/matt/Data/Work/Pentacene_Final_Data/10ns_Quench"
+filename = "snapshot12250005.dat"
 pos_filename = "$folder/$filename"
 
 read $pos_filename lammps_dump as pos

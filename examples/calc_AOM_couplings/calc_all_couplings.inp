@@ -1,0 +1,52 @@
+##################################################################
+# Some code to calculate the couplings between all molecules in  #
+# a position file.                                               #
+#                                                                #
+# This uses Orestis's AOM coupling calculator which calculates   #
+# couplings in exactly the same way as in CP2K.                  #
+##################################################################
+
+
+###############
+## Read the data
+folder = "./examples/data"
+filename = "snapshot15000.dat"
+read "$folder/$filename" lammps_dump as pos
+
+
+##############
+## Set some parameters (these 2 are the only required parameters)
+#
+# let the code know your working with a pentacene system
+set system pos to pentacene
+
+# Set the location of the AOM_coeff.include file
+AOM_folder = "/home/matt/Helford/Documents/Code_bits_and_bobs/MD_Analysis_Scripts/src/data/AOM_COEFFs"
+pos['AOM_COEFF_file'] = "$AOM_folder/Pentacene_Lammps_Single_Mol.include"
+
+
+#############
+## Choose which things to plot
+pos['plot_coupling_connections'] = False
+pos['plot_coupling_annotations'] = True
+pos['plot_coupling_atoms'] = False
+
+
+#############
+## Choose which region to act on (default is all mols) 
+pos['xmin'] = 30
+pos['xmax'] = 50
+pos['ymin'] = 30
+pos['ymax'] = 50
+#pos['zmin'] = 0.7 
+pos['zmax'] = 3
+
+
+##############
+## Calculate the couplings and plot the connections.
+calc all_AOM_couplings from pos as data
+
+
+##############
+## Write the couplings in the json format
+write data "couplings.json"

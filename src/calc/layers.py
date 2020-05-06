@@ -19,8 +19,8 @@ class Molecular_Layers(gen_calc.Calc_Type):
 	"""
 	required_data_types = ('pos', )
 	required_calc = ("long_ax_rotation", )
-	_defaults = {'allow_boundaries': False, "plot_layers": False, 'rotate': False}
-	required_metadata = ("atoms_per_molecule", 'rotate', )
+	_defaults = {'allow_boundaries': False, "plot_layers": False, 'rotate_to_long_axis': False}
+	required_metadata = ("atoms_per_molecule", 'rotate_to_long_axis', )
 	metadata = {'file_type': 'json'}
 	name = "Molecular Layers"
 
@@ -45,12 +45,13 @@ class Molecular_Layers(gen_calc.Calc_Type):
 				mol_col = mol_utils.cols_to_mols(cols, self.metadata['atoms_per_molecule'])
 
 				COM = mol_utils.get_COM_split_mols(mol_crds, mol_col)
-				if self.metadata['rotate']:	 self.rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
+				if self.metadata['rotate_to_long_axis']:	 self.rotated_COM = geom.rotate_crds(COM, self.long_ax_rotation.xy_rotation_matrix)
 				else:						 self.rotated_COM = COM
 
 				self.sys_info = geom.get_system_size_info(self.rotated_COM)
 
 				self.layer_starts = self.get_layers(self.rotated_COM)
+				self.nlayers = len(self.layer_starts)
 				self.layer_mols, self.layer_inds = self.get_layer_mols(self.rotated_COM)
 
 				if self.metadata['plot_layers'] is True:
@@ -109,7 +110,7 @@ class Molecular_Layers(gen_calc.Calc_Type):
 
 		# Smooth the data
 		self.smoothed_df = pd.DataFrame({'num': self.num, 'z': self.z})
-		self.smoothed_df = self.smoothed_df.rolling(2, center=True).mean().dropna()
+		self.smoothed_df = self.smoothed_df.rolling(15, center=True).mean().dropna()
 		# self.smoothed_df['gradient'] = np.abs(self.smoothed_df['num'] - np.roll(self.smoothed_df['num'], 10))
 		self.smoothed_df.index = np.arange(len(self.smoothed_df))
 
@@ -117,8 +118,6 @@ class Molecular_Layers(gen_calc.Calc_Type):
 		# Get some starting points for the minima
 		max_data, min_data = np.max(self.smoothed_df['num']), np.min(self.smoothed_df['num'])
 		data_range = max_data - min_data
-
-		self.smoothed_df.to_csv("test.csv", index=False)
 
 		# Use a steepest descent-eqsue algorithm to get true local minima
 		true_min = []

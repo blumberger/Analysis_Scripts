@@ -183,7 +183,6 @@ class Write_File(object):
 		with open(filepath, 'w') as f:
 			f.write(s)
 
-
 	def create_file_str(self):
 	  """
 	  To be overwritten by children to create the str to be written to a file.
@@ -192,6 +191,26 @@ class Write_File(object):
 	  """
 	  return str(self.Data)
 
+
+def create_unique_filepath(filepath):
+	"""
+	Will keep adding 1 to a filepath until it doesn't exists anymore.
+
+	This can be used to prevent overwriting of files.
+	"""
+	Ofilepath = filepath
+	filename, ext = remove_file_extension(filepath)
+	ext = f".{ext}" if ext else ""
+
+	count = 1
+	while os.path.isfile(filepath) and count < 1000:
+		filepath =	"{filename}_{count}{ext}".strip()
+		count += 1
+
+	if count == 1000:
+		raise SystemError("Something went wrong creating a new filepath for {Ofilepath}")
+
+	return filepath
 
 # Reads a file and closes it
 def open_read(filename, throw_error=True):

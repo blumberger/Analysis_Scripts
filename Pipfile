@@ -18,3 +18,4 @@ rdf = {path = "./C_modules"}
 sklearn = "*"
 
 [requires]
+python_version = "3.8"

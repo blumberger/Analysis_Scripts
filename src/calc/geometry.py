@@ -119,6 +119,9 @@ def get_system_size_info(xyz):
     sys_info['xlen'] = sys_info['xmax'] - sys_info['xmin']
     sys_info['ylen'] = sys_info['ymax'] - sys_info['ymin']
     sys_info['zlen'] = sys_info['zmax'] - sys_info['zmin']
+    sys_info['center'] = (sys_info['xmin'] + sys_info['xlen']/2.,
+                          sys_info['ymin'] + sys_info['ylen']/2.,
+                          sys_info['zmin'] + sys_info['zlen']/2.,)
 
     return sys_info
 

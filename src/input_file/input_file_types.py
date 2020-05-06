@@ -774,6 +774,11 @@ class Variable(object):
 
         return self
 
+    def __eq__(self, val):
+        return self.data == val
+
+    def __ge__(self, val):
+        return self.data > val
 
 
 
@@ -834,7 +839,7 @@ class Vars(dict):
         Will get the element type columns from a csv file.
         """
         if self.number_each_atom is False:
-            raise SystemExit("I need to know how of each type of atom there are in each mol."
+            raise SystemExit("I need to know how many of each type of atom there are in each mol."
                            + "\n\nSet this by using the command:\n\n\t`set system <data_name>"
                            + " to <mol_type>`\n\nin the input file.")
 

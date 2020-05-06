@@ -19,6 +19,7 @@ def calc_all_dists(pos1, all_pos, types=False):
         sorting = sorted(zip(dist, np.arange(1, len(dist)+1)))
     return sorting
 
+
 class Create_PSF(gen_calc.Calc_Type):
     """
     Will create a psf file from

@@ -28,6 +28,8 @@ from src.io_utils import csv_files
 from src.io_utils import massif_files as M_files
 from src.io_utils import param_files
 from src.io_utils import pseudo_hamiltonian as psu_ham
+from src.io_utils import numpy_files
+from src.io_utils import esp
 
 
 load_fncs = {
@@ -35,12 +37,14 @@ load_fncs = {
              'json': json.read_json, 'lammps_log': lammps.Lammps_Log_File,
              'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
              'lammps_dump': lammps.Lammps_Dump, 'massif_file': M_files.Massif_File,
-             'params': param_files.Params, "pseudo_ham": psu_ham.Pseudo_Ham
+             'params': param_files.Params, "pseudo_ham": psu_ham.Pseudo_Ham,
+             "esp": esp.ESP_File,
             }
 write_fncs = {
               'cp2k_inp': "self.write", 'xyz': xyz.Write_XYZ_File,
               'json': json.write_json, 'csv': csv_files.Write_CSV,
               "psf": gen_io.Write_File, "mol_layers": json.write_json,
+              "numpy": numpy_files.Numpy
              }
 calc_fncs = {
              'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,

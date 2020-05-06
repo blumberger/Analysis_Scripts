@@ -1,6 +1,6 @@
 # Will install any python dependencies and init the pip virtual environment
-function install_deps() {
-    echo "Installing dependencies"
+function install_deps_pipenv() {
+    echo "Installing dependencies [pipenv]"
     
     exit_code=0
 
@@ -40,8 +40,34 @@ function install_deps() {
     fi
     
     pipenv install ipython
+    echo "Installing ipython"
     pipenv install
     echo "Installed dependencies"
 
     export exit_code 
+}
+
+function install_deps_conda() {
+    echo "Installing dependencies [conda]"
+
+    exit_code=0
+
+    CONDA_EXISTS=`which conda 2> /dev/null`
+    if ["$CONDA_EXISTS" == "" ]
+    then
+      echo "Please first download and install the anaconda package manager"
+      echo "It can be found here: "
+      echo "                      https://docs.conda.io/en/latest/miniconda.html#linux-installers"
+      exit_code=1
+    fi
+    
+    # Update anaconda
+    conda update -n base -c defaults conda
+
+    # Create the anaconda environement
+    conda create --name MD_analysis_env -y
+    
+    # Activate the virtual env
+    conda activate MD_analysis_env
+
 }

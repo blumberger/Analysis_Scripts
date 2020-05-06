@@ -41,8 +41,9 @@ class TMP(gen_calc.Calc_Type):
 
 	To use just edit the _calc_ function below.
 	"""
-	required_calc = ('all_AOM_couplings', )
-	def _calc_(self):
+	required_calc = ('mol_layers')
+
+	def _calc_coupling_histograms_(self):
 		
 		print("Sorting the couplings into directions")
 

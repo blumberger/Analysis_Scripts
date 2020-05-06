@@ -47,7 +47,7 @@ fi
 if [ "$INSTALL_DEPS" == "true" ]
 then
     # From ./scripts/run_utils.sh
-    install_deps
+    install_deps_pipenv
     
     if [ "$exit_code" != "0" ]
     then
@@ -66,7 +66,7 @@ do
     case $arg in 
         i) INP_FILE=$OPTARG; HELP="false";;
         t) TEST="true"; HELP="false";;
-        u) HELP="false"; install_deps;; # from ./scripts/run_utils.sh
+        u) HELP="false"; install_deps_pipenv;; # from ./scripts/run_utils.sh
         c) COMPILE="true";;
         h) HELP="true";;
     esac

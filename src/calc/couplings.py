@@ -32,6 +32,7 @@ def calc_all_dists(pos_ind, all_pos, cutoff):
 	mol_nums = np.arange(len(all_pos))[dist < cutoff]
 	return mol_nums[mol_nums > pos_ind]
 
+
 class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 	"""
 	Will calculate the couplings between all mols and their nearest neighbours.
@@ -57,7 +58,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				 "plot_coupling_annotations": "auto", "plot_coupling_atoms": False,
 				 "plot_coupling_mol_numbers": False, 'xmax': False, 'xmin': False,
 				 'ymax': False, 'ymin': False, 'zmax': False, 'zmin': False,
-				 "coordinate_wrapping": "wrapped", "delete_files": True,
+				 "coordinate_wrapping": "wrapped", "delete_files": True, "a1_elev": 90,
+				 "a2_elev": 0, "a1_azim": 0, "a2_azim": 0, "xy_rotation_matrix": False,
 				 }
 	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file",
 						 "reorganisation_energy",)
@@ -71,6 +73,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			 }
 
 	metadata = {'file_type': 'json'}
+	coup_calc_count = 0
 
 	name = "Create AOM Couplings Config"
 
@@ -90,6 +93,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 		# Only act on the first pos file.
 		xyz_data = self.Var.data.get_xyz_data()[0]
+		if self.metadata['xy_rotation_matrix'] is not False:
+			xyz_data = geom.rotate_crds(xyz_data, self.metadata['xy_rotation_matrix'])
 		cols = self.Var.data.get_xyz_cols()[0]
 
 		# Get the molecular coordinate
@@ -108,6 +113,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		mol_centroids, mol_mask = self._apply_boundaries_(mol_centroids, do_mol_nums=True)
 		mol_cols = np.array([col[mask] for col, mask in zip(all_mol_cols, mol_mask)])
 		mol_crds = np.array([crds[mask] for crds, mask in zip(all_mol_crds, mol_mask)])
+		
+		print("\n\n" + f"Using {len(mol_centroids[0])} mols")
 
 		# Decide how many procs to use
 		self._set_nproc_(mol_crds)
@@ -135,6 +142,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		self.data = [{} for istep in range(len(xyz_data))]
 		for istep in range(len(xyz_data)):
 			self.step_NN = mol_NN[istep]
+			print(f"{sum([len(i) for i in self.step_NN])} coupling values to calculate.")
+			self.num_calcs = sum([len(self.step_NN[i]) for i in self.step_NN])
 			self.mol_cols = mol_cols[istep]
 			self.mol_crds = mol_crds[istep]
 
@@ -149,6 +158,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				for i in all_data:	self.data[istep].update(i)
 			else: self.data[istep] = self.__calc_mol_couplings__(args[0])
 
+		self.coup_calc_count = 0
 		# For some reason multiprocessing isn't terminating the processes before here.
 		if self.nproc > 1: pool.terminate()
 
@@ -167,7 +177,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		do_plot = self.metadata['plot_coupling_connections'] or bool(self.metadata['save_coupling_connection_plot'])
 		if do_plot:
 			for istep in range(len(xyz_data)):
-				f = plt.figure()
+				f = plt.figure(figsize=(16, 9))
 				a1 = f.add_subplot(121, projection="3d", proj_type = 'ortho');
 				a2 = f.add_subplot(122, projection="3d", proj_type = 'ortho')
 
@@ -179,6 +189,12 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 					self._plot_mol_nums_(mol_centroids[istep], istep, a1)
 				self._plot_mol_selection_(all_centroids[istep], mol_centroids[istep], a2)
 				plt.tight_layout()
+
+				a1.view_init(elev=self.metadata['a1_elev'], azim=self.metadata['a1_azim'])
+				a2.view_init(elev=self.metadata['a2_elev'], azim=self.metadata['a2_azim'])
+
+				# def func(count):  plt.savefig(f"frames/rot_{str(count).zfill(5)}.png")
+				# self._rotate_plot_(a1, step_func=func)
 
 				# Decide how to handle the plotted data
 				if bool(self.metadata['save_coupling_connection_plot']):
@@ -235,7 +251,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 	def _set_nproc_(self, xyz_data):
 		""" Will refine the number of processors to use."""
-		min_mol_per_proc = 30 # absolute min is actually 31/2 per proc
+		min_mol_per_proc = 15 # absolute min is actually 16/2 per proc
 
 		if type(self.metadata['number_processors']) == int:
 			self.nproc = self.metadata['number_processors']
@@ -246,6 +262,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		
 		max_proc = np.ceil(xyz_data.shape[1] / min_mol_per_proc)
 		if self.nproc > max_proc: self.nproc = max_proc
+
+		if self.nproc < 1: self.nproc = 1
 
 		self.nproc = int(self.nproc)
 
@@ -302,6 +320,12 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 											 self.dimer_filepaths[proc_num])
 
 				data.setdefault(imol1, {})[imol2] = coupling * self.metadata['AOM_scaling_factor']
+
+				self.coup_calc_count += 1
+				
+				num_done_blocks = int((self.coup_calc_count * self.nproc)/self.num_calcs * 19) + 1
+				# num_to_do_blocks = 20 - num_done_blocks
+				print("\r" + "*"*num_done_blocks, end="\r")
 
 		if not os.path.isfile(self.dimer_filepaths[proc_num]):
 			print("\n\nWarning no coupling values found within given cutoff"
@@ -385,7 +409,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		self.times.setdefault('writeCrds', []).append(t3 - t2)
 		self.times.setdefault('calcCoupl', []).append(t4 - t3)
 
-		return float(res.stdout.decode("utf-8"))# * self.metadata['AOM_scaling_factor']
+		return float(res.stdout.decode("utf-8"))
 
 	def _create_config_file_(self, dimer_file, filepath, unique_elm):
 		"""
@@ -581,15 +605,15 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			annotate = self.metadata['plot_coupling_annotations']
 
 
+		print(reorg)
 		if annotate:
 			for plot_data in graph_data:
-				pos = np.mean(plot_data['pos'], axis=1)
-				ax.text(pos[0], pos[1], pos[2],	f"{plot_data['Hab']:.1f}",
-						horizontalalignment='center', verticalalignment='center')
+				if abs(plot_data['Hab']) >= reorg/10:
+					pos = np.mean(plot_data['pos'], axis=1)
+					ax.text(pos[0], pos[1], pos[2],	f"{plot_data['Hab']:.1f}",
+							horizontalalignment='center', verticalalignment='center')
 
-		ax.view_init(azim=0, elev=90)
 		ax.set_title(f"$\lambda = $ %.1f meV" % reorg)
-		# a2.view_init(azim=64, elev=0)
 
 		# if self.metadata['CC_plot_title']: ax.set_title(self.metadata['CC_plot_title'].replace("Layer", "").replace("_", " ").strip())
 
@@ -611,7 +635,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 		ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z");
 		ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([]);
-		ax.view_init(azim=0, elev=90)
 
 		# Plot the full system of molecules as black dots
 		self._plot_xyz_data(all_mols, ax,
@@ -621,6 +644,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		self._plot_xyz_data(mol_selection, ax,
 							args={'ls': 'none', 'marker': 'o', 'color': 'r'})
 
+		ax.set_title("Mols selected in red")
 		return ax
 
 	def json_data(self):
@@ -764,8 +788,9 @@ class Coupling_Connections(gen_calc.Calc_Type):
 					for plot_data in graph_data:
 						a1.plot(*plot_data['pos'], **plot_data['args'])
 
-					a1.view_init(azim=64, elev=90)
-					a2.view_init(azim=64, elev=0)
+
+					a1.view_init(azim=self.metadata['a1_azim'], elev=self.metadata['a1_elev'])
+					a2.view_init(azim=self.metadata['a2_azim'], elev=self.metadata['a2_elev'])
 
 					if self.metadata['CC_plot_title']: a1.set_title(self.metadata['CC_plot_title'].replace("Layer", "").replace("_", " ").strip())
 
@@ -780,6 +805,7 @@ class Coupling_Connections(gen_calc.Calc_Type):
 						plt.close()
 					else:
 						plt.show()
+
 
 					break
 

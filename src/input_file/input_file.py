@@ -50,7 +50,7 @@ from src.input_file import function_dicts as f_dicts
 from src.input_file import input_file_types as inp_types
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
-            'script', 'python', 'if', "splice")
+            'script', 'python', 'if', "exit", "splice")
 SET_FOLDERPATH = "src/data/set"
 SET_TYPES = ("params", "system")
 VALID_FOR_FUNCS = ("range", "filepath", "list")
@@ -108,7 +108,7 @@ def is_math_line(line):
 ###########################################################################
 s = "LINE_DECLARATIONS = {"
 for cmd in CMD_LIST:
-    s += f"'{cmd}': lambda line: len(re.findall('^{cmd} ', line)) > 0,"
+    s += f"'{cmd}': lambda line: len(re.findall('^{cmd} *', line)) > 0,"
 s += "}"
 exec(s)
 ###########################################################################
@@ -168,6 +168,7 @@ class INP_File(object):
     line_declarations['load'] = lambda x: len(re.findall("^load |^read ", x)) > 0
     line_declarations['math'] = is_math_line
     line_declarations['shell'] = lambda x: x.strip().lower() == "shell"
+    line_declarations['exit'] = lambda x: x.strip().lower() == "exit"
     line_declarations['python'] = lambda x: x == "python"
     line_declarations['bash'] = lambda x: x == "bash"
     line_declarations['inline_code'] = lambda x: x.split()[0] in VALID_SCRIPT_TYPES
@@ -316,6 +317,8 @@ class INP_File(object):
             self.print_error("You must specify a range as 'range(<start>, <end>, <step>)'")
 
         for i in (start, end, step):
+            if type(i) == str and re.search(IN_STR_VAR_REGEX, i):
+                continue
             if type(i) != int:
                 self.print_error(f"Type in range must by int! You typed '{i}'")
 
@@ -674,7 +677,6 @@ class INP_File(object):
             self.print_error("Incorrect variable declaration in for loop. Use a string var.")
 
         # Check we know what sort of iterator we have
-        VALID_FOR_FUNCS = ("range", "filepath", "list")
         for keyword in VALID_FOR_FUNCS:
             if re.findall(f"{keyword}\(.*\)", line):
                 fnc = getattr(self, f"check_{keyword}_keyword")
@@ -808,8 +810,14 @@ class INP_File(object):
             * line <str> => A string containing the cleaned line from a input file.
         """
         line = re.sub("^if *", "", line)
+        if '(' not in line or ')' not in line:
+            self.print_error("Syntax error: If statements take the syntax if (condition) { ... }",
+                             errorFunc=SyntaxError)
+
+
         # remove the brackets
         statement, _ = gen_parse.get_str_between_delims(line, "(", ")")
+
 
         # Check all variables have been declared
         any_vars = [i.strip('$') for i in re.findall(VAR_REGEX, statement)]
@@ -883,6 +891,10 @@ class INP_File(object):
 
             elif self.line_declarations['splice'](line):
                 self.parse_splice_cmd(line)
+
+            elif self.line_declarations['exit'](line):
+                print("\n\nStopped Code -exit was called.")
+                raise SystemExit
 
             # The end of control statements
             elif '}' in line:
@@ -1462,12 +1474,13 @@ class INP_File(object):
         # Find the code to run
         end_line = self.get_end_brace()
 
-        # Carry out the relevant for loop function
+            # Carry out the relevant for loop function
         for keyword in VALID_FOR_FUNCS:
             if re.findall(f"{keyword}\(.*\)", line):
                 fnc = getattr(self, f"do_{keyword}_forloop")
                 all_iter_vars = fnc(line)
                 break
+
 
         # Do the for loop
         start_for = self.line_num + 2
@@ -1689,20 +1702,27 @@ class INP_File(object):
             * line <str> => The line containing the for loop
         """
         line = re.sub("^if *", "", line)
+
         # remove the brackets
         statement, _ = gen_parse.get_str_between_delims(line, "(", ")")
 
         # Check all variables have been declared
-        any_vars = [i for i in re.findall(VAR_REGEX, statement)]
-        _vars = [getattr(self, var.strip('$')).data for var in any_vars]
+        any_vars = [i for i in re.findall(IN_STR_VAR_REGEX, statement)]
+        # Get the variables declared
+        _vars = []
+        for var in any_vars:
+            _Var = getattr(self, var.strip('$'))
+            if type(_Var) == inp_types.Variable:  _vars.append(_Var.data)
+            else:    _vars.append(_Var)
+
         for var_name, var_val in zip(any_vars, _vars):
             statement = statement.replace(var_name, str(var_val))
 
         # Evaluate the if statement
         try:
-            bob = {}
-            exec(f"val={statement}", bob)
-            val = bob['val']
+            var_container = {}
+            exec(f"val = {statement}", var_container)
+            val = var_container['val']
         except Exception as e:
             self.print_error("Couldn't parse the if statement\n\nError:"
                              + str(e))

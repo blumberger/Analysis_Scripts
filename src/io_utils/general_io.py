@@ -12,7 +12,7 @@ class DataFileStorage(object):
 	"""
 	A class to act as a template for other classes that load and store data from files to use.
 
-	The class takes the filepath as an input and calls a method named parse(). Any data stored
+	The class takes the filepath as an input and calls a method named _parse_(). Any data stored
 	under the name numeric_data will be manipulated via the operator overload functions.
 
 	Inputs:
@@ -40,14 +40,14 @@ class DataFileStorage(object):
 			if key not in self.metadata:
 				self.metadata[key] = self._defaults[key]
 
-		self.parse()
+		self._parse_()
 		for var in dir(self):
 			if var in self._poss_num_types_:
 				self._numeric_data_types.append(var)
 
 
 	# Dummy method to hold the place of an actual parser later
-	def parse(self):
+	def _parse_(self):
 		"""
 		Should be overridden in any child classes.
 		"""
@@ -189,7 +189,7 @@ class Write_File(object):
   
 	  By default we write the str(self.Data)
 	  """
-	  return str(self.Data)
+	  return str(self.file_txt)
 
 
 def create_unique_filepath(filepath):

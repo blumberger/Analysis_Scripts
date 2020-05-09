@@ -27,7 +27,7 @@ class Read_INP(gen_io.DataFileStorage):
 		* filepath <str> => The path to the file to be loaded.
 	"""
 	metadata = {'file_type': 'CP2K_inp'}
-	def parse(self):
+	def _parse_(self):
 		self.data = INP_File(parse_inp_file(self.filepath))
 
 		self.file_data = {gen_io.get_filename_from_filepath(self.filepath): copy.deepcopy(self.data)}

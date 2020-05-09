@@ -2,6 +2,7 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn.cluster import DBSCAN
 
 from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
@@ -21,12 +22,12 @@ class ESP_File(gen_io.DataFileStorage):
     name = "EPS File"
     _defaults = {}
     
-    def parse(self):
+    def _parse_(self):
         """
         Will parse the file text and store the data.
         """
-        self.ltxt = self.file_txt.split("\n")
-        self.double_float = lambda str_: float(str_.replace("D", "e"))
+        self._ltxt = self.file_txt.split("\n")
+        self._double_float = lambda str_: float(str_.replace("D", "e"))
 
         self.__get_units__()
         self.__get_charges_and_crds__()
@@ -68,6 +69,9 @@ class ESP_File(gen_io.DataFileStorage):
             f = plt.figure()
             ax = f.add_subplot(111, projection="3d", proj_type="ortho")
 
+        groups = {0: [22, 25, 4, 7], 1: [23, 24, 5, 6], 2: [32, 33, 15, 14], 3: [31, 34, 16, 13], 4: [21, 26, 8, 3], 5: [20, 9, 2, 27], 6: [30, 35, 17, 12], 7: [19, 10, 28, 1], 8: [29, 11], 9: [18, 0]}
+
+        colors = ['k', 'b', 'g', 'r', 'y', '#aaaaaa', '#fababa', '#ff00ff', '#00ffff', '#f37f29']
         for elm in set(self.cols):
             mask = self.cols == elm
             if elm not in mol_utils.PT_abbrv:
@@ -83,6 +87,14 @@ class ESP_File(gen_io.DataFileStorage):
             crds = self.xyz_data[mask]
             ax.plot(crds[:,0], crds[:,1], crds[:,2], '.',
                     ls="none", ms=size, color=color, alpha=0.5)
+
+        for i, at_group in enumerate(groups):
+            at_inds = groups[at_group]
+            crds = self.xyz_data[at_inds]
+            ax.plot(crds[:, 0], crds[:, 1], crds[:, 2], '.', color=colors[i], ms=40)
+            print(i, np.mean(self.partial_charges[at_inds]))
+            # for x, y, z in crds:
+            #     ax.text(x, y, z, f"{np.mean(self.partial_charges[at_inds]):.2f}", va="bottom")
 
         # Reshape axes
         xlim = ax.get_xlim(); ylim = ax.get_ylim(); zlim = ax.get_zlim()
@@ -117,15 +129,14 @@ class ESP_File(gen_io.DataFileStorage):
         ax = self.plot_crds(ax, show=False)
 
 
-        # These are the pentacene Mulliken charges from Sam's Gaussian sim -they can be deleted.
+        # # These are the pentacene Mulliken charges from Sam's Gaussian sim -they can be deleted.
         # s = """-0.235339,0.040679,-0.231405,0.043727,-0.210538,-0.201912,-0.200956,-0.210827,0.043195,-0.231411,0.040331,0.192876,0.194823,0.192835,0.193056,0.192945,0.192909,0.194962,-0.235394,0.040697,-0.231345,0.043665,-0.210551,-0.201907,-0.200956,-0.210833,0.043228,-0.231398,0.040420,0.192850,0.194864,0.192833,0.193055,0.192942,0.192915,0.194964""".split(",")
         # self.partial_charges = np.array(s).astype(float)
 
-
-        for c, (x, y, z) in zip(self.partial_charges, self.xyz_data):
-            color = 'b' if c >= 0 else 'r'
-            ax.scatter([x], [y], [z], s=(abs(c)**2)*5000, color=color, alpha=0.2)
-            ax.text(x, y, z, f"{c:.2f}", fontsize=17)
+        for i, (c, (x, y, z)) in enumerate(zip(self.partial_charges, self.xyz_data)):
+        #     color = 'b' if c >= 0 else 'r'
+        #     ax.scatter([x], [y], [z], s=(abs(c)**2)*5000, color=color, alpha=0.2)
+            ax.text(x-0.3, y, z, str(i), fontsize=17, ha="right", va="top")  # f"{c:.2f}", fontsize=17)
 
         if show:
             plt.show()
@@ -157,12 +168,12 @@ class ESP_File(gen_io.DataFileStorage):
 
     def __get_units__(self):
         """Will parse the units from the first line and store them in the metadata."""
-        line = [i.strip() for i in self.ltxt[0].split(' - ')]
+        line = [i.strip() for i in self._ltxt[0].split(' - ')]
         if len(line) == 2:
             self.metadata['gauss_file_type'], self.metadata['units'] = line
         
         else:
-            raise SystemError("Parsing error in line 1.\n\n\tLine = '%s'" % self.ltxt[0]
+            raise SystemError("Parsing error in line 1.\n\n\tLine = '%s'" % self._ltxt[0]
                               + "\n\tError: Line split by ' - ' is not length 2.")
 
     def __get_charges_and_crds__(self):
@@ -172,9 +183,9 @@ class ESP_File(gen_io.DataFileStorage):
         This will first get some metadata then call the function __get_atom_data__ which
         will parse the xyz data as well as the partial charge data.
         """
-        for line in self.ltxt:
+        for line in self._ltxt:
             if 'CHARGE' in line:
-                line = self.ltxt[1]
+                line = self._ltxt[1]
                 for i in line.split(' - '):
                     splitter = i.split('=')
                     if len(splitter) == 2:
@@ -187,7 +198,7 @@ class ESP_File(gen_io.DataFileStorage):
         """
         Will get the charge data and the coordinates from the xyz section.
         """
-        for line_num, line in enumerate(self.ltxt):
+        for line_num, line in enumerate(self._ltxt):
             if 'ATOMIC COORDINATES AND ESP CHARGES.' in line:
                 break
 
@@ -200,7 +211,7 @@ class ESP_File(gen_io.DataFileStorage):
 
         # Parse the lines
         cols, xyz, partial_charges = [], [], []
-        for line_num1, line in enumerate(self.ltxt[line_num + 1: line_num + self.metadata['number_atoms'] + 1]):
+        for line_num1, line in enumerate(self._ltxt[line_num + 1: line_num + self.metadata['number_atoms'] + 1]):
             splitter = line.split()
             if len(splitter) != 5:
                 args = (line_num + 2 + line_num1, len(splitter), line)
@@ -208,8 +219,8 @@ class ESP_File(gen_io.DataFileStorage):
                                   + "\n\n\tBad Line = %i\n\n\tNum Cols = %i\n\n\tBad Line = '%s'" % args)
 
             cols.append(splitter[0])
-            xyz.append([self.double_float(i) for i in splitter[1:4]])
-            partial_charges.append(self.double_float(splitter[4]))
+            xyz.append([self._double_float(i) for i in splitter[1:4]])
+            partial_charges.append(self._double_float(splitter[4]))
 
         self.xyz_data = np.array(xyz)
         self.cols = np.array(cols)
@@ -217,27 +228,27 @@ class ESP_File(gen_io.DataFileStorage):
 
     def __get_dipole_moment__(self):
         """Will parse the lines containing dipole moment info and store it in the metadata."""
-        for line_num, line in enumerate(self.ltxt):
+        for line_num, line in enumerate(self._ltxt):
             if 'DIPOLE MOMENT' in line:
                 break
 
-        line = self.ltxt[line_num + 1]
+        line = self._ltxt[line_num + 1]
         vals = re.findall("[a-zA-Z]+ *= *[-D0-9.]+", line)
         for i in vals:
             splitter = i.split('=')
             if len(splitter) == 2:
-                self.metadata[f"dipole_{splitter[0].lower()}"] = self.double_float(splitter[1])
+                self.metadata[f"dipole_{splitter[0].lower()}"] = self._double_float(splitter[1])
 
     def __get_quadrupole_moment__(self):
         """Will parse the lines containing dipole moment info and store it in the metadata."""
-        for line_num, line in enumerate(self.ltxt):
+        for line_num, line in enumerate(self._ltxt):
             if 'QUADRUPOLE MOMENT' in line:
                 break
 
-        line = '  '.join(self.ltxt[line_num+1 : line_num+3])
+        line = '  '.join(self._ltxt[line_num+1 : line_num+3])
 
         vals = re.findall("[a-zA-Z]+ *= *[-+D0-9.]+", line)
-        vals = {i.split('=')[0].strip().lower(): self.double_float(i.split('=')[1]) for i in vals}
+        vals = {i.split('=')[0].strip().lower(): self._double_float(i.split('=')[1]) for i in vals}
 
         self.metadata['quadrupole_moment'] = np.array([[vals['xx'], vals['xy'], vals['xz']],
                                                        [vals['xy'], vals['yy'], vals['yz']],
@@ -253,7 +264,7 @@ class ESP_File(gen_io.DataFileStorage):
             * z is z coord
             * val is the density at that point
         """
-        for line_num, line in enumerate(self.ltxt):
+        for line_num, line in enumerate(self._ltxt):
             if 'ESP VALUES AND GRID' in line:
                 break
 
@@ -265,15 +276,15 @@ class ESP_File(gen_io.DataFileStorage):
         self.metadata['number_grid_points'] = int(re.findall("\d+", npoints)[0])
 
         xyz, vals = [], []
-        for line_num1, line in enumerate(self.ltxt[line_num+1: line_num+1+self.metadata['number_grid_points']]):
+        for line_num1, line in enumerate(self._ltxt[line_num+1: line_num+1+self.metadata['number_grid_points']]):
             splitter = line.split()
             if len(splitter) != 4:
                 args = (line_num + 2 + line_num1, len(splitter), line)
                 raise SystemError("Parsing Error: Can't parse the charge density data."
                                   + "\n\n\tBad Line = %i\n\n\tNum Cols = %i\n\n\tBad Line = '%s'" % args)
 
-            xyz.append([self.double_float(i) for i in splitter[:3]])
-            vals.append(self.double_float(splitter[3]))
+            xyz.append([self._double_float(i) for i in splitter[:3]])
+            vals.append(self._double_float(splitter[3]))
 
         self.grid_points = np.array(xyz)
         self.charge_density = np.array(vals)

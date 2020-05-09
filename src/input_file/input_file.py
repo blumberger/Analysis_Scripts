@@ -277,6 +277,9 @@ class INP_File(object):
             elif self.line_declarations['if'](line):
                 self.check_if_statement(line)
 
+            elif self.line_declarations['exit'](line):
+                break
+
             self.line_num += 1
 
         # Reset the inp file variables and line number

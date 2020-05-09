@@ -25,7 +25,7 @@ class Massif_File(gen_io.DataFileStorage):
         self.heap_tree = []
         super().__init__(filepath)
 
-    def parse(self):
+    def _parse_(self):
         """
         Will do the parsing of the massif file.
         """

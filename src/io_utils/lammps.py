@@ -15,6 +15,7 @@ import copy
 from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
 from src.data import consts
+from src.input_file import input_file_types as inp_types
 
 
 class Lammps_Log_File(gen_io.DataFileStorage):
@@ -23,9 +24,12 @@ class Lammps_Log_File(gen_io.DataFileStorage):
 
     A class that will loop over all lines and parse the CSVs from the
     lammps log file.
+
+    Inputs:
+        * filepath <str> => The path to the file to be loaded.
     """
     csv_data = []
-    metadata = {'file_type': 'log_csv', 'number_atoms': 0,
+    metadata = {'file_type': 'csv', 'number_atoms': 0,
                 'total_run_time': 0, 'run_times': []}
     name = "Lammps Log File"
     _write_types = ('csv', 'txt',)
@@ -33,14 +37,14 @@ class Lammps_Log_File(gen_io.DataFileStorage):
     def __init__(self, filepath):
         super().__init__(filepath)
 
-    def parse(self):
+    def _parse_(self):
         """
         Will loop over all steps and parse the csv from the lammps log file.
         """
         self._ltxt = self.file_txt.split("\n")
-        self.get_csv_lines(50)
-        self.read_csv_lines()
-        self.get_metadata()
+        self._set_csv_lines(50)
+        self._read_csv_lines()
+        self._get_metadata()
         self.append_csvs()
 
     def append_csvs(self):
@@ -61,12 +65,17 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             index = col_heads.index(heads)
             self.collected_csv_data[index] = self.collected_csv_data[index].append(df)
 
-    def get_csv_lines(self, same_line_tolerance=100):
+    def _set_csv_lines(self, same_line_tolerance=100):
         """
         Will determine which lines contain data in a csv format.
 
         This will loop over all lines deciding which ones are csv lines and find the start and the end
         of csv blocks.
+
+        Will set the following attributes:
+            * _csv_starts <list> => The start line of the csv data
+            * _csv_ends <list> => The end line of the csv data
+            * _csv_lines <dict> => The actual csv lines
 
         Inputs:
             * same_line_tolerance <int> OPTIONAL => How many lines can have the same length when split by whitespace
@@ -122,10 +131,11 @@ class Lammps_Log_File(gen_io.DataFileStorage):
         # Get the lines of the csvs
         self._csv_lines = {i: '\n'.join(self._ltxt[start: end])
                           for i, (start, end) in enumerate(zip(self._csv_starts, self._csv_ends))}
+        return self._csv_lines
 
-    def read_csv_lines(self):
+    def _read_csv_lines(self):
         """
-        Will read the csv lines (according to 'get_csv_lines()') into DataFrames.
+        Will read the csv lines (according to '_set_csv_lines()') into DataFrames.
 
         The 2 lists: self._csv_starts and self._csv_ends tell the code where the DataFrame
         starts and ends.
@@ -135,7 +145,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             fp = StringIO(self._csv_lines[key])
             self.csv_data.append(pd.read_csv(fp, delim_whitespace=True))
 
-    def get_metadata(self):
+    def _get_metadata(self):
         """
         Will get extra metadata from a log file such as number of atoms etc...
 
@@ -179,6 +189,206 @@ def write_lammps_log_CSVs(Lammps_Log_File, filepath):
         print(filename, ext)
 
 
+class Lammps_Input_File(Lammps_Log_File):
+    """
+    Will read a input lammps data file.
+
+    This is the file that defines the geometry of the system for lammps (e.g. where the atoms are
+    which atom is bonded to which, the masses and types of atoms etc..)
+
+    As with the other file data structures in this codebase the smaller data like ints, floats,
+    small lists are stored in the self.metadata dict. The larger data is stored in separate 
+    attributes. The important attributes in this class are:
+        * Atoms <pd.DataFrame> => The atomic coords
+        * Bonds <pd.DataFrame> => The bonding of the system
+        * Angles <pd.DataFrame> => The angles
+        * Dihedrals <pd.DataFrame> => The dihedrals
+
+    This class inherits from the Lammps_Log_File for the get_all_csv_lines function. It
+    probably isn't an ideal way to set things up as the lammps input file isn't really
+    a logical child of the log file but it works...
+
+    Inputs:
+        * filepath <str> => The path to the file to be loaded.
+    """
+    csv_data = []
+    metadata = {'file_type': 'lammps_input', 'number_atoms': 0}
+    name = "Lammps Input File"
+    _write_types = ('csv', 'txt',)
+    _title_names = {
+                    'atoms': ('at_num', 'mol_num', 'at_type', 'x', 'y', 'z', 'ix', 'iy', 'iz'),
+                    'bonds': ('index', 'bond_type', 'at_1', 'at_2'),
+                    'angles': ('index', 'angle_type', 'at_1', 'at_2', 'at_3'),
+                    'dihedrals': ('index', 'dihedral_type', 'at_1', 'at_2', 'at_3', 'at_4'),
+                   }
+
+    def __init__(self, filepath):
+        # Use the grandparent's init
+        gen_io.DataFileStorage.__init__(self, filepath)
+
+    def _parse_(self):
+        """
+        The main parsing function, called from the gen_io.DataFileStorage __init__.
+        """
+        self._ltxt = self.file_txt.split("\n")
+
+        # Will set some attributes 
+        self._set_csv_lines(same_line_tolerance=100)
+        self._csv_lines = {self._ltxt[self._csv_starts[i]-2].strip().lower(): self._csv_lines[i]
+                           for i in self._csv_lines}
+        self.csv_data = self._read_csv_lines()
+
+        self._set_metadata()
+
+    def _read_csv_lines(self):
+        """
+        Will read the csv lines (according to '_set_csv_lines()') into DataFrames.
+
+        The dict _csv_lines passes the lines for each csv file.
+
+        The list: _csv_titles tells the code what the csv files are called.
+        """
+        csv_data = {}
+        for ifp, key in enumerate(self._csv_lines):
+            # Create file-like object from a string
+            fp = StringIO(self._csv_lines[key])
+            if key not in self._title_names:
+                num_cols = len(self._ltxt[self._csv_starts[ifp]].split())
+                raise SystemError("\n\n" + f"Can't read the {key} section. "
+                             + "\nPlease input the titles for the columns in the 'Lammps_Input_File'"
+                             + " class.\n\nYou can do this by creating a new section in the '_title_names'"
+                             + f" attribute called '{key}' e.g:" + "\n\t" 
+                             + "\tself._title_names = {\n\t                             ...\n"
+                             + f"\t                             '{key}': (" + "..., " * num_cols
+                             + ")\n\t                           })")
+
+            csv_data[key] = pd.read_csv(fp, delim_whitespace=True, names=self._title_names[key])
+        return csv_data
+
+    def _set_metadata(self):
+        """
+        Will loop over lines and get the metadata from the header of the file.
+        """
+        header_ltxt = self._ltxt[:self._csv_starts[0]-2]
+        self.metadata['header_txt'] = '\n'.join(header_ltxt)
+
+        self.metadata['title_line'] = self._ltxt[0]
+
+        # First parse the masses and remove them
+        mass_start, del_lines = 0, []
+        for line_num, line in enumerate(header_ltxt):
+            if line == "Masses":
+                for j, line2 in enumerate(header_ltxt[line_num:]):
+                    del_lines.append(j + line_num)
+                    if len(line2.split()) == 2:
+                        mass_start = line_num + j
+                        break
+                else: raise SystemError("Error parsing the 'Masses' section.")
+                break
+
+        self.metadata['atom_types'] = {}
+        for i, line in enumerate(header_ltxt[mass_start:]):
+            splitter = line.split()
+            if len(splitter) == 2:
+                atom_type = type_check.eval_type(splitter[0])
+                mass = type_check.eval_type(splitter[1])
+                self.metadata['atom_types'].setdefault(atom_type, {})['mass'] = mass
+                del_lines.append(i + mass_start)
+            else:  break
+
+        # Tidy up
+        for i in reversed(sorted(del_lines)): del header_ltxt[i]
+
+
+        # Parse the rest of the header file
+        for line in header_ltxt:
+            splitter = line.split()
+            if len(splitter) % 2 == 0:
+                for i in range(len(splitter) // 2):
+                    # name = type_check.eval_type(splitter[1])
+                    name = splitter[len(splitter) // 2 + i].strip()
+                    val = type_check.eval_type(splitter[i])
+                    self.metadata[name] = val
+
+            if len(splitter) == 3:
+                if splitter[2] == "types":
+                    self.metadata[f"number {splitter[1]} types"] = type_check.eval_type(splitter[0])
+
+
+class Write_Lammps_Input(gen_io.Write_File):
+    """
+    Will write a lammps input file.
+
+    The main method in this class is creating a string that can be written to a file. This
+    is done in the create_file_str method. This string is then handled by the parent class
+    and written to a file.
+
+    See gen_io.Write_File for more info.
+    
+    Inputs:
+       * Data_Class <class> => The class containing all the data to be written
+       * filepath <str>     => The path to the file to be written.
+       * extension <str> OPTIONAL   => The file extension. Default is False.
+    """
+    def __set_data__(self):
+        """
+        Will check we have the correct info for writing the file.
+        """
+        if type(self.Data) == inp_types.Vars:
+            if 'lammps_input' in self.Data:
+                self.Data = self.Data['lammps_input']
+            else:
+                raise SystemError(f"Can't write data of types: {self.Data.keys()} as a Lammps input_file.")
+        
+        elif type(self.Data) == Lammps_Input_File:
+            pass
+
+        else:
+            raise SystemError(f"Can't write data of types: {type(self.Data)} as a Lammps input_file.")
+
+    def _create_header_str_(self):
+        """Will create the header string for the input file."""
+        s = self.Data.metadata['title_line'] + "\n\n"
+
+        s += f"{self.Data.metadata['atoms']} atoms" + "\n"
+        s += f"{self.Data.metadata['bonds']} bonds" + "\n"
+        s += f"{self.Data.metadata['angles']} angles" + "\n"
+        s += f"{self.Data.metadata['dihedrals']} dihedrals" + "\n\n"
+
+        s += f"{self.Data.metadata['number atom types']} atom types" + "\n"
+        s += f"{self.Data.metadata['number bond types']} bond types" + "\n"
+        s += f"{self.Data.metadata['number angle types']} angle types" + "\n"
+        s += f"{self.Data.metadata['number dihedral types']} dihedral types" + "\n\n"
+
+        s += f"{self.Data.metadata['xlo']} {self.Data.metadata['xhi']} xlo xhi" + "\n"
+        s += f"{self.Data.metadata['ylo']} {self.Data.metadata['yhi']} ylo yhi" + "\n"
+        s += f"{self.Data.metadata['zlo']} {self.Data.metadata['zhi']} zlo zhi" + "\n\n"
+
+        s += f"Masses\n"
+        for i in self.Data.metadata['atom_types']:
+            s += "\n" + f"{i} {self.Data.metadata['atom_types'][i]['mass']}"
+
+        return s
+
+    def _get_csv_strs_(self):
+        """Will return the csv data as a string."""
+        s = ""
+        for key in self.Data.csv_data:
+            s += "\n\n" + key.title() + "\n\n"
+            s += self.Data.csv_data[key].to_string(index=False, header=False, justify="left")
+
+
+        return s
+
+    def create_file_str(self):
+        """
+        Will create the text that can be written to a file.
+        """
+        self.__set_data__()
+        s = self._create_header_str_()
+        s += self._get_csv_strs_()
+
+        return s
 
 
 class Lammps_Data_File(gen_io.DataFileStorage):
@@ -199,7 +409,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         self.metadata = copy.deepcopy(self.metadata)
         self.csv_data = copy.deepcopy(self.csv_data)
 
-    def parse(self):
+    def _parse_(self):
         """
         Will loop over all steps and parse the csv from the lammps log file.
         """
@@ -417,7 +627,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
     _write_types = ('csv', 'xyz',)
     name = "Lammps Dump"
     _defaults = {'coordinate_wrapping': 'unwrapped'}
-    def parse(self):
+    def _parse_(self):
         """
         Will parse the file text and store the data.
         """
@@ -426,7 +636,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
                            for s in self.file_txt.split("ITEM: ") if s]
 
         # Get data names
-        self._data_names = self.get_metadata_titles()
+        self._data_names = self._get_metadata_titles()
 
         # Get any extra headers for CSVs
         self._headers = [re.findall("[a-z]+", item[0])
@@ -545,7 +755,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
             self.metadata['b'] = np.array([0, yhi - ylo, 0])
             self.metadata['c'] = np.array([0, 0, zhi - zlo])
 
-    def get_metadata_titles(self):
+    def _get_metadata_titles(self):
         """
         Will get the title of the metadata within the file.
         """

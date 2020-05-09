@@ -25,7 +25,7 @@ class Params(gen_io.DataFileStorage):
 
     One can specify any number (greater than 1) of sections and params and vars.
     """
-    def parse(self):
+    def _parse_(self):
         """
         Will parse the file
         """

@@ -28,7 +28,7 @@ class Pseudo_Ham(gen_io.DataFileStorage):
         super().__init__(filepath)
 
 
-    def parse(self):
+    def _parse_(self):
         """
         Will parse the pseudo hamiltonian file.
         """

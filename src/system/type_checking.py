@@ -20,6 +20,8 @@ def eval_type(String):
 	if is_float(String):
 		return float(String)
 	elif is_num(String):
+		if '.' in String:
+			return float(String)
 		return int(String)
 	elif String == "True":
 		return True

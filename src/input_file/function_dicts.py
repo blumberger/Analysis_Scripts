@@ -38,13 +38,14 @@ load_fncs = {
              'txt': gen_io.DataFileStorage, 'lammps_data': lammps.Lammps_Data_File,
              'lammps_dump': lammps.Lammps_Dump, 'massif_file': M_files.Massif_File,
              'params': param_files.Params, "pseudo_ham": psu_ham.Pseudo_Ham,
-             "esp": esp.ESP_File,
+             "esp": esp.ESP_File, "lammps_input": lammps.Lammps_Input_File,
             }
 write_fncs = {
               'cp2k_inp': "self.write", 'xyz': xyz.Write_XYZ_File,
               'json': json.write_json, 'csv': csv_files.Write_CSV,
               "psf": gen_io.Write_File, "mol_layers": json.write_json,
-              "numpy": numpy_files.Numpy
+              "numpy": numpy_files.Numpy, "lammps_input": lammps.Write_Lammps_Input,
+              "txt": gen_io.Write_File
              }
 calc_fncs = {
              'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,

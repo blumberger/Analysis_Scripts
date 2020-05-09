@@ -41,7 +41,7 @@ class XYZ_File(gen_io.DataFileStorage):
     def __init__(self, filepath):
         super().__init__(filepath)
 
-    def parse(self):
+    def _parse_(self):
         """
         Will call the 'read_xyz_file' function to parse an xyz file.
 

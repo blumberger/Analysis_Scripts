@@ -50,7 +50,7 @@ from src.input_file import function_dicts as f_dicts
 from src.input_file import input_file_types as inp_types
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
-            'script', 'python', 'if', "exit", "splice")
+            'script', 'python', 'if', "exit", "plot")
 SET_FOLDERPATH = "src/data/set"
 SET_TYPES = ("params", "system")
 VALID_FOR_FUNCS = ("range", "filepath", "list")
@@ -221,14 +221,18 @@ class INP_File(object):
                 name, _ = self.parse_variable_line(line)
                 variables.append(name)
 
-            # Error check any splice commands
-            elif self.line_declarations['splice'](line):
-                self.check_splice_command(line)
+            # # Error check any splice commands
+            # elif self.line_declarations['splice'](line):
+            #     self.check_splice_command(line)
 
             # Error check any file loading commands
             elif self.line_declarations['load'](line):
                 var = self.check_load_command(line)
                 variables.append(var)
+
+            elif self.line_declarations['plot'](line):
+                var = self.check_plot_command(line)
+                if var is not None: variables.append(var)
 
             # Error check any file loading commands
             elif self.line_declarations['write'](line):
@@ -374,7 +378,7 @@ class INP_File(object):
                 self.print_error(str(e))
 
         if words[2] not in f_dicts.load_fncs:
-            err_msg = "I don't know how to load files of type '{words[2]}'."
+            err_msg = f"I don't know how to load files of type '{words[2]}'."
             err_msg += "\n\nFor a full list of file types that can be loaded see below:\n\t* "
             err_msg += "\n\t* ".join(list(f_dicts.load_fncs.keys()))
             self.print_error(err_msg)
@@ -383,6 +387,47 @@ class INP_File(object):
         metadata = f_dicts.load_fncs[words[2]].metadata
         self.set_var(words[4], "^EMPTY^", metadata)
         return words[4]
+
+    def check_plot_command(self, line):
+        """
+        Will check a plot command line for syntax errors etc...
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        err_msg = "The plot command takes the syntax:\n\n"
+        err_msg += "\t'plot <plot type> from <data name> as <plot name>'"
+        err_msg += "\n\n\t\t\tOR\n\n\t'plot <plot type> from <data name>'"
+
+        line, any_vars = self.find_vars_in_str(line)
+
+        # Check syntax
+        words = line.split()
+        words = self.fix_words(words)
+        self.E_str = "check_plot_command"
+        has_out_var = False
+        if len(words) != 4:
+            if len(words) != 6:
+                self.print_error(err_msg)
+            else:
+                has_out_var = True
+                _, plot_type, _, in_data, _, out_data = words
+        else:
+            _, plot_type, _, in_data = words
+        
+        # Check we can plot the thing asked for
+        if plot_type not in f_dicts.plot_fncs:
+            err_msg = f"I don't know how to plot '{words[1]}'."
+            err_msg += "\n\nFor a full list of plots that can be done see below:\n\t* "
+            err_msg += "\n\t* ".join(list(f_dicts.plot_fncs.keys()))
+            self.print_error(err_msg)
+
+        if has_out_var:
+            metadata = f_dicts.plot_fncs[words[1]].metadata
+            self.set_var(out_data, "^EMPTY^", metadata)
+            return out_data
+
+        return None
 
     def check_write_command(self, line):
         """
@@ -855,6 +900,10 @@ class INP_File(object):
                 self.parse_load_cmd(line)
 
             # Parse any file loading commands
+            elif self.line_declarations['plot'](line):
+                self.parse_plot_cmd(line)
+
+            # Parse any file loading commands
             elif self.line_declarations['write'](line):
                 self.parse_write_cmd(line)
 
@@ -892,8 +941,8 @@ class INP_File(object):
             elif self.line_declarations['if'](line):
                 self.parse_if_cmd(line)
 
-            elif self.line_declarations['splice'](line):
-                self.parse_splice_cmd(line)
+            # elif self.line_declarations['splice'](line):
+            #     self.parse_splice_cmd(line)
 
             elif self.line_declarations['exit'](line):
                 print("\n\nStopped Code -exit was called.")
@@ -1148,6 +1197,39 @@ class INP_File(object):
             setattr(self, new_var_name, New_Var)
             if new_var_name not in self.variables:
                self.variables.append(new_var_name)
+
+    def parse_plot_cmd(self, line):
+        """
+        Will parse a plot command.
+
+        This function will call the relevant plotting function to plot the data
+        passed.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        Outputs:
+            None
+        """
+        line, any_vars = self.find_vars_in_str(line)
+        words = line.split()
+        words = self.fix_words(words)
+        
+        # Parse line
+        has_out_var = False
+        if len(words) == 6:
+            has_out_var = True
+            _, plot_type, _, in_data, _, out_data = words
+        else: _, plot_type, _, in_data = words
+
+        in_data = getattr(self, in_data)
+        plot_fnc = f_dicts.plot_fncs[plot_type]
+
+        if has_out_var:
+            OutVar = plot_fnc(in_data)
+        else: plot_fnc(in_data)
+
+        self.set_var(out_data, {plot_type: OutVar}, {})
+        
 
     def parse_load_cmd(self, line):
         """

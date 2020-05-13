@@ -89,7 +89,7 @@ class Calc_Type(object):
                self.metadata[key] = self.Var[key]
 
     def __repr__(self):
-        return self.name
+        return f"Calc Class: {self.name}"
 
     def __str__(self):
         return self.name
@@ -138,7 +138,7 @@ class Calc_Type(object):
         self.nmol = all_mol_crds.shape[1]
         mol_col = np.reshape(self.cols[0], (self.nmol, ats_per_mol))
         return all_mol_crds, mol_col
-
+    
     def _plot_xyz_data(self, ats, a=False, args={'ls': 'None', 'marker': '.'}):
         if a is False:
             f = plt.figure()
@@ -157,42 +157,6 @@ class Calc_Type(object):
         a.plot(ats[:, 0], ats[:, 1], ats[:, 2], **args)
 
         return a
-
-    def _rotate_plot_(self, ax, elev_increment=False, azim_increment=1, init_elev=30, init_azim=0, step_func=False, args=()):
-        """
-        Will rotate a 3D plot.
-
-        Inputs:
-            * ax <plt.axis> => The axis to rotate
-            * elev_increment <float> => The value to increment the elevation axis by
-            * azim_increment <float> => The value to increment the azimuthal axis by
-            * init_elev <float> => The initial elevation of the axis
-            * init_azim <float> => The initial azimuth angle of the axis
-            * step_func <function> => A function to carry out at each step
-        """
-        count = 0
-        if elev_increment and azim_increment:
-            for elev_ang in np.arange(init_elev, 360 + init_elev, elev_increment):
-                for azim_ang in np.arange(init_azim, 360 + init_azim, azim_increment):
-                    count += 1
-                    ax.view_init(azim=azim_ang, elev=elev_ang)
-                    if step_func:
-                        step_func(count, *args)
-
-        elif elev_increment and not azim_increment:
-            for elev_ang in np.arange(init_elev, 360 + init_elev, elev_increment):
-                count += 1
-                ax.view_init(azim=init_azim, elev=elev_ang)
-                if step_func:
-                    step_func(count, *args)
-
-        elif azim_increment and not elev_increment:
-            for azim_ang in np.arange(init_azim, 360 + init_azim, azim_increment):
-                count += 1
-                ax.view_init(azim=azim_ang, elev=init_elev)
-                if step_func:
-                    step_func(count, *args)
-
 
     ########################################################
     ## For file writing

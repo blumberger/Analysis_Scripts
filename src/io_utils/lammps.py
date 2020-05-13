@@ -118,12 +118,15 @@ class Lammps_Log_File(gen_io.DataFileStorage):
 
         # Some error checking
         if len(self._csv_starts) != len(self._csv_ends):
-            if len(self._csv_starts) == len(self._csv_ends) - 1:
-                self._csv_ends.append(len(ltxt))
+            if len(self._csv_starts) == len(self._csv_ends) + 1:
+                self._csv_ends.append(len(self._ltxt))
+
             else:
                 err_msg = f"Number of csv block starts = {len(self._csv_starts)}"
                 err_msg += "\n"
-                err_msg += f"Number of csv block ends = {len(self._csv_ends)}"
+                err_msg += f"Number of csv block ends = {len(self._csv_ends)}" + "\n"
+                err_msg += f"    * csv_starts = {self._csv_starts}" + "\n"
+                err_msg += f"    * csv_ends = {self._csv_ends}" + "\n"
                 err_msg += "\n"
                 err_msg += f"Can't find the end of the csv block in the file {self.filepath}"
                 raise EOFError(err_msg)
@@ -216,7 +219,7 @@ class Lammps_Input_File(Lammps_Log_File):
     name = "Lammps Input File"
     _write_types = ('csv', 'txt',)
     _title_names = {
-                    'atoms': ('at_num', 'mol_num', 'at_type', 'x', 'y', 'z', 'ix', 'iy', 'iz'),
+                    'atoms': ('at_num', 'mol_num', 'at_type', 'q', 'x', 'y', 'z', 'ix', 'iy', 'iz'),
                     'bonds': ('index', 'bond_type', 'at_1', 'at_2'),
                     'angles': ('index', 'angle_type', 'at_1', 'at_2', 'at_3'),
                     'dihedrals': ('index', 'dihedral_type', 'at_1', 'at_2', 'at_3', 'at_4'),

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A module to calculate couplings from hamiltonian data
+A module to calculate couplings from hamiltonian data using the AOM method from Orestis' code.
 """
 import numpy as np
 import pandas as pd
@@ -10,13 +10,6 @@ import os
 import subprocess
 import time
 import multiprocessing as mp
-
-# Plotting tools
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.cm as cm
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
 
 from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
@@ -55,14 +48,15 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				 'NN_cutoff': 10, "coupling_calc_exe": "./bin/STO_proj_AOM_overlap",
 				 "show_timing": False, "number_processors": False, 'molecule_numbers': 'all',
 				 "plot_coupling_connections": False, "save_coupling_connection_plot": False,
-				 "plot_coupling_annotations": "auto", "plot_coupling_atoms": False,
+				 "plot_coupling_annotations": "auto", "plot_coupling_atoms": "auto",
 				 "plot_coupling_mol_numbers": False, 'xmax': False, 'xmin': False,
 				 'ymax': False, 'ymin': False, 'zmax': False, 'zmin': False,
 				 "coordinate_wrapping": "wrapped", "delete_files": True, "a1_elev": 90,
 				 "a2_elev": 0, "a1_azim": 0, "a2_azim": 0, "xy_rotation_matrix": False,
+				 "elev_increment":False, "azim_increment":1, "init_elev":30, "init_azim":0,
+				 "coupling_do_rotate": False,
 				 }
-	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file",
-						 "reorganisation_energy",)
+	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file",)
 
 	AOM_mu = {
 			  'H': '1.0000',
@@ -106,15 +100,14 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 
 		# Decide which molecules to calculate the coupling for.
-		all_centroids = mol_utils.get_COM_split_mols(all_mol_crds_orig, all_mol_cols_orig[0])
+		self.all_centroids = mol_utils.get_COM_split_mols(all_mol_crds_orig, all_mol_cols_orig[0])
 		all_mol_crds, all_mol_cols = self._get_mol_nums_(all_mol_crds_orig, all_mol_cols_orig)
-		mol_centroids = np.array([cent[mask] for cent, mask in zip(all_centroids, self.mol_nums)])
+		self.mol_centroids = np.array([cent[mask] for cent, mask in zip(self.all_centroids, self.mol_nums)])
 
-		mol_centroids, mol_mask = self._apply_boundaries_(mol_centroids, do_mol_nums=True)
+		self.mol_centroids, mol_mask = self._apply_boundaries_(self.mol_centroids, do_mol_nums=True)
 		mol_cols = np.array([col[mask] for col, mask in zip(all_mol_cols, mol_mask)])
 		mol_crds = np.array([crds[mask] for crds, mask in zip(all_mol_crds, mol_mask)])
 		
-		print("\n\n" + f"Using {len(mol_centroids[0])} mols")
 
 		# Decide how many procs to use
 		self._set_nproc_(mol_crds)
@@ -128,10 +121,9 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		self.spliced_cols = np.array([data[inds] for data, inds in zip(all_mol_cols_orig, self.mol_nums)])
 
 		# Get the Nearest neighbour dict
-		mol_NN = np.array([
-							[calc_all_dists(pos_ind, step_data, self.metadata['NN_cutoff'])
-							 for pos_ind in range(len(step_data))]
-						   for step_data in mol_centroids])
+		mol_NN = np.array([[calc_all_dists(pos_ind, step_data, self.metadata['NN_cutoff'])
+							for pos_ind in range(len(step_data))]
+						   for step_data in self.mol_centroids])
 
 		# Create all the configuration files that will be needed.
 		unique_elm = self.__get_unique_elements__(all_mol_cols)
@@ -142,12 +134,12 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		self.data = [{} for istep in range(len(xyz_data))]
 		for istep in range(len(xyz_data)):
 			self.step_NN = mol_NN[istep]
-			print(f"{sum([len(i) for i in self.step_NN])} coupling values to calculate.")
 			self.num_calcs = sum([len(self.step_NN[i]) for i in self.step_NN])
 			self.mol_cols = mol_cols[istep]
 			self.mol_crds = mol_crds[istep]
 
 			len_data_div = len(self.step_NN) // self.nproc
+			self.tot_mols = len(self.step_NN)
 			mol_inds_for_each_proc = [np.arange(len_data_div*(i), len_data_div*(i+1))
 									  for i in range(self.nproc)]
 
@@ -171,37 +163,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 			tot_time = time.time() - t1
 			print(f"Total Time Taken: {tot_time:.1f}s")
-
-
-		# Handle all the plotting
-		do_plot = self.metadata['plot_coupling_connections'] or bool(self.metadata['save_coupling_connection_plot'])
-		if do_plot:
-			for istep in range(len(xyz_data)):
-				f = plt.figure(figsize=(16, 9))
-				a1 = f.add_subplot(121, projection="3d", proj_type = 'ortho');
-				a2 = f.add_subplot(122, projection="3d", proj_type = 'ortho')
-
-				min_Hab = self.metadata["reorganisation_energy"] / 100.
-				self._plot_coupling_connections_(mol_centroids[istep], self.data[istep], a1, min_Hab)
-				if self.metadata['plot_coupling_atoms']:
-					self._plot_coupling_atoms_(self.spliced_crds[istep], self.spliced_cols[istep], a1)
-				if self.metadata['plot_coupling_mol_numbers']:
-					self._plot_mol_nums_(mol_centroids[istep], istep, a1)
-				self._plot_mol_selection_(all_centroids[istep], mol_centroids[istep], a2)
-				plt.tight_layout()
-
-				a1.view_init(elev=self.metadata['a1_elev'], azim=self.metadata['a1_azim'])
-				a2.view_init(elev=self.metadata['a2_elev'], azim=self.metadata['a2_azim'])
-
-				# def func(count):  plt.savefig(f"frames/rot_{str(count).zfill(5)}.png")
-				# self._rotate_plot_(a1, step_func=func)
-
-				# Decide how to handle the plotted data
-				if bool(self.metadata['save_coupling_connection_plot']):
-					plt.savefig(self.metadata['save_coupling_connection_plot'])
-					plt.close()
-				else:
-					plt.show()
 
 		if self.metadata['delete_files']:
 			os.remove("AOM_dimer.include")
@@ -325,7 +286,10 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				
 				num_done_blocks = int((self.coup_calc_count * self.nproc)/self.num_calcs * 19) + 1
 				# num_to_do_blocks = 20 - num_done_blocks
-				print("\r" + "*"*num_done_blocks, end="\r")
+				print("\r" + f"{self.num_calcs} vals to calculate ({self.tot_mols} mols) :   " 
+					  + "*"*num_done_blocks, end="\r")
+
+		print("\rFinished                                                               ", end="\r")
 
 		if not os.path.isfile(self.dimer_filepaths[proc_num]):
 			print("\n\nWarning no coupling values found within given cutoff"
@@ -465,187 +429,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		xyz_body = np.char.add(dimer_write_cols, dimer_write_crds)
 		with open(filepath, "w") as f:
 			f.write(f"{natom}" + "\n\n" + '\n'.join(xyz_body))
-
-
-	def __get_coupling_connections__(self, all_mol_crds, couplings, plot_params, convert=False, min_Hab=1):
-		"""
-		Will return dict with the coupling connection info for plotting.
-
-		Inputs:
-			* all_mol_crds <array> => The molecular coordinates
-			* couplings <array> => The coupling data.
-			* convert <bool> => Convert from Hartree to meV or not. (default no conversion)
-		"""
-		if convert is False:  conversion = 1
-		else:  conversion = consts.Ha_to_meV
-
-		# Loop over coupling mol nums (these are the integer indices in the coupling dict.)
-		graph_data = []
-		for mol1 in couplings:
-			if not isinstance(mol1, (int, np.int64)): continue
-			mol_couplings = couplings[mol1]
-
-			# Loop over the mols this mol is coupled with.
-			for mol2 in mol_couplings:
-				if mol1 != mol2:
-					Hab = abs(mol_couplings[mol2] * conversion)
-					if Hab < min_Hab: continue
-
-					for max_coup in plot_params:
-						if Hab >= max_coup:
-							plot_args = plot_params[max_coup][0]
-							break
-					else:
-						# Coupling too low so skip the mol pair
-						continue
-
-					pos1, pos2 = all_mol_crds[mol1], all_mol_crds[mol2]
-					point_data = {'pos': ((pos1[0], pos2[0]),
-										  (pos1[1], pos2[1]),
-										  (pos1[2], pos2[2])),
-								  'args': plot_args,
-								  'Hab': mol_couplings[mol2],
-								 }
-					graph_data.append(point_data)
-
-		return graph_data
-
-	def _plot_coupling_atoms_(self, xyz, cols, ax=False):
-		"""
-		Will plot the atoms on the same graph as the coupling connections
-
-		Inputs:
-			* xyz <arr> => The xyz data of the atoms in shape (nmol, nat_per_mol, 3)
-			* cols <arr> => The element symbols of the atoms (nmol, nat_per_mol)
-			* ax <plt.ax> OPTIONAL => The plot axis
-
-		Outputs:
-			<plt.axis> The axis the data is plotted on.
-		"""
-		if ax is False:
-			fig = plt.figure()
-			ax = fig.add_subplot(111, projection="3d")
-
-		xyz = np.reshape(xyz, (xyz.shape[0] * xyz.shape[1], 3))
-		cols = np.reshape(cols, (cols.shape[0] * cols.shape[1]))
-
-		# colors, sizes = cols.copy(), cols.copy()
-		for elm in set(cols):
-			mask = cols == elm
-			color = mol_utils.PT_abbrv[elm]['plot_color']
-			size = 6 * (mol_utils.PT_abbrv[elm]['atomic_weight']) ** 0.2
-			crds = xyz[mask]
-			ax.plot(crds[:,0], crds[:,1], crds[:,2], '.',
-					ls="none", ms=size, color=color, alpha=0.5)
-
-		# Reshape axes
-		xlim = ax.get_xlim(); ylim = ax.get_ylim(); zlim = ax.get_zlim()
-		xdiff = np.diff(xlim); ydiff = np.diff(ylim); zdiff = np.diff(zlim)
-		max_diff = max([xdiff, ydiff, zdiff])
-		x_ext = abs(max_diff - xdiff) / 2.
-		y_ext = abs(max_diff - ydiff) / 2.
-		z_ext = abs(max_diff - zdiff) / 2.
-		ax.set_xlim([xlim[0] - x_ext, xlim[1] + x_ext])
-		ax.set_ylim([ylim[0] - y_ext, ylim[1] + y_ext])
-		ax.set_zlim([zlim[0] - z_ext, zlim[1] + z_ext])
-
-		return ax
-
-	def _plot_mol_nums_(self, all_mol_centre, istep=0, ax=False):
-		"""
-		Will plot the molecule  the graph
-
-		Inputs:
-			* all_mol_centre <array> => The coordinates of the molecular centers in shape (nmol, 3)
-			* ax <plt.axis> OPTIONAL => The axis to plot on
-		"""
-		if ax is False:
-			fig = plt.figure()
-			ax = fig.add_subplot(111, projection="3d")
-
-		for i, xyz in enumerate(all_mol_centre):
-			ax.text(xyz[0], xyz[1], xyz[2], r"$\mathbf{%i}$" % self.mol_nums[istep][i])
-
-	def _plot_coupling_connections_(self, all_mol_crds, couplings, ax=False, min_Hab=10):
-		"""
-		Will plot the connections via coupling for the given molecular system.
-
-		Inputs:
-			* all_mol_crds <array> => The molecular coordinates
-			* couplings <array> => The coupling data.
-			* ax <plt.axis> OPTIONAL => The axis to plot on
-		"""
-		if ax is False:
-			fig = plt.figure()
-			ax = fig.add_subplot(111, projection="3d")
-
-		ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z");
-		ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([]);
-
-		reorg = self.metadata['reorganisation_energy']
-		plot_params = {
-					   reorg/2.: ({'color': 'r', 'lw': 3}, r"$H_{ab} \geq \frac{\lambda}{2}$"),
-					   reorg/10.: ({'color': 'g', 'lw': 1.5}, r"$\frac{\lambda}{2} > H_{ab} \geq \frac{\lambda}{10}$"),
-					   min_Hab: ({'color': 'b', 'lw': 0.3}, r"$\frac{\lambda}{10} > H_{ab} \geq \frac{\lambda}{100}$"),
-					  }
-		graph_data = self.__get_coupling_connections__(all_mol_crds, couplings, plot_params,
-													   min_Hab=min_Hab)
-
-		self._plot_xyz_data(all_mol_crds, ax,
-							args={'ls': 'none', 'marker': '.', 'color': 'k'})
-		for plot_data in graph_data:
-			ax.plot(*plot_data['pos'], **plot_data['args'])
-
-
-		annotate = True
-		if self.metadata['plot_coupling_annotations'] == 'auto':
-			if len(all_mol_crds) > 42:
-				annotate = False
-		elif type(self.metadata['plot_coupling_annotations']) == bool:
-			annotate = self.metadata['plot_coupling_annotations']
-
-
-		print(reorg)
-		if annotate:
-			for plot_data in graph_data:
-				if abs(plot_data['Hab']) >= reorg/10:
-					pos = np.mean(plot_data['pos'], axis=1)
-					ax.text(pos[0], pos[1], pos[2],	f"{plot_data['Hab']:.1f}",
-							horizontalalignment='center', verticalalignment='center')
-
-		ax.set_title(f"$\lambda = $ %.1f meV" % reorg)
-
-		# if self.metadata['CC_plot_title']: ax.set_title(self.metadata['CC_plot_title'].replace("Layer", "").replace("_", " ").strip())
-
-		legend_elements = [Line2D([0], [0], label=plot_params[i][1], **plot_params[i][0]) for i in plot_params]
-		ax.legend(handles=legend_elements, loc="best")
-
-	def _plot_mol_selection_(self, all_mols, mol_selection, ax=False):
-		"""
-		Will plot the molecules selected within the full system.
-
-		Inputs:
-			* all_mols <array> => The full system
-			* mol_selection <array> => The selected molecules
-			* ax <plt.axis> OPTIONAL => The axis to plot on
-		"""
-		if ax is False:
-			fig = plt.figure()
-			ax = fig.add_subplot(111, projection="3d")
-
-		ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z");
-		ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([]);
-
-		# Plot the full system of molecules as black dots
-		self._plot_xyz_data(all_mols, ax,
-							args={'ls': 'none', 'marker': '.', 'color': 'k'})
-
-		# Plot the selected molecules as red blobs
-		self._plot_xyz_data(mol_selection, ax,
-							args={'ls': 'none', 'marker': 'o', 'color': 'r'})
-
-		ax.set_title("Mols selected in red")
-		return ax
 
 	def json_data(self):
 		"""

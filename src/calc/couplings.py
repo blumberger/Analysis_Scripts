@@ -149,7 +149,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				all_data = pool.map(self.__calc_mol_couplings__, args)
 				for i in all_data:	self.data[istep].update(i)
 			else: self.data[istep] = self.__calc_mol_couplings__(args[0])
-
+			print("\rCalculated for %i mols      \n" % self.tot_mols)
 		self.coup_calc_count = 0
 		# For some reason multiprocessing isn't terminating the processes before here.
 		if self.nproc > 1: pool.terminate()
@@ -289,7 +289,8 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				print("\r" + f"{self.num_calcs} vals to calculate ({self.tot_mols} mols) :   " 
 					  + "*"*num_done_blocks, end="\r")
 
-		print("\rFinished                                                               ", end="\r")
+		print("\rFinished                                                                      ",
+			  end="\r")
 
 		if not os.path.isfile(self.dimer_filepaths[proc_num]):
 			print("\n\nWarning no coupling values found within given cutoff"

@@ -40,7 +40,7 @@ class RDF(gen_calc.Calc_Type):
     _defaults = {'rdf_type': 'intermolecular', 'plot_RDF': False,
                  'max_dist': 1.0, 'number_bins': 400, 'atom_list_1': ['C'],
                  'atom_list_2': ['C'], 'dr': False, 'cutoff': False}
-    required_data_types = ('lammps_dump',)
+    required_data_types = ('pos',)
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'csv'}

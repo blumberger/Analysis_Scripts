@@ -16,8 +16,8 @@ RDF_module_print_hello_world(PyObject *self, PyObject *args)
 static PyObject *
 RDF_module_calc_RDF(PyObject *self, PyObject *args)
 {
+    printf("BOB");
     PyDictObject* Py_File_Data;
-
     // Parse the arguments
     if (!PyArg_ParseTuple(args, "O", &Py_File_Data)) {
         return NULL;

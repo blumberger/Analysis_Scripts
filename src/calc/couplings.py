@@ -10,6 +10,7 @@ import os
 import subprocess
 import time
 import multiprocessing as mp
+import matplotlib.pyplot as plt
 
 from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils

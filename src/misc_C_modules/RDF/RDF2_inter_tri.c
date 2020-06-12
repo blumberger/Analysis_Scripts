@@ -667,6 +667,7 @@ void calc_RDF(struct Lammps_Dump file_data, struct Config_File config_file, stru
 		file_data.R.y[j] = file_data.R.y[j] - file_data.ylo;
 		file_data.R.z[j] = file_data.R.z[j] - file_data.zlo;
 	}
+    std::cout << "BOB" << std::endl;
 
 	// Get volume
 	struct Matrix ABC = get_cell_vecs(&file_data);

@@ -47,6 +47,10 @@ class Variable(object):
         """return int(data)"""
         return int(self.data)
 
+    def __contains__(self, val):
+        """Check if the value is in the metadata."""
+        return val in self.metadata
+
     # Overload the indexing Functions
     def __getitem__(self, key):
         """         Indexing affects metadata        """

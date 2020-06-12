@@ -144,7 +144,8 @@ def get_nums_in_str(string, blank_is_0=False):
     Outputs:
         <list<float>> The numbers from a string
     """
-    all_nums = re.findall("[0-9]+", string)
+    all_nums = re.findall("[0-9.]+", string)
+    all_nums = [i for i in all_nums if all_nums.count('.') < 2]
     if blank_is_0 and len(all_nums) == 0:
         return [0.0]
     else:

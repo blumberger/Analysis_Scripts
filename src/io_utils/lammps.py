@@ -223,6 +223,7 @@ class Lammps_Input_File(Lammps_Log_File):
                     'bonds': ('index', 'bond_type', 'at_1', 'at_2'),
                     'angles': ('index', 'angle_type', 'at_1', 'at_2', 'at_3'),
                     'dihedrals': ('index', 'dihedral_type', 'at_1', 'at_2', 'at_3', 'at_4'),
+                    'velocities': ('index', 'vx', 'vy', 'vz'),
                    }
 
     def __init__(self, filepath):

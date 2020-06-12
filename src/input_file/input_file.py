@@ -185,15 +185,15 @@ class INP_File(object):
         self.file_ltxt = [i for i in self.file_txt.split("\n")
                           if i and not i.isspace()]
 
-        # Clean up the input file and get some important iterators
-        self.line_num = 0
-        self.clean_inp()
-        self.line_nums = list(range(1, len(self.file_ltxt)+1))
         self.inp_filename = self.inp_filepath[self.inp_filepath.rfind('/')+1:]
 
+        # Clean up the input file and get some important iterators
+        self.clean_inp()
+        self.line_nums = list(range(1, len(self.file_ltxt)+1))
         # Get line nums for error messages
         for line_num in self.line_nums:
             self.file_ltxt_orig[line_num] = self.file_ltxt[line_num - 1]
+        self.line_num = 0
 
         # Now do the parsing
         self.line_num = 0
@@ -848,7 +848,8 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input file.
         """
-        self.__check_external_code__(line, "bash")
+        end_line = self.__check_external_code__(line, "bash")
+        self.line_num = end_line
 
     def check_if_statement(self, line):
         """
@@ -1316,7 +1317,6 @@ class INP_File(object):
         line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
-
         # Write the data
         if len(words) == 3:
            _, dname, fpath = words
@@ -1333,7 +1333,11 @@ class INP_File(object):
         # Get the data to be written
         Var = getattr(self, dname)
         if len(words) == 3:
-           ftype = Var['file_type']
+            if 'file_type' in Var:
+                ftype = Var['file_type']
+            else:
+                raise SystemError("I don't know how to write this data. Please specifiy in the input file." +
+                                  "The syntax is write <data_name> \"<file_name>\" as <file_type>")
 
         # Write the data
         if callable(f_dicts.write_fncs[ftype]):
@@ -1724,6 +1728,8 @@ class INP_File(object):
                 err_msg = "Error in your python code.\n\n"+f"Script: {filepath}" + "\n"
                 err_msg += f"Bad Line: {e.text}" + "\n" + f"Line Num: {e.lineno}"
                 err_msg += "\nError Msg: " + f"{e.msg}"
+
+            err_msg += "\n\n\n\n\n\nPython Script:\n" + script_txt
             
             self.print_error(err_msg)
 
@@ -1760,6 +1766,7 @@ class INP_File(object):
         py_script = self.file_ltxt[self.line_num+2:end_line]
 
         # Now shift everything back to the minimum indentation
+        # Find the minimum indentation that is on every line
         min_indent = 100000
         for line in py_script:
             if line.strip()[0] != '#':
@@ -1768,11 +1775,11 @@ class INP_File(object):
                 continue
             min_indent = min([min_indent, len(indent)])
 
+        # Remove the indent
         for line_num in range(len(py_script)):
             ind_search = "^" + " "*min_indent
             line = re.sub(ind_search, "", py_script[line_num])
             py_script[line_num] = line
-
         py_script = '\n'.join(py_script)
 
         self.exec_python_script(script_txt=py_script)
@@ -1891,50 +1898,68 @@ class INP_File(object):
                 new_ltxt.append(line)
         self.file_ltxt = new_ltxt[:]
 
+        # Get line nums for error messages -before the inp cleaning
+        self.line_nums = list(range(1, len(self.file_ltxt)+1))
+        for line_num in self.line_nums:
+            self.file_ltxt_orig[line_num] = self.file_ltxt[line_num - 1]
+        self.line_num = 0
+
         self.clean_open_close_brace()
 
     def clean_open_close_brace(self):
         """
-        Will put all openings and closes of braces on a separate line.
+        Will put all openings and closes of braces on a separate line, except in inline python code.
 
         This will also remove blank lines.
         """
         # Loop over all lines, check for braces and replace them with \n{ and \n}
         brack_num = False
-        for line_num, line in enumerate(self.file_ltxt):
-            # First check for any inline python code brace opening
-            if re.findall("^python.*{|^python ", line):
-                # Put line breaks around the first occurance of the open brace.
-                if '{' in line:
-                    splitter = line.split("{")
-                    line = splitter[0] + '\n{\n' + '{'.join(splitter[1:])
-                    brack_num = True
+        code_on = False
 
-                # Put line breaks around the last occurance of the close brace.
-                if '}' in line:
-                    splitter = line.split("}")
-                    line = '}'.join(splitter[:-1]) + '\n}\n' + splitter[-1]
-                    brack_num = False
-                self.file_ltxt[line_num] = line
+        for line_num, line in enumerate(self.file_ltxt[:-1]):
+            self.line_num = line_num
 
-            if brack_num is True:
-                if '{' in line: brack_num = 1; continue
+            # First check if we are in an inline code section
+            breaker = False
+            for s_type in VALID_SCRIPT_TYPES:
+                if re.findall(f"^ *{s_type} *{{", line) or (re.findall(f"^ *{s_type}", line) and re.findall("^ *{", self.file_ltxt[line_num+1])):
+                    if code_on is not False:
+                        self.print_error(f"Inline {s_type} code is not supported inside {code_on} code.")
 
-            elif type(brack_num) is int:
-                if '{' in line:    brack_num += 1
-                elif '}' in line:  brack_num -= 1
+                    code_on = s_type
+                    brack_num = 0
+
+                    if '{' in line:
+                        s = line.split("{")
+                        line = s[0] + "\n{\n" + '{'.join(s[1:])
+                        brack_num = 1
+
+                    if '}' in line:
+                        s = line.split("{")
+                        line = s[0] + "\n{\n" + '{'.join(s[1:])
+                        code_on = False
+                        brack_num = 0
+
+                    self.file_ltxt[line_num] = line
+                    breaker = True  
+            if breaker:
+                continue
+
+            # If we are in an inline code section don't edit it
+            if code_on is not  False:
+                if '}' in line: brack_num -= 1
+                if '{' in line: brack_num += 1
 
                 if brack_num == 0:
-                    brack_num = False
-                    continue
+                    code_on = False
 
-            # If there is no python code carry on
+            # If not then we can edit the brace opening and closings
             else:
                 str_part, non_str = gen_parse.get_str_between_delims(line)
-
                 non_str = non_str.replace("{", "\n{\n").replace("}", "\n}\n")
                 line = non_str.replace(r"??!%s!?", str_part)
-                self.file_ltxt[line_num] = line
+            
+            self.file_ltxt[line_num] = line
 
         # Re-split by line-end and remove blank lines
         self.file_ltxt = [i for i in '\n'.join(self.file_ltxt).split('\n')

@@ -60,9 +60,19 @@ def calc_RDF(pos, ats_per_mol, atom_types, ABC,
 	pos = wrap_utils.to_list(pos)
 	mol_inds = wrap_utils.to_list(mol_inds)
 	atom_types = wrap_utils.to_list(atom_types)
+	if ABC[0][0] is False:
+		arr = np.array(pos)
+		ABC = [[np.min(arr[:, 0]), np.max(arr[:, 0]), 0],
+			   [np.min(arr[:, 1]), np.max(arr[:, 1]), 0],
+			   [np.min(arr[:, 2]), np.max(arr[:, 2]), 0]]
 
-	rdf, radii = RDF.calc_RDF({'pos': pos, 'mol_nums': mol_inds, 'atom_types': atom_types,
-				 			   'cutoff': cutoff, 'dr': dr, 'type_list1': types_to_calc_1,
-				 			   'type_list2': types_to_calc_2, 'ABC': ABC})
+	rdf, radii = RDF.calc_RDF({'pos': pos, 
+							   'mol_nums': mol_inds,
+							   'atom_types': atom_types,
+				 			   'cutoff': cutoff,
+				 			   'dr': dr,
+				 			   'type_list1': types_to_calc_1,
+				 			   'type_list2': types_to_calc_2,
+				 			   'ABC': ABC})
 
 	return np.array(radii), np.array(rdf)

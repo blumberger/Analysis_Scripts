@@ -1,6 +1,8 @@
 **BUG REPORT:**
 
-   WARNING: Pvecs calculator not fully tested
+   :warning: Pvecs calculator not fully tested
+   
+   :warning: Coupling calculations are giving bugs in the test script.
 
 # MD analysis scripts
 

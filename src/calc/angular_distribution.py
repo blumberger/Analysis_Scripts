@@ -5,6 +5,7 @@ A module to calculate the angular distributions of molecules in a system.
 """
 import numpy as np
 import json
+import pandas as pd
 import matplotlib.pyplot as plt
 
 # Import calculating functions
@@ -29,13 +30,9 @@ class Angular_Dist(gen_calc.Calc_Type):
         * required_calc <tuple> => Any values that need calculating to calculate this value.
         * data <*> => The data that has been calculated.
     """
-    _write_types = ('json', )
+    _write_types = ('json', 'csv',)
     required_metadata = ('atoms_per_molecule', 'plot_angular_distribution')
     _defaults = {'number_bins': 'auto', 'histogram_density': True,
-                 'short_axis_atoms': [[5, 6], [4, 7], [3, 8], [1, 28], [0, 18],
-                                      [10, 19], [27, 20], [26, 21], [25, 22],
-                                      [24, 23]],
-                 'long_axis_atoms': [[24, 5], [23, 6]],
                  'plot_angular_distribution': False,
                 }
     # Need these 3 attributes to create a new variable type
@@ -145,6 +142,7 @@ class Angular_Dist(gen_calc.Calc_Type):
         if len(np.shape(at_inds)) == 1:
             at_inds = [at_inds]
 
+        print(at_inds)
         ats = mol_crds[:, at_inds, :]
         ats = np.mean(ats, axis=1)
         vecs = ats[:, 0] - ats[:, 1]
@@ -172,6 +170,21 @@ class Angular_Dist(gen_calc.Calc_Type):
                                       },
                 }
         return data
+
+    def get_csv_data(self):
+        """
+        Will return the data in a form the csv writer can use.
+
+        This is only used for writing.
+        """
+        short_len = len(self.short_counts)
+        long_len = len(self.long_counts)
+        return pd.DataFrame({
+                'short_ax_count': self.short_counts.tolist(),
+                'short_ax_edges': self.short_bin_edges.tolist()[:short_len],
+                'long_ax_count': self.long_counts.tolist(),
+                'long_ax_edges': self.long_bin_edges.tolist()[:long_len],
+                })
 
     def get_angle_dist(self, mol_crds, at_inds):
         """

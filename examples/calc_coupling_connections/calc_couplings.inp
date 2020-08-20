@@ -26,6 +26,8 @@ for i in range(0, 8) {
     ham['CC_plot_title'] = "Layer $i"
     ham['coordinate_wrapping'] = "wrapped"
     ham['CC_savefig'] = "Hab_connect_layer_$i.png"
+    ham['long_axis_atoms'] = 5, 24
+    ham['short_axis_atoms'] = 10, 3
     
     # Plot the coupling connections
     calc coupling_connections from ham as couplings

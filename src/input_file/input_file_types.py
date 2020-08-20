@@ -876,7 +876,24 @@ class Vars(dict):
                     cvt_type[str(i)] = elm
                     break
             else:
-                raise SystemError("Could not determine what element each atom type is.")
+                if sum(at_types.values()) != sum(num_at_types.values()):
+                    msg = "Could not determine what element each atom type is."
+                    msg = "\n\nExpected num atoms = " + f"{sum(at_types.values())}"
+                    msg = "\n\nTotal num atoms = " + f"{sum(num_at_types.values())}"
+                    raise SystemError("Could not determine what element each atom type is.")
+                else:
+                    for i in num_at_types:
+                        for elm in at_types:
+                            if at_types[elm] == num_at_types[i]:
+                                cvt_type[str(i)] = elm 
+                                break
+                    at_types.pop(elm)
+                    num_at_types.pop(i)
+
+                    if len(at_types) == 1:
+                        print(num_at_types, at_types)
+                    print(cvt_type)
+                    raise SystemExit
             at_types.pop(elm)
 
         # Create the cols array
@@ -894,6 +911,41 @@ class Vars(dict):
         """Will return the xyz columns."""
         return self['xyz'].cols
 
+    def __get_xyz_cols_from_lammps_inp__(self):
+        at_types = self['lammps_input'].csv_data['atoms']['at_type'].unique()
+        try:
+            new_at_types = {at_type: self['lammps_input'].metadata['atom_types'][at_type]['details']['abbreviation'] 
+                         for at_type in at_types}
+        except KeyError:
+            new_at_types =at_types
+        at_types = new_at_types
+
+
+        cols = self['lammps_input'].csv_data['atoms']['at_type'].to_numpy().astype(str)
+        for i in at_types:
+            cols[cols == str(i)] = at_types[i]
+
+        cols = np.reshape(cols, (len(cols), 1))
+        return cols
+
+    def __get_xyz_cols_from_lammps_data__(self):
+        at_types = self['lammps_data'].csv_data['atoms']['at_type'].unique()
+        try:
+            new_at_types = {at_type: self['lammps_data'].metadata['atom_types'][at_type]['details']['abbreviation'] 
+                         for at_type in at_types}
+        except KeyError:
+             new_at_types =at_types
+
+        at_types = new_at_types
+
+
+        cols = self['lammps_data'].csv_data['atoms']['at_type'].to_numpy().astype(str)
+        for i in at_types:
+            cols[cols == str(i)] = at_types[i]
+
+        cols = np.reshape(cols, (len(cols), 1))
+        return cols
+
 
     def get_xyz_cols(self, number_each_atom=False):
         """
@@ -905,7 +957,10 @@ class Vars(dict):
             self.number_each_atom = self.metadata['number_each_atom']
 
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_cols_from_xyz__,
-                         'lammps_dump': self.__get_xyz_cols_from_lammps_dump__}
+                         'lammps_dump': self.__get_xyz_cols_from_lammps_dump__,
+                         'lammps_input': self.__get_xyz_cols_from_lammps_inp__,
+                         'lammps_data': self.__get_xyz_cols_from_lammps_data__,
+                        }
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
 
         return np.array(xyz_data)
@@ -917,9 +972,17 @@ class Vars(dict):
         Will grab the timestep of each step.
         """
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_timesteps_from_xyz__,
-                         'lammps_dump': self.__get_xyz_timesteps_from_lammps_dump__}
+                         'lammps_dump': self.__get_xyz_timesteps_from_lammps_dump__,
+                         'lammps_input': lambda: [0],
+                         'lammps_data': lambda: [0],
+                        }
         xyz_data = [XYZ_DATA_KEYS[i]() for i in self if i in XYZ_DATA_KEYS]
         return np.array(xyz_data)
+
+    def __get_xyz_timesteps_from_lammps_inp__(self):
+        #if 'time' in self['lammps_input'].csv_data['atoms']
+        return [0]
+    
 
     def __get_xyz_timesteps_from_xyz__(self):
         """Will get the xyz timesteps from xyz file container."""
@@ -940,7 +1003,10 @@ class Vars(dict):
         to the functions that grab the xyz data for that data type.
         """
         XYZ_DATA_KEYS = {'xyz': self.__get_xyz_data_from_xyz__,
-                         'lammps_dump': self.__get_xyz_data_from_lammps_dump__}
+                         'lammps_dump': self.__get_xyz_data_from_lammps_dump__,
+                         'lammps_input': self.__get_xyz_data_from_lammps_inp__,
+                         'lammps_data': self.__get_xyz_data_from_lammps_data__,
+                        }
         xyz_data = [XYZ_DATA_KEYS[i]() for i in dict.keys(self) if i in XYZ_DATA_KEYS]
 
         return np.array(xyz_data)
@@ -948,6 +1014,16 @@ class Vars(dict):
     def __get_xyz_data_from_xyz__(self):
         """Will return the xyz data an XYZ file type."""
         return self['xyz'].xyz_data
+
+    def __get_xyz_data_from_lammps_inp__(self):
+        xyz = self['lammps_input'].csv_data['atoms'][['x', 'y', 'z']]
+        xyz = xyz.to_numpy()
+        return xyz
+
+    def __get_xyz_data_from_lammps_data__(self):
+        xyz = self['lammps_data'].csv_data['atoms'][['x', 'y', 'z']]
+        xyz = xyz.to_numpy()
+        return xyz
 
     def __get_xyz_data_from_lammps_dump__(self):
         """Will return the xyz data from a lammps dump file type."""
@@ -983,6 +1059,12 @@ class Vars(dict):
 
         csv_data.index = range(len(csv_data))
         return csv_data
+
+
+
+
+
+
 
     def splice_xyz_data(self, xmin=False, xmax=False, ymin=False, ymax=False, zmin=False, zmax=False):
         """

@@ -27,6 +27,7 @@ class Create_PSF(gen_calc.Calc_Type):
     required_metadata = ('atoms_per_molecule', 'number_each_atom', 'bonds',
                          'dihedrals', 'angles', 'atom_types',)
     required_data_types = ('pos', )
+    _write_types = ('psf', )
 
     # Need these 3 attributes to create a new variable type
     metadata = {'file_type': 'psf'}

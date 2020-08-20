@@ -44,7 +44,7 @@ class Read_INP(gen_io.DataFileStorage):
 			fpath, ext = gen_io.remove_file_extension(orig_fpath)
 			filepath = f"fpath_{count}.{ext}"
 			count += 1
-		
+
 		self.data.write(filepath)
 
 	def append(self, val):
@@ -61,23 +61,51 @@ class Read_INP(gen_io.DataFileStorage):
 
 
 class INP_File(dict):
+	"""
+	Will parse an INP_File.
+
+	To use this as a file parser then read the file and then pass the file's text
+	into this class.
+
+	To use this as a helpful wrapper for the output of parse_inp_file then pass the
+	output of the parse_inp_file function to this. 
+	"""
 
 	def __str__(self):
 		return self.write()
 
 	def __repr__(self):
-		return self.__str__()
+		ltxt = self.__str__().splitlines()
+		t = "INP File:\n\n" + '\n'.join(ltxt[:10])
+		if len(ltxt) > 10:
+			t += "\n\t.\n\t.\n\t."
+		return t
 
 	def __init__(self, *args, **kwargs):
-		self.update(*args, **kwargs)
+		if len(args) != 1:
+			raise SystemExit("Please just pass 1 dict into INP_File")
+		else:
+			if type(args[0]) == dict:
+				self.update(*args, **kwargs)
+			elif type(args[0]) == str:
+				self.__parse_str_input__(*args, **kwargs)
 
 		if not all(j in self.keys() for j in ('lines', 'params', 'full_data')):
 			raise SystemError("Incorrect use of INP_File. Please input a dictionary with keys: 'lines', 'params', 'full_data'.")
 
+	def __parse_str_input__(self, *args, **kwargs):
+		"""
+		Parse a text-based input.
+
+		If the user inputs a string into this class then this function will be called
+		to parse it.
+		"""
+		self.__init__(parse_inp_file(args[0].splitlines()))
+
 	def check_section_path(self, section_path):
 		"""
 		Will check a section path exists with the nested dict structure
-	  
+
 		Inputs:
 			* section_path <list> => The parameter path in the inp_dict
 
@@ -90,7 +118,7 @@ class INP_File(dict):
 			e = f"Can't find the section '{section_path[0]}' from '{section_path}'"
 			e += f"INP File keys: {self['params'].keys()}"
 			is_sect = False
-	  
+
 		new_dict = copy.deepcopy(self['params'])
 		for sect in section_path:
 			if new_dict.get(sect) is None:
@@ -103,12 +131,97 @@ class INP_File(dict):
 
 		return is_sect, e
 
-	def add(self, section_path, new_val, throw_err=True):
+	def add(self, section_path, new_val=None, throw_err=True):
 		"""
-		Will add a section or parameter in the inp file.
+		Will add a section or parameter to the inp file.
 
-		N.B. Only parameters currently handled. I'll need to ammend line_num indexing
-			 for sections
+		Inputs:
+			* section_path <list> => A list pointing to the thing that should be added.
+			* new_val <*> => The new value of the paramter (if None will add a section).
+		"""
+		self.__reset_all_line_nums__()
+
+		new_dict = {i: self['full_data'][i] for i in self['full_data']}
+		new_params = {i: self['params'][i] for i in self['params']}
+		# Create any new sections required
+		for isect, sect_path in enumerate(section_path):
+			# Get the section if it exists
+			# print(sect_path, "\n", sect_path in new_dict, "\n", new_dict, "\n\n")
+			if sect_path in new_dict:
+				new_dict = new_dict[sect_path]
+				new_params = new_params[sect_path]
+			
+			# Create any sections or parameters that don't exist
+			else:
+				# Add new sections here
+				if isect < len(section_path)-1:
+					line_num = self.__get_max_line_num__(new_dict) - 1
+					New_Sect = INP_File(f"&{sect_path}\n&END {sect_path}")
+
+					# Ammend line numbers of new section
+					New_Sect['full_data'][sect_path][''].line_num += line_num
+					for line in New_Sect['lines']: 	line.line_num += line_num
+
+					# Ammend line numbers of old lines
+					for line in self['lines']:
+						if line.line_num > line_num:
+							line.line_num += 3
+
+					# Add the new lines
+					for iln, line in enumerate(New_Sect['lines']):
+						self['lines'].insert(line.line_num+iln, line)
+					new_dict[sect_path] = New_Sect['full_data'][sect_path]
+					new_params[sect_path] = New_Sect['params'][sect_path]
+
+					new_dict = new_dict[sect_path]
+					new_params = new_params[sect_path]
+					self.__reset_all_line_nums__()
+					raise SystemExit("This has bugs, the line numbers for the full_data dict need fixing.")
+
+				# Add parameter
+				elif new_val is not None:
+					if isect == 0:
+						raise SystemError("Can't add parameters without a section!")
+
+					# Get the new line number for the parameter
+					line_num = self.__get_max_line_num__(new_dict)
+
+					New_Line = INP_Line(f"{sect_path}      {new_val}",
+										section_path[isect-1], line_num)
+					new_dict[sect_path] = New_Line
+					new_params[sect_path] = new_val
+					self['lines'].insert(line_num, New_Line)
+					self.__reset_all_line_nums__()
+					raise SystemExit("This has bugs, the line numbers for the full_data dict need fixing.")
+
+				# Add empty section
+				else:
+					print(f"3. Add new empty section {sect_path}")
+					raise SystemExit("This has bugs, the line numbers for the full_data dict need fixing.")
+
+	def __get_max_line_num__(self, _dict):
+		"""
+		Will get the maximum line number from the params dict.
+		"""
+		line_num = 0
+		for i in _dict:
+			if type(_dict[i]) != dict and i != '':
+				line_num = max([line_num, _dict[i].line_num])
+		line_num += 1
+
+		return line_num
+
+	# def _add_sect_(self, inp_dict, sect_name):
+	# 	"""
+	# 	Will add a section to an inp_dict.
+
+	# 	Inputs:
+	# 		* inp_dict
+	# 	"""
+
+	def add_param(self, section_path, new_val, throw_err=True):
+		"""
+		Will add a parameter in the inp file.
 
 		Inputs:
 			* parameter_path <list> => The parameter_path path in the inp_dict
@@ -116,7 +229,7 @@ class INP_File(dict):
 
 		Output:
 			Changes occur in-place
-		"""		
+		"""
 		is_section = False
 		self.__reset_all_line_nums__()
 
@@ -149,22 +262,19 @@ class INP_File(dict):
 		self['lines'].insert(add_line_num, New_Line)
 		self.__reset_all_line_nums__()
 
-	def remove(self, section_path, throw_err=True):
+	def get(self, section_path, throw_err=True):
 		"""
-		Will remove a section or parameter in the inp file.
-
-		N.B. Only parameters currently handled. I'll need to properly remove lines
-			 in self['line'] for sections.
+		Will get a section or parameter in the inp file.
 
 		Inputs:
 			* section_path <list> => The section path in the inp_dict
 
 		Output:
-			Everything is in-place
+			The section or parameter as a INP_File or INP_Line object.
 		"""
-		is_sect, err = self.check_section_path(section_path)
+		is_sect, err_msg = self.check_section_path(section_path)
 		if not is_sect and throw_err:
-			raise SystemError(err)
+			raise SystemError(err_msg)
 		elif not is_sect: return
 
 		# Change the inp lines dict and full_data dict
@@ -172,24 +282,94 @@ class INP_File(dict):
 		new_dict = {i: self['full_data'][i] for i in self['full_data']}
 		for key in section_path[:-1]:
 			new_dict = new_dict[key]
-		line = new_dict[section_path[-1]]
-		bad_ind = line.line_num
+		sect = new_dict[section_path[-1]]
 
-		if line.is_parameter:
-			new_dict.pop(section_path[-1])
+		# If it's just a value
+		if type(sect) != dict:
+			return sect
 
-			del self['lines'][bad_ind]
-			self.__reset_all_line_nums__()
+		# If the user wants a whole section
+		start_ind = sect[''].line_num
+		end_ind = find_section_end(self['lines'], section_path[-1], start_ind)
 
-			# Change the params dict too
-			new_dict = {i: self['params'][i] for i in self['params']}
-			for key in section_path[:-1]:
-				new_dict = new_dict[key]
-			new_dict.pop(section_path[-1])
+		new_params = {i: self['params'][i] for i in self['params']}
+		for key in section_path[:-1]:
+			new_params = new_params[key]
+		new_params = new_params[section_path[-1]]
 
-		else:
-			raise SystemExit("Still need to implement section removal!")
-	
+		return INP_File({'full_data': new_dict,
+						 'lines': self['lines'][start_ind: end_ind+1],
+						 'params': new_params})
+
+	def remove(self, section_path, throw_err=True):
+		"""
+		Will remove a section or parameter in the inp file.
+
+		Inputs:
+			* section_path <list> => The section path in the inp_dict
+
+		Output:
+			Everything is in-place
+		"""
+		is_sect, err_msg = self.check_section_path(section_path)
+		if not is_sect and throw_err:
+			raise SystemError(err_msg)
+		elif not is_sect: return
+
+		# Change the inp lines dict and full_data dict
+		self.__reset_all_line_nums__()
+		new_dict = {i: self['full_data'][i] for i in self['full_data']}
+		for key in section_path[:-1]:
+			new_dict = new_dict[key]
+		lines = new_dict[section_path[-1]]
+
+		# To handle removing sections
+		if type(lines) == dict:
+			for param in copy.deepcopy(lines):
+				new_section_path = section_path[:]
+				if not param: continue
+
+				new_section_path.append(param)
+				self.remove(new_section_path)
+
+				# Now remove the section
+				rm_sect = section_path[-1]
+				for i in new_dict[rm_sect]:
+					line = new_dict[rm_sect][i]
+					bad_ind = line.line_num
+					del self['lines'][bad_ind]
+					self.__reset_all_line_nums__()
+
+					end_ind = find_section_end(self['lines'], rm_sect, bad_ind)
+					del self['lines'][end_ind]
+					self.__reset_all_line_nums__()
+
+				new_dict.pop(rm_sect)
+				
+			return
+		
+		# To handle removing only 1 line
+		elif type(lines) != list: lines = [lines]
+
+		# Remove requested lines
+		for line in lines:
+			bad_ind = line.line_num
+
+			if not line.is_section:
+				new_dict.pop(section_path[-1])
+
+				del self['lines'][bad_ind]
+				self.__reset_all_line_nums__()
+
+				# Change the params dict too
+				new_dict = {i: self['params'][i] for i in self['params']}
+				for key in section_path[:-1]:
+					new_dict = new_dict[key]
+				new_dict.pop(section_path[-1])
+
+			else:
+				raise SystemExit("Sections are not handled here!")
+
 	def change_param(self, parameter_path, new_val, throw_err=True):
 		"""
 		Will change a parameter in the inp file.
@@ -320,18 +500,19 @@ class INP_File(dict):
 
 	def __reset_all_line_nums__(self):
 		"""Will reset all the line_numbers for each INP_Line object in the file."""
-		for i in range(len(self['lines'])): self['lines'][i].line_num = i
+		for i in range(len(self['lines'])):
+			self['lines'][i].line_num = i
 
 class INP_Line(object):
 	"""
 	A class to parse and store data describing a single line in an inp file.
- 
+
 	All methods are private.
- 
+
 	Inputs:
 		* line <str> => The line that needs parsing
 		* line_num <int> OPTIONAL => The line number within the inp file.
- 
+
 	Attributes:
 		* comment => <str> the comment on a line
 		* extra_paramters => <list> Any misc info about a section (i.e. &PRINT HIGH, the HIGH would be extra)
@@ -405,7 +586,7 @@ class INP_Line(object):
 				else:
 					self.is_coord = True
 					self.parse_coord_line()
- 
+
 			else:
 				self.is_parameter = True
 				self.parse_paramter_line()
@@ -461,7 +642,7 @@ class INP_Line(object):
 				self.unit = words[unit_ind[0]].strip('[]')
 			else:
 				self.unit = [words[i].strip('[]') for i in unit_ind]
- 
+
 			self.parameter = words[0]
 			self.value = '   '.join([words[i] for i in range(1, len(words)) if i not in unit_ind])
 
@@ -551,7 +732,7 @@ def create_DECOMP_inp(mol_nums, ats_per_mol, filepath=False):
 	Inputs:
 	  * mol_nums <list> => Molecule numbers to activate (zero-indexed -the python way)
 	  * ats_per_mol <int> => Number of atoms per molecule
-	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file. If not given then 
+	  * filepath <str> OPTIONAL => Filepath of the DECOMP.inp file. If not given then
 	  							   a file won't be written.
 
 	Outputs:
@@ -582,7 +763,7 @@ def create_AOM_include(nmol, active_mols, ats_per_mol, single_mol_AOM, filepath=
 	Will write the AOM_COEFF.include file that lets SH run know which mols are active etc...
 
 	Inputs:
-	  * mol_mask <array> => A boolean array of len nmol, where True means active and False 
+	  * mol_mask <array> => A boolean array of len nmol, where True means active and False
 	  						is inactive.
 	  * ats_per_mol <int> => Number of atoms per molecule
 	  * single_mol_AOM <str> => The AOM coefficients for a single molecule.
@@ -599,7 +780,7 @@ def create_AOM_include(nmol, active_mols, ats_per_mol, single_mol_AOM, filepath=
 			AOM_txt += inactive
 
 
-	# Write if we want to 
+	# Write if we want to
 	if filepath is not False:
 		with open(filepath, "w") as f:
 			f.write(AOM_txt)
@@ -627,7 +808,6 @@ def parse_inp_file(inp_file, inp_dict=False, all_lines=False, full_data_dict=Fal
 		A dictionary containing the each parsed line and the nested
 		dictionary containing all settings.
 	"""
-
 	# Read if the inp_file variable isn't a list.
 	if type(inp_file) == str:
 		with open(inp_file, 'r') as f:
@@ -772,24 +952,24 @@ def get_max_parameter_len_in_section(lines, curr_line_ind):
 # 		for key in section:
 # 			new_dict[key] = section[key]
 
- 
-  
+
+
 # def remove_section(section_path, inp_dict):
 # 	"""
 # 	Will remove a section from the nested dictionary.
- 
+
 # 	Inputs:
 # 	  * section_path => A string that points to the section to remove with '%' splitting each subsection e.g.
 # 						MOTION%MD would remove the MD subsection within the MOTION section.
 # 	  * inp_dict => The nested dict containin the input parameters
- 
+
 # 	Output:
 # 	  * The dictionary is changed inplace so there is no output
 # 	"""
 # 	section_path = section_path.upper()
 # 	sections = check_section_path(section_path, inp_dict)
 # 	if not sections: return
- 
+
 # 	# Remove the section
 # 	if len(sections) == 1:
 # 		inp_dict.pop(sections[0])

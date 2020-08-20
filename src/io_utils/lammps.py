@@ -16,6 +16,8 @@ from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
 from src.data import consts
 from src.input_file import input_file_types as inp_types
+from src.calc import molecule_utils as mol_utils
+from src.parsing import general_parsing as gen_parse
 
 
 class Lammps_Log_File(gen_io.DataFileStorage):
@@ -65,7 +67,7 @@ class Lammps_Log_File(gen_io.DataFileStorage):
             index = col_heads.index(heads)
             self.collected_csv_data[index] = self.collected_csv_data[index].append(df)
 
-    def _set_csv_lines(self, same_line_tolerance=100):
+    def _set_csv_lines(self, same_line_tolerance=20):
         """
         Will determine which lines contain data in a csv format.
 
@@ -219,11 +221,17 @@ class Lammps_Input_File(Lammps_Log_File):
     name = "Lammps Input File"
     _write_types = ('csv', 'txt',)
     _title_names = {
-                    'atoms': ('at_num', 'mol_num', 'at_type', 'q', 'x', 'y', 'z', 'ix', 'iy', 'iz'),
-                    'bonds': ('index', 'bond_type', 'at_1', 'at_2'),
-                    'angles': ('index', 'angle_type', 'at_1', 'at_2', 'at_3'),
-                    'dihedrals': ('index', 'dihedral_type', 'at_1', 'at_2', 'at_3', 'at_4'),
-                    'velocities': ('index', 'vx', 'vy', 'vz'),
+                    'atoms': (('index', 'mol_num', 'at_type', 'q', 'x', 'y', 'z', 'ix', 'iy', 'iz'),
+                              ('index', 'mol_num', 'at_type', 'x', 'y', 'z', 'ix', 'iy', 'iz')),
+                    'bonds': (('index', 'bond_type', 'at_1', 'at_2'),),
+                    'angles': (('index', 'angle_type', 'at_1', 'at_2', 'at_3'),),
+                    'dihedrals': (('index', 'dihedral_type', 'at_1', 'at_2', 'at_3', 'at_4'),),
+                    'velocities': (('index', 'vx', 'vy', 'vz'),),
+                    'pair coeffs': (('index', 'coeffA', 'coeffB'),),
+                    'bond coeffs': (('index', 'coeffA', 'coeffB'),),
+                    'angle coeffs': (('index', 'coeffA', 'coeffB'),),
+                    'dihedral coeffs': (('index', 'coeffA', 'coeffB', 'coeffC', 'coeffD'),),
+                    'masses': (('index', 'mass'),)
                    }
 
     def __init__(self, filepath):
@@ -236,13 +244,54 @@ class Lammps_Input_File(Lammps_Log_File):
         """
         self._ltxt = self.file_txt.split("\n")
 
-        # Will set some attributes 
-        self._set_csv_lines(same_line_tolerance=100)
-        self._csv_lines = {self._ltxt[self._csv_starts[i]-2].strip().lower(): self._csv_lines[i]
-                           for i in self._csv_lines}
+        # Get the places that look like CSV lines
+        self._set_csv_lines(same_line_tolerance=20)
+        # Set the CSV names
+        swap_keys = {}
+        for i in self._csv_lines:
+            key, _ = gen_parse.rm_comment_from_line(self._ltxt[self._csv_starts[i]-2])
+            key = key.strip().lower()
+            swap_keys[key] = i
+        for i in swap_keys:
+            self._csv_lines[i] = self._csv_lines[swap_keys[i]]
+            self._csv_lines.pop(swap_keys[i])
+
+        # Add any sections not caught by the set_csv lines function
+        self._check_other_sects_()
+
         self.csv_data = self._read_csv_lines()
 
         self._set_metadata()
+
+    def _check_other_sects_(self):
+        """
+        Will add any sections that haven't been added by the the _set_csv_lines() function.
+        """
+        txt = self.file_txt.lower()
+        for sect_name in self._title_names:
+            if sect_name == 'masses': continue
+            if sect_name in self._csv_lines or sect_name not in txt:
+                continue
+
+            self._get_extra_lines_(sect_name)
+            # print("\n\n" + f"Haven't parsed the '{sect_name.title()}' section.")
+            # print(f"Please change the function Lammps_Input_File._check_other_sects_" +
+            #       f" in order to implement this.")
+
+    def _get_extra_lines_(self, sect_name):
+        for i, line in enumerate(self._ltxt):
+            if sect_name in line.lower():
+                start_line = i
+
+        num_entries_b = len(self._ltxt[start_line+2].split())
+        for i, line in enumerate(self._ltxt[start_line+3:]):
+            words = line.split()
+            if num_entries_b == len(words):
+                continue
+            end_line = i + start_line + 3
+            break
+
+        self._csv_lines[sect_name] = '\n'.join(self._ltxt[start_line+2:end_line])
 
     def _read_csv_lines(self):
         """
@@ -266,8 +315,45 @@ class Lammps_Input_File(Lammps_Log_File):
                              + f"\t                             '{key}': (" + "..., " * num_cols
                              + ")\n\t                           })")
 
-            csv_data[key] = pd.read_csv(fp, delim_whitespace=True, names=self._title_names[key])
+            headers = self._get_csv_headers_(self._csv_lines[key], key)
+            csv_data[key] = pd.read_csv(fp, delim_whitespace=True, names=headers)
         return csv_data
+
+    def _get_csv_headers_(self, lines, key):
+        """
+        Will find the correct headers for the section in the csv lines.
+
+        Inputs:
+            * lines <str> => The csv lines
+            * key <str>   => The title fo the section
+
+        Outputs:
+            headers <list>
+        """
+        first_line = lines[:500].splitlines()[0]
+        words = first_line.split()
+        num_words = len(words)
+        
+        poss_vals = []
+        for i, vals in enumerate(self._title_names[key]):
+            if len(vals) == num_words:
+                poss_vals.append(i)
+
+
+        if len(poss_vals) > 1:
+            raise SystemExit(f"Can't determine the csv headers for the section: {key}" +
+                             "\n\nPlease check your file, change the self._title_names"+
+                             " variable in src/io_utils/lammps.py or add a new test "  +
+                             "within the function Lammps_Input_File._get_csv_headers_().")
+
+        elif len(poss_vals) == 0:
+            raise SystemExit(f"No valid csv headers for the section: {key}" +
+                             "\n\nPlease check your file or change the self._title_names"+
+                             " variable in src/io_utils/lammps.py.")
+
+        else:
+            return self._title_names[key][poss_vals[0]]
+
 
     def _set_metadata(self):
         """
@@ -297,6 +383,8 @@ class Lammps_Input_File(Lammps_Log_File):
                 atom_type = type_check.eval_type(splitter[0])
                 mass = type_check.eval_type(splitter[1])
                 self.metadata['atom_types'].setdefault(atom_type, {})['mass'] = mass
+                at_type = mol_utils.get_atom_type(mass)
+                self.metadata['atom_types'][atom_type]['details'] = at_type
                 del_lines.append(i + mass_start)
             else:  break
 
@@ -334,6 +422,9 @@ class Write_Lammps_Input(gen_io.Write_File):
        * filepath <str>     => The path to the file to be written.
        * extension <str> OPTIONAL   => The file extension. Default is False.
     """
+    ordered_sects = ('pair coeffs', 'bond coeffs', 'angle coeffs', 'dihedral coeffs', 
+                     'atoms', 'bonds', 'angles', 'dihedrals', 'velocities', )
+
     def __set_data__(self):
         """
         Will check we have the correct info for writing the file.
@@ -366,7 +457,11 @@ class Write_Lammps_Input(gen_io.Write_File):
 
         s += f"{self.Data.metadata['xlo']} {self.Data.metadata['xhi']} xlo xhi" + "\n"
         s += f"{self.Data.metadata['ylo']} {self.Data.metadata['yhi']} ylo yhi" + "\n"
-        s += f"{self.Data.metadata['zlo']} {self.Data.metadata['zhi']} zlo zhi" + "\n\n"
+        s += f"{self.Data.metadata['zlo']} {self.Data.metadata['zhi']} zlo zhi" + "\n"
+
+        if 'xy' in self.Data.metadata and 'xz' in self.Data.metadata and 'yz' in self.Data.metadata:
+              s += f"{self.Data.metadata['xy']} {self.Data.metadata['xz']} {self.Data.metadata['yz']} xy xz yz" + "\n\n"
+        else: s += "\n"
 
         s += f"Masses\n"
         for i in self.Data.metadata['atom_types']:
@@ -377,10 +472,10 @@ class Write_Lammps_Input(gen_io.Write_File):
     def _get_csv_strs_(self):
         """Will return the csv data as a string."""
         s = ""
-        for key in self.Data.csv_data:
+        for key in self.ordered_sects:
+            if key not in self.Data.csv_data: continue
             s += "\n\n" + key.title() + "\n\n"
             s += self.Data.csv_data[key].to_string(index=False, header=False, justify="left")
-
 
         return s
 
@@ -399,8 +494,6 @@ class Lammps_Data_File(gen_io.DataFileStorage):
     """
     Will read the lammps input data file (lammps.in).
 
-    A class that will loop over all lines and parse the CSVs from the
-    lammps log file.
     """
     _write_types = ('csv', 'xyz',)
     csv_data = {}
@@ -428,8 +521,17 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         self.parse_params_sect()
         self.parse_masses_sect()
 
-        headers = ("id", "mol_id", "at_type", "x", "y", "z", "ix", "iy", "iz",)
-        self.csv_data['atoms'] = self.parse_numeric_section(self.atoms_sect, headers)
+        headers = { 9: ("id", "mol_id", "at_type", "x", "y", "z", "ix", "iy", "iz",),
+                   10: ("id", "mol_id", "at_type", "q", "x", "y", "z", "ix", "iy", "iz",),
+                  }
+
+        ncol = len([i for i in self.atoms_sect[0:1000].split("\n") if i][0].split())
+        if ncol not in headers:
+            raise SystemExit(f"I don't have some header inputs for an atom section with {ncol} columns." +
+                              "\nI" + f" can handle ({', '.join(map(str, headers.keys()))}) numbers " +
+                              "of columns.")
+        at_headers = headers[ncol]
+        self.csv_data['atoms'] = self.parse_numeric_section(self.atoms_sect, at_headers)
 
         headers = ("id", "at_type", "at1", "at2")
         self.csv_data['bonds'] = self.parse_numeric_section(self.bonds_sect, headers)
@@ -465,22 +567,25 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         divide = divide.split('atoms')
         self.check_len_sect('Masses', divide)     # error checking
         # Find the section with 2 columns
-        self.masses_sect, divide = self.get_numeric_section(divide, 2)
+        self.masses_sect, divide = self.get_numeric_section(divide, 2, 'masses')
 
         # Get atoms section
         divide = divide.split("bonds")
         self.check_len_sect('Atoms', divide)
-        self.atoms_sect, divide = self.get_numeric_section(divide, 9)
+        try:
+            self.atoms_sect, divide = self.get_numeric_section(divide, 9, 'atoms')
+        except SystemExit as e:
+            self.atoms_sect, divide = self.get_numeric_section(divide, 10, "atoms")
 
         # Get bonds section
         divide = divide.split("angles")
         self.check_len_sect('Bonds', divide)
-        self.bonds_sect, divide = self.get_numeric_section(divide, 4)
+        self.bonds_sect, divide = self.get_numeric_section(divide, 4, 'bonds')
 
         # Get angles and dihedral section
         divide = divide.split("dihedrals")
         self.check_len_sect('Angles', divide)
-        self.angles_sect, self.dihedrals_sect = self.get_numeric_section(divide, 5)
+        self.angles_sect, self.dihedrals_sect = self.get_numeric_section(divide, 5, 'angles')
 
         self.dihedrals_sect = self.dihedrals_sect.replace("dihedrals", "")
 
@@ -515,6 +620,11 @@ class Lammps_Data_File(gen_io.DataFileStorage):
                 masses[str(words[0])] = float(words[1])
 
         self.metadata['masses'] = masses
+        at_types = {int(i): {'mass': i, 
+                             'details': mol_utils.get_atom_type(masses[i])} for i in masses
+                   }
+        self.metadata['atom_types'] = at_types
+
 
     def parse_numeric_section(self, sect_txt, headers):
         """
@@ -540,7 +650,7 @@ class Lammps_Data_File(gen_io.DataFileStorage):
         if len(div) != 2:
             raise SystemExit(err_msg)
 
-    def get_numeric_section(self, sects, num_cols):
+    def get_numeric_section(self, sects, num_cols, sect_name):
         """
         Will parse a numeric section from txt based on how many columns of data it has
 
@@ -562,7 +672,13 @@ class Lammps_Data_File(gen_io.DataFileStorage):
            if len(inds) > 0:
                ind = 1
            else:
-               raise SystemExit(f"Error in parsing file {self.filepath}. Please check the numerical data.")
+                inds = self.search_in_list_of_str(check,
+                                                 lambda s: len(s.split("\t")) == num_cols)
+                if len(inds) == 0:
+                    msg = "Error in parsing a lammps input data file."
+                    msg += f"The {sect_name.title()} section cannot "
+                    msg += f"be parsed into {num_cols} columns." + "\n\n"
+                    raise SystemExit(msg+f"Parsing Error {self.filepath}.")
 
         return  sects[ind], sects[1 - ind]
 

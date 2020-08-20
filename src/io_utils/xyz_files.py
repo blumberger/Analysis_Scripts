@@ -54,6 +54,7 @@ class XYZ_File(gen_io.DataFileStorage):
         self.cols, self.xyz_data = np.array(self.cols), np.array(self.xyz_data)
         self.timesteps = np.array(self.timesteps)
 
+
         # Get some metadata
         self.nstep = len(self.xyz_data)
         self.natom = self.xyz_data.shape[1]
@@ -99,6 +100,9 @@ class Write_XYZ_File(gen_io.Write_File):
               self.xyz_data = Data_Class.get_xyz_data()
               self.cols = Data_Class.get_xyz_cols()
               self.timesteps = Data_Class.get_xyz_timesteps()
+              print("cols: ", np.shape(self.cols))
+              print("timesteps: ", np.shape(self.timesteps))
+              print("xyz_data: ", np.shape(self.xyz_data))
           else:
               non_implemented = ""
               for i in required_data_fncs:
@@ -139,6 +143,7 @@ class Write_XYZ_File(gen_io.Write_File):
           # Convert floats to strings (the curvy brackets are important for performance here)
           xyz = xyz_data.astype(str)
           xyz = (['    '.join(line) for line in step_data] for step_data in xyz)
+
           cols = np.char.add(cols[0], space[0])
           head_str = '%i\ntime = ' % natom
 

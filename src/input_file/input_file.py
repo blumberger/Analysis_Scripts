@@ -50,7 +50,7 @@ from src.input_file import function_dicts as f_dicts
 from src.input_file import input_file_types as inp_types
 
 CMD_LIST = ('echo', 'write', 'read', 'load', 'calc', 'set', 'shell', 'for',
-            'script', 'python', 'if', "exit", "plot")
+            'script', 'python', 'if', "exit", "plot", "glue")
 SET_FOLDERPATH = "src/data/set"
 SET_TYPES = ("params", "system")
 VALID_FOR_FUNCS = ("range", "filepath", "list")
@@ -267,6 +267,11 @@ class INP_File(object):
                 for var in _vars:
                     if var not in variables: variables.append(var)
 
+            # Error checking the glue command
+            elif self.line_declarations['glue'](line):
+                var = self.check_glue_command(line)
+                variables.append(var)
+
             # Error check any python commands
             elif self.line_declarations['inline_code'](line):
                 if self.line_declarations['python'](line):
@@ -293,6 +298,25 @@ class INP_File(object):
             self.variables.remove(var)
 
         self.files_written = []
+
+    def check_glue_command(self, line):
+        """
+        Will check the glue command is being used correctly.
+
+        Inputs:
+            * line <str> => A string containing the cleaned line from a input file.
+        """
+        self.E_str = "check_glue_command"
+        corr_syn = 'glue "<str1>" "<str2>" ... as <var>'
+
+        splitter = line.split()
+        if len(splitter) < 5:
+            self.print_error(f"The correct syntax for the glue command is: {corr_syn}"
+                             + "\n" + "You've inputted fewer than 5 words")
+
+        # Save the variable name for error checking later
+        self.set_var(splitter[-1], "^EMPTY^", {})
+        return splitter[-1]
 
     def check_range_keyword(self, line):
         """
@@ -414,7 +438,7 @@ class INP_File(object):
                 _, plot_type, _, in_data, _, out_data = words
         else:
             _, plot_type, _, in_data = words
-        
+
         # Check we can plot the thing asked for
         if plot_type not in f_dicts.plot_fncs:
             err_msg = f"I don't know how to plot '{words[1]}'."
@@ -502,7 +526,7 @@ class INP_File(object):
 
         # Separate the conditional statement and the rest of the syntax
         conditions, rest_of_text = gen_parse.get_str_between_delims(line, "(", ")")
-        words = rest_of_text.split() 
+        words = rest_of_text.split()
         if len(words) != 5:
             self.print_error(bad_syntax_msg, errorFunc=SyntaxError)
 
@@ -531,7 +555,7 @@ class INP_File(object):
             # Check middle entries
             for i in range(1, len(cond_words) - 1):
                 _prev, _curr, _next = cond_words[i-1], cond_words[i], cond_words[i+1]
-                
+
                 msg = "%s\n\nCheck statement %s %s %s"  % (bad_syntax_msg, _prev, _curr, _next)
                 if is_cond(_curr):
                     if not (is_cond_var(_prev) or is_cond_var(_next)): errs.append(msg)
@@ -816,7 +840,7 @@ class INP_File(object):
 
             if brack_num > 0:     new_lines.append(new_line)
             elif brack_num == 0:  break
-        
+
         end_line += self.line_num + 2
 
         return end_line
@@ -944,6 +968,9 @@ class INP_File(object):
 
             # elif self.line_declarations['splice'](line):
             #     self.parse_splice_cmd(line)
+
+            elif self.line_declarations['glue'](line):
+                self.parse_glue_cmd(line)
 
             elif self.line_declarations['exit'](line):
                 print("\n\nStopped Code -exit was called.")
@@ -1094,7 +1121,7 @@ class INP_File(object):
         Inputs:
             * line <str> => A string containing the cleaned line from a input
                             file.
-            * get_set <str> OPTIONAL => 
+            * get_set <str> OPTIONAL =>
         Outputs:
             (<list<str>>, <list<str>>, <str>) var_names, metadata_names, new_line
         """
@@ -1214,7 +1241,7 @@ class INP_File(object):
         line, any_vars = self.find_vars_in_str(line)
         words = line.split()
         words = self.fix_words(words)
-        
+
         # Parse line
         has_out_var = False
         if len(words) == 6:
@@ -1230,7 +1257,7 @@ class INP_File(object):
         else: plot_fnc(in_data)
 
         self.set_var(out_data, {plot_type: OutVar}, {})
-        
+
 
     def parse_load_cmd(self, line):
         """
@@ -1695,8 +1722,8 @@ class INP_File(object):
                 script_txt = script_txt.replace(var_name, str_var)
 
         os.system(script_txt)
-        
-        
+
+
 
 
     def exec_python_script(self, filepath=False, script_txt=False):
@@ -1730,8 +1757,8 @@ class INP_File(object):
                 err_msg += "\nError Msg: " + f"{e.msg}"
 
             err_msg += "\n\n\n\n\n\nPython Script:\n" + script_txt
-            
-            self.print_error(err_msg)
+
+            self.print_error(err_msg)#, errorFunc=SystemExit)
 
         for var_name in _vars:
             setattr(self, var_name, _vars[var_name])
@@ -1871,15 +1898,38 @@ class INP_File(object):
         Will find where the brace ends in a control statement.
         """
         # Find the code to run
-        brack_num, new_lines = 1, []
-        for end_line, new_line in enumerate(self.file_ltxt[self.line_num+2:]):
-            if new_line == '{':   brack_num += 1
-            elif new_line == '}': brack_num -= 1
 
-            if brack_num > 0:     new_lines.append(new_line)
-            elif brack_num == 0:  break
-        end_line += self.line_num + 2
+        brack_num, found_first = 0, False
+        for iline, line in enumerate(self.file_ltxt[self.line_num:]):
+            if '{' in line: brack_num += 1
+            if '}' in line: brack_num -= 1
+
+            if not found_first:
+                if brack_num > 0: found_first = True
+                else: continue
+
+            if brack_num == 0: break
+
+        else:
+            self.print_error("Can't find the closing brace")
+
+        end_line = self.line_num + iline
         return end_line
+
+    def parse_glue_cmd(self, line):
+        """
+        Will parse the string glueing line.
+
+        Inputs:
+            * line <str> => The line containing the for loop
+        """
+        line, any_vars = self.find_vars_in_str(line)
+        words = line.split()
+        words = self.fix_words(words)
+        gluers = [gen_parse.rm_quotation_marks(word) for word in words[1:-2]]
+        new_str = ''.join(gluers)
+
+        self.set_var(words[-1], new_str)
 
     ##### Inp Cleaning methods #################################
 
@@ -1933,15 +1983,15 @@ class INP_File(object):
                         s = line.split("{")
                         line = s[0] + "\n{\n" + '{'.join(s[1:])
                         brack_num = 1
-
                     if '}' in line:
-                        s = line.split("{")
-                        line = s[0] + "\n{\n" + '{'.join(s[1:])
+                        s = line.split("}")
+                        line = s[0] + "\n}\n" + '}'.join(s[1:])
                         code_on = False
                         brack_num = 0
 
+
                     self.file_ltxt[line_num] = line
-                    breaker = True  
+                    breaker = True
             if breaker:
                 continue
 
@@ -1958,9 +2008,10 @@ class INP_File(object):
                 str_part, non_str = gen_parse.get_str_between_delims(line)
                 non_str = non_str.replace("{", "\n{\n").replace("}", "\n}\n")
                 line = non_str.replace(r"??!%s!?", str_part)
-            
-            self.file_ltxt[line_num] = line
 
+            self.file_ltxt[line_num] = line
+        # print(self.file_ltxt)
+        # raise SystemExit("BREAK")
         # Re-split by line-end and remove blank lines
         self.file_ltxt = [i for i in '\n'.join(self.file_ltxt).split('\n')
                           if not i.isspace() and i]

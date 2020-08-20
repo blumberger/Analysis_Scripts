@@ -5,6 +5,7 @@ This module holds some utilities regarding molecular system manipulation such as
 reshaping atomic coords to molecular coords etc...
 """
 import re
+import copy
 import numpy as np
 from sklearn.cluster import DBSCAN
 from collections import Counter
@@ -15,6 +16,18 @@ from src.io_utils import json_files as json
 PT = json.read_json("src/data/periodic_table.json")
 PT_abbrv = {PT[i]['abbreviation']: {**PT[i], **{'full_name': i}} for i in PT}
 
+
+def get_atom_type(mass):
+    """
+    Get the atom type from the atomic mass.
+    """
+    for i in PT:
+        mass_i = PT[i]['atomic_weight']
+        if isinstance(mass_i, (float, int)):
+            if np.isclose(mass_i, mass, atol=0.1):
+                new_dict = copy.deepcopy(PT[i])
+                new_dict['name'] = i
+                return new_dict
 
 def get_nmol(natom, natom_in_mol):
     """

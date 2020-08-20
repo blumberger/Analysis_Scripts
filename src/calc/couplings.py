@@ -11,6 +11,8 @@ import subprocess
 import time
 import multiprocessing as mp
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
 
 from src.calc import general_calc as gen_calc
 from src.calc import molecule_utils as mol_utils
@@ -41,7 +43,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 	At the moment the interface with Orestis's AOM coupling calculator is via files
 	written to disk. Obviously this isn't a very optimised interface and will be painfully
-	slow on computers with slow disk writes so at some point I'll write a C wrapper for
+	slow on computers with slow disk writes so at some point I may write a C wrapper for
 	the C code like the RDF calculator.
 	"""
 	required_data_types = ('pos',)
@@ -471,7 +473,12 @@ class Coupling_Connections(gen_calc.Calc_Type):
 	required_data_types = ('pos', 'pseudo_ham',)
 	required_calc = ("long_ax_rotation", )
 	_defaults = {'zmin': 'all', 'zmax': 'all', 'ymin': 'all', 'ymax': 'all', 'xmin': 'all', 'xmax': 'all',
-				 "plot_coupling_connections": True, "CC_plot_title": False, "CC_savefig": False}
+				 "plot_coupling_connections": True, "CC_plot_title": False, "CC_savefig": False,
+				 'xmax': False, 'xmin': False,
+				 'ymax': False, 'ymin': False, 'zmax': False, 'zmin': False,
+				 "coordinate_wrapping": "wrapped", "delete_files": True, "a1_elev": 90,
+				 "a2_elev": 0, "a1_azim": 0, "a2_azim": 0, "xy_rotation_matrix": False,
+				 "elev_increment":False, "azim_increment":1, "init_elev":30, "init_azim":0,}
 	required_metadata = ('xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax', "atoms_per_molecule", "reorganisation_energy")
 	name = "Layer Couplings"
 
@@ -558,7 +565,7 @@ class Coupling_Connections(gen_calc.Calc_Type):
 				do_plot = self.metadata['plot_coupling_connections'] + bool(self.metadata['CC_savefig'])
 				if do_plot:
 					curr_mol = rotated_COM[mol_nums]
-					f = plt.figure()
+					f = plt.figure(figsize=(16,9))
 					a1 = f.add_subplot(121, projection="3d")
 					a2 = f.add_subplot(122, projection="3d")
 					a1.set_xlabel("X"); a1.set_ylabel("Y"); a1.set_zlabel("Z");
@@ -582,7 +589,7 @@ class Coupling_Connections(gen_calc.Calc_Type):
 
 					legend_elements = [Line2D([0], [0], label=plot_params[i][1], **plot_params[i][0]) for i in plot_params]
 
-					a1.legend(handles=legend_elements, loc="best")
+					# a1.legend(handles=legend_elements, loc="best")
 					plt.tight_layout()
 
 					if bool(self.metadata['CC_savefig']):

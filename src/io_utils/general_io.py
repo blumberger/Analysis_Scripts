@@ -189,7 +189,13 @@ class Write_File(object):
   
 	  By default we write the str(self.Data)
 	  """
-	  return str(self.file_txt)
+	  if hasattr(self, "file_txt"):
+	  	return str(self.file_txt)
+	  else:
+	  	try:
+	  		return self.Data.create_file_str()
+	  	except:
+	  		print(f"Can't find file writing function `create_file_str` in `{self.Data.name}`")
 
 
 def create_unique_filepath(filepath):

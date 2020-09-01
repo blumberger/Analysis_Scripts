@@ -21,6 +21,7 @@ import numpy as np
 from src.io_utils import general_io as gen_io
 from src.parsing import general_parsing as gen_parse
 from src.system import type_checking as type_check
+from src.calc import molecule_utils as mol_utils
 
 
 class XYZ_File(gen_io.DataFileStorage):
@@ -36,7 +37,7 @@ class XYZ_File(gen_io.DataFileStorage):
         * cols <numpy.array> => The parsed column data from the xyz file.
         * timesteps <numpy.array> => The parsed timesteps from the xyz file.
     """
-    metadata = {'file_type': 'xyz'}
+    metadata = {'file_type': 'xyz', 'coordinate_wrapping': ''}
     # write_precision = 5
     def __init__(self, filepath):
         super().__init__(filepath)
@@ -54,6 +55,10 @@ class XYZ_File(gen_io.DataFileStorage):
         self.cols, self.xyz_data = np.array(self.cols), np.array(self.xyz_data)
         self.timesteps = np.array(self.timesteps)
 
+        if self.metadata['coordinate_wrapping'] != '':
+          self.check_metadata(('cella', 'cellb', 'cellc', 'cellalpha', 'cellbeta', 'cellgamma',
+                               'atoms_per_molecule'))
+          self.wrap_crds()
 
         # Get some metadata
         self.nstep = len(self.xyz_data)
@@ -80,6 +85,65 @@ class XYZ_File(gen_io.DataFileStorage):
         # Create the str
         return ''.join(s)
 
+    def check_metadata(self, keys=()):
+      """
+      Will check if some keys are in the metadata dict
+
+      Inputs:
+        * keys <tuple> => The keys to check 
+      """
+      if type(keys) == str:
+          keys = (keys, )
+
+      notthere=False
+      for i in keys:
+          if i not in self.metadata:
+            print("\n\n" + f"Can't find the parameter `{i}`." + "\n"
+                  + "Please set it in the input file as `<var_name>['{i}'] = <data>`"+"\n\n")
+            notthere=True
+
+      if notthere:
+          raise SystemExit("Missing parameter(s)")
+
+    def wrap_crds(self):
+      """
+      Will wrap coordinates back into the simulation cell.
+
+      Will ammend the xyz_data in place.
+
+      Inputs:
+        * cella ..
+        * cellb ..
+        * cellc ..
+        * cellalpha ..
+        * cellbeta ..
+        * cellgamma ..
+      """
+      cella = self.metadata['cella']
+      cellb = self.metadata['cellb']
+      cellc = self.metadata['cellc']
+      cellalpha = self.metadata['cellalpha']
+      cellbeta = self.metadata['cellbeta']
+      cellgamma = self.metadata['cellgamma']
+
+      # Loop over all steps
+      for istep in range(len(self.xyz_data)):
+
+        # First find those outside the sim cell.
+        step_data = self.xyz_data[istep]
+        step_cols = self.cols[istep]
+        mol_data = mol_utils.atoms_to_mols(step_data,
+                                           self.metadata['atoms_per_molecule'])
+        mol_cols = mol_utils.cols_to_mols(step_cols,
+                                           self.metadata['atoms_per_molecule'])
+        mol_COM = mol_utils.get_COM(mol_data, mol_cols)
+        # dists = np.linalg.norm(mol_COM, axis=1)
+
+        # outside_mask = 
+
+        # Wrap any (whole) mols back into the sim cell.
+        raise SystemExit("Not Yet Implemented!")
+
 
 class Write_XYZ_File(gen_io.Write_File):
       """
@@ -98,11 +162,11 @@ class Write_XYZ_File(gen_io.Write_File):
 
           if all(j in dir(Data_Class) for j in required_data_fncs):
               self.xyz_data = Data_Class.get_xyz_data()
+              if (np.shape(self.xyz_data)[-1] != 3):
+                raise SystemError("XYZ data given in the wrong format.")
+
               self.cols = Data_Class.get_xyz_cols()
               self.timesteps = Data_Class.get_xyz_timesteps()
-              print("cols: ", np.shape(self.cols))
-              print("timesteps: ", np.shape(self.timesteps))
-              print("xyz_data: ", np.shape(self.xyz_data))
           else:
               non_implemented = ""
               for i in required_data_fncs:

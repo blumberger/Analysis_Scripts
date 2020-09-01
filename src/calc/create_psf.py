@@ -53,7 +53,8 @@ class Create_PSF(gen_calc.Calc_Type):
             file_xyz = self.xyz_data[ifile]
             file_cols = self.cols[ifile]
 
-            self.natom = len(self.xyz_data[0])
+            self.natom = len(self.xyz_data[0][0])
+            print(np.shape(self.xyz_data))
             self.all_mol_crds = mol_utils.atoms_to_mols(file_xyz, self.ats_per_mol)
             nmol = self.all_mol_crds.shape[1]
             self.mol_col = np.reshape(file_cols[0], (nmol, self.ats_per_mol))
@@ -178,13 +179,13 @@ class Create_PSF(gen_calc.Calc_Type):
         """
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
-        fig = plt.figure()
+        fig = plt.figure(figsize=(16,9))
         ax = fig.add_subplot(111, projection="3d")
 
         crds = self.all_mol_crds[0][0]
         cols = [self.metadata['atom_types'][i] for i in self.mol_col[0]]
         masses = np.array([mol_utils.PT_abbrv[i]['atomic_weight'] for i in cols])
-        colors = [mol_utils.PT_abbrv[i]['plot_color'] for i in cols]
+        colors = np.array([mol_utils.PT_abbrv[i]['plot_color'] for i in cols])
 
         # Plot coords in a cube space
         max_len = max(np.abs([max(crds[:, 0]) - min(crds[:, 0]),
@@ -192,7 +193,13 @@ class Create_PSF(gen_calc.Calc_Type):
                        max(crds[:, 2]) - min(crds[:, 2])]))
         min_vals = [min(crds[:, 0]), min(crds[:, 1]), min(crds[:, 2])]
 
-        ax.scatter(crds[:, 0], crds[:, 1], crds[:, 2], s=masses*10, color=colors)
+        u_mass = np.unique(masses)
+        for m in u_mass:
+            mask = masses == m
+            c = colors[mask][0]
+            new_crds = crds[mask]
+            ax.plot(new_crds[:, 0], new_crds[:, 1], new_crds[:, 2], 'o',
+                     color=c, ms=(m**0.3)*5, ls='none')
 
         ax.set_xlim([min_vals[0]-1, min_vals[0]+max_len+1])
         ax.set_ylim([min_vals[1]-1, min_vals[1]+max_len+1])
@@ -216,6 +223,7 @@ class Create_PSF(gen_calc.Calc_Type):
             <str> The atoms section as a string
         """
         at_counts = {}
+        print(self.natom)
         s = f"{self.natom}".rjust(spaces) + " !NATOM\n"
         for istep in range(len(self.all_mol_crds)):
             for imol, cols in enumerate(self.mol_col):

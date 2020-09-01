@@ -2086,10 +2086,11 @@ class INP_File(object):
         # Get any old metadata
         if var_name in self.variables:
             Old_Var = getattr(self, var_name)
-            md_old = Old_Var.metadata
-            for key in md_old:
-                if key not in metadata:
-                    metadata[key] = md_old[key]
+            if hasattr(Old_Var, "metadata"):
+                md_old = Old_Var.metadata
+                for key in md_old:
+                    if key not in metadata:
+                        metadata[key] = md_old[key]
 
         # Create a new Variable and set it to self
         Var = inp_types.Variable(var_name, var_data, metadata)

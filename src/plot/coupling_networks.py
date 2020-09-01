@@ -61,6 +61,9 @@ class Coupling_Networks(gen_plot.Plot_Type):
 						   self.min_Hab: ({'color': 'b', 'lw': 0.3}, r"$\frac{\lambda}{10} > H_{ab} \geq \frac{\lambda}{100}$"),
 						  }
 			self.graph_data = self.__get_coupling_connections__(self.Var.mol_centroids[istep], self.Var.data[istep], self.plot_params)
+			self.nmol = len(self.Var.mol_centroids[0])
+			self._get_grains_()
+
 			if not self.metadata['plot_coupling_grains']:
 				self._plot_coupling_connections_(self.Var.mol_centroids[istep], self.plot_params, self.a1)
 			else: 
@@ -256,11 +259,36 @@ class Coupling_Networks(gen_plot.Plot_Type):
 							horizontalalignment='center', verticalalignment='center')
 
 		ax.set_title(f"$\lambda = $ %.1f meV" % reorg)
-
+ 	
 		# if self.metadata['CC_plot_title']: ax.set_title(self.metadata['CC_plot_title'].replace("Layer", "").replace("_", " ").strip())
 
 		legend_elements = [Line2D([0], [0], label=plot_params[i][1], **plot_params[i][0]) for i in plot_params]
 		ax.legend(handles=legend_elements, loc="best")
+
+		stats_msgs = []
+		num_divs = 2
+		stats_msg = ""
+		for ikey, key in enumerate(self.grain_stats):
+			if ikey % num_divs == 0:
+				stats_msgs.append(stats_msg)
+				stats_msg = ""
+
+			if isinstance(self.grain_stats[key], (int, str)):
+				stats_msg += f"{key}:".ljust(24) + f"{self.grain_stats[key]}".strip() 
+			else:	
+				stats_msg += f"{key}:".ljust(24) + f"{self.grain_stats[key]:.2f}".strip()
+
+			if ikey % num_divs != num_divs -1: stats_msg = stats_msg.ljust(40)
+
+		stats_msgs.append(stats_msg)
+		stats_msgs.remove("")
+
+		stats_msg = '\n'.join(stats_msgs)
+		mnx, mny, mnz = np.min(all_mol_crds, axis=0)
+		mxx, mxy, mxz = np.max(all_mol_crds, axis=0)
+		rx, ry, rz = np.array([mxx, mxy, mxz]) - np.array([mnx, mny, mnz])
+		ax.text(x=mxx+0.2*rx, y=mny, z=mnz, s=stats_msg, fontsize=13,
+				verticalalignment="top", horizontalalignment="left")
 
 	def _plot_mol_selection_(self, all_mols, mol_selection, ax=False):
 		"""
@@ -317,19 +345,37 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		# Now group them by connections
 		mols_to_do = list(couplings_by_mol.keys())
 		grain_count = 0
-		mol = mols_to_do[0]
-
-		# Loop over the maximum number of grains possible
-		for i in range(len(mols_to_do) // 2):
-			self.grains[grain_count] = self._follow_dict_chain_(couplings_by_mol, mol)
-			for imol in self.grains[grain_count]:
-				mols_to_do.remove(imol)
-
-			if len(mols_to_do) == 0:
-				break
-
+		if mols_to_do:
 			mol = mols_to_do[0]
-			grain_count += 1
+
+			# Loop over the maximum number of grains possible
+			for i in range(len(mols_to_do) // 2):
+				self.grains[grain_count] = self._follow_dict_chain_(couplings_by_mol, mol)
+				for imol in self.grains[grain_count]:
+					mols_to_do.remove(imol)
+
+				if len(mols_to_do) == 0:
+					break
+
+				mol = mols_to_do[0]
+				grain_count += 1
+
+			# Get some stats on the grains
+			lens = [len(self.grains[i]) for i in self.grains]
+			self.grain_stats = {'Max Path Length': max(lens), 'Min Path Length': min(lens),
+								'Mean Path Length': np.mean(lens), 'Std dev Path Length': np.std(lens),
+								'Num Grains': len(self.grains), 'Num Connections': sum(lens),
+								'Num Mols': self.nmol,
+								}
+
+			print("\n\nGrain Stats:")
+			for i in self.grain_stats:
+				print(f"{i} Path Length: {self.grain_stats[i]}")
+			print("\n\n")
+
+		else:
+			self.grain_stats = {}
+
 
 	def plot_grains(self, all_mol_crds, ax=False):
 		"""
@@ -338,8 +384,6 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		if ax is False:
 			fig = plt.figure()
 			ax = fig.add_subplot(111, projection="3d")
-
-		self._get_grains_()
 
 		print("\nNum Grains = %s" % len(self.grains))
 

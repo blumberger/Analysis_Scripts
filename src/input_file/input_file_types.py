@@ -1043,6 +1043,7 @@ class Vars(dict):
         """Will return the correct csv data from a Lammps file obj."""
         wrap = ""
         if 'coordinate_wrapping' in self.metadata:
+            print(self.metadata['coordinate_wrapping'])
             if self.metadata['coordinate_wrapping'] == 'unwrapped':
                 wrap = "unwrap"
             elif self.metadata['coordinate_wrapping'] == 'remove_split_mols':
@@ -1050,12 +1051,25 @@ class Vars(dict):
                 wrap = "rem_split"
             elif self.metadata['coordinate_wrapping'] == "wrapped":
                 wrap = "wrap"
+            elif self.metadata['coordinate_wrapping'] == "unwrap_split_mols":
+                self['lammps_dump'].unwrap_split_mols()
+                wrap = "unwrap_split_mols"
+            else:
+                raise SystemExit("I don't understand the coordinate_wrapping instruction." +
+                                 "\n\nChoose from:" + 
+                                 "\n\t* unwrapped" + 
+                                 "\n\t* remove_split_mols" + 
+                                 "\n\t* wrapped" + 
+                                 "\n\t* unwrap_split_mols"
+                                 )
 
         # Set which data to use
         if wrap == "":  csv_data = self['lammps_dump'].csv_data
         elif wrap == "unwrap": csv_data = self['lammps_dump'].unwrapped_csv
         elif wrap == "rem_split": csv_data = self['lammps_dump'].rm_split_mols
         elif wrap == "wrap": csv_data = self['lammps_dump'].wrapped_csv
+        elif wrap == "unwrap_split_mols": csv_data = self['lammps_dump'].unwrapped_csv
+        else: raise SystemExit("Can't find correct csv data from lammps log. Please point me to where it is.")
 
         csv_data.index = range(len(csv_data))
         return csv_data

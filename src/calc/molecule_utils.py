@@ -112,8 +112,8 @@ def cols_to_mols(cols, num_ats_in_mol, nstep=1):
 
     else:
         raise SystemError("\n\n\nWrong shape for atomic coordinate array!\n\n"
-                          + "It should either be (nstep, natom, 3) or"
-                          + " (natom, 3)\n\n"
+                          + "It should either be (nstep, natom) or"
+                          + " (natom, )\n\n"
                           + f"Current shape = {cols.shape}")
 
 

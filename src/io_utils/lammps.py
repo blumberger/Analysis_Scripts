@@ -11,6 +11,7 @@ from collections import Counter
 import re
 import json
 import copy
+import matplotlib.pyplot as plt
 
 from src.io_utils import general_io as gen_io
 from src.system import type_checking as type_check
@@ -18,6 +19,7 @@ from src.data import consts
 from src.input_file import input_file_types as inp_types
 from src.calc import molecule_utils as mol_utils
 from src.parsing import general_parsing as gen_parse
+from src.plot import general_plot as gen_plot
 
 
 class Lammps_Log_File(gen_io.DataFileStorage):
@@ -895,7 +897,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         Will translate atom coords to fix wrapping of coords in periodic systems
         """
-        # self.unwrap_split_mols()
         self.unwrapped_avail = True
         self.unwrapped_csv = copy.deepcopy(self.csv_data)
 
@@ -930,8 +931,39 @@ class Lammps_Dump(gen_io.DataFileStorage):
         split_mols = mol_crds[mask].index
         self.rm_split_mols['split'] = self.rm_split_mols['mol'].apply(lambda x: x in split_mols)
 
-        # Bring the split molecules together.
+        # Remove the split molecules together.
         self.rm_split_mols = self.rm_split_mols[self.rm_split_mols['split'] == False]
+
+    def unwrap_split_mols(self):
+        """
+        Will wrap the molecules back as close to the unit cell as they go.
+        """
+        self.unwrapped_avail = True
+        self.unwrapped_csv = copy.deepcopy(self.csv_data)
+
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+
+        # Check we can do the wrapping
+        if not all(j in self.unwrapped_csv.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z', 'mol')):
+            self.unwrapped_avail = False
+            return self.unwrapped_csv
+
+        # Find the split mols
+        mol_crds = self.unwrapped_csv[['mol', 'ix', 'iy', 'iz']].groupby("mol", axis=0).std()
+        mask = (mol_crds['ix'] != 0) | (mol_crds['iy'] != 0) | (mol_crds['iz'] != 0)
+        split_mol_inds = mol_crds[mask].index
+        self.unwrapped_csv.loc[:, 'split'] = self.unwrapped_csv.loc[:, 'mol'].apply(lambda x: x in split_mol_inds)
+
+        # Wrap the split molecules together.
+        unsplit = self.unwrapped_csv[self.unwrapped_csv['split'] == False]
+
+        mask = self.unwrapped_csv['split'] == True
+        tmp = self.unwrapped_csv.loc[mask, :]
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+        for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
+            for idim, dim in enumerate('xyz'):
+                if unit_vec[idim] != 0:
+                    self.unwrapped_csv.loc[mask, dim] += tmp.loc[:, wrap_dim] * unit_vec[idim]
 
     def append(self, val):
         """

@@ -5,8 +5,38 @@ A module that contains general types that can be subclassed to create new plot t
 """
 import copy
 import numpy as np
+import matplotlib.pyplot as plt
 
 from src.input_file import input_file_types as inp_types
+
+	
+def plot_xyz_data(ats, a=False, args={}):
+	"""
+	A general function to plot atomic coord data.
+
+	Inputs:
+		* ats <np.arr> => (natom, 3)
+	"""
+	default_args = {'ls': 'None', 'marker': '.'}
+	for i in args: default_args[i] = args[i]
+
+	if a is False:
+		f = plt.figure()
+		a = f.add_subplot(111, projection="3d")
+
+		a.set_xlabel("X")
+		a.set_ylabel("Y")
+		a.set_zlabel("Z")
+
+		a.view_init(elev=-3, azim=64)
+
+		a.set_xticks([])
+		a.set_yticks([])
+		a.set_zticks([])
+
+	a.plot(ats[:, 0], ats[:, 1], ats[:, 2], **default_args)
+
+	return a
 
 class Plot_Type(object):
 	"""

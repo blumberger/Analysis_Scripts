@@ -73,6 +73,7 @@ class PVecs(gen_calc.Calc_Type):
                        self.pvecs[step, at_count] = pvec
                        at_count += 1
 
+
     def __get_pvec_ats(self, ifile):
         """
         Will get for each carbon atom the 3 closest atoms at step 0.

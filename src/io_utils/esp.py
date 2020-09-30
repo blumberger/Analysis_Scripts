@@ -21,7 +21,7 @@ class ESP_File(gen_io.DataFileStorage):
     _write_types = ('xyz',)
     name = "EPS File"
     _defaults = {}
-    
+
     def _parse_(self):
         """
         Will parse the file text and store the data.
@@ -69,7 +69,6 @@ class ESP_File(gen_io.DataFileStorage):
             f = plt.figure()
             ax = f.add_subplot(111, projection="3d", proj_type="ortho")
 
-        groups = {0: [22, 25, 4, 7], 1: [23, 24, 5, 6], 2: [32, 33, 15, 14], 3: [31, 34, 16, 13], 4: [21, 26, 8, 3], 5: [20, 9, 2, 27], 6: [30, 35, 17, 12], 7: [19, 10, 28, 1], 8: [29, 11], 9: [18, 0]}
 
         colors = ['k', 'b', 'g', 'r', 'y', '#aaaaaa', '#fababa', '#ff00ff', '#00ffff', '#f37f29']
         for elm in set(self.cols):
@@ -87,14 +86,6 @@ class ESP_File(gen_io.DataFileStorage):
             crds = self.xyz_data[mask]
             ax.plot(crds[:,0], crds[:,1], crds[:,2], '.',
                     ls="none", ms=size, color=color, alpha=0.5)
-
-        for i, at_group in enumerate(groups):
-            at_inds = groups[at_group]
-            crds = self.xyz_data[at_inds]
-            ax.plot(crds[:, 0], crds[:, 1], crds[:, 2], '.', color=colors[i], ms=40)
-            print(i, np.mean(self.partial_charges[at_inds]))
-            # for x, y, z in crds:
-            #     ax.text(x, y, z, f"{np.mean(self.partial_charges[at_inds]):.2f}", va="bottom")
 
         # Reshape axes
         xlim = ax.get_xlim(); ylim = ax.get_ylim(); zlim = ax.get_zlim()
@@ -116,27 +107,50 @@ class ESP_File(gen_io.DataFileStorage):
 
         return ax
 
-    def plot_partial_charges(self, ax=False, show=True):
+    def plot_partial_charges(self, ax=False, show=True, sym_n_norm=False, dp=3):
         """
         Will plot the partial charges and crds on a 3D matplotlib figure.
-    
+
         Inputs:
             * ax <plt.axis> => An optional axis, if none is provided then one will be created.
                                 This must have 3D projection. The created axis will have
                                 orthographic projection.
             * show <bool> => Whether to show the plot or just hold it in RAM.
         """
-        ax = self.plot_crds(ax, show=False)
+        #ax = self.plot_crds(ax, show=False)
 
+        if ax is False:
+            f = plt.figure()
+            ax = f.add_subplot(111, projection="3d", proj_type="ortho")
 
-        # # These are the pentacene Mulliken charges from Sam's Gaussian sim -they can be deleted.
-        # s = """-0.235339,0.040679,-0.231405,0.043727,-0.210538,-0.201912,-0.200956,-0.210827,0.043195,-0.231411,0.040331,0.192876,0.194823,0.192835,0.193056,0.192945,0.192909,0.194962,-0.235394,0.040697,-0.231345,0.043665,-0.210551,-0.201907,-0.200956,-0.210833,0.043228,-0.231398,0.040420,0.192850,0.194864,0.192833,0.193055,0.192942,0.192915,0.194964""".split(",")
-        # self.partial_charges = np.array(s).astype(float)
+        if sym_n_norm is True:
+            groups = {0: [22, 25, 4, 7], 1: [23, 24, 5, 6], 2: [32, 33, 15, 14], 3: [31, 34, 16, 13], 4: [21, 26, 8, 3], 5: [20, 9, 2, 27], 6: [30, 35, 17, 12], 7: [19, 10, 28, 1], 8: [29, 11], 9: [18, 0]}
+            for i, at_group in enumerate(groups):
+                at_inds = groups[at_group]
+                crds = self.xyz_data[at_inds]
+                self.partial_charges[at_inds] = float(f"{np.mean(self.partial_charges[at_inds]):{dp}f}")
+            self.partial_charges /= sum(self.partial_charges)
 
+        print(self.partial_charges)
         for i, (c, (x, y, z)) in enumerate(zip(self.partial_charges, self.xyz_data)):
-        #     color = 'b' if c >= 0 else 'r'
-        #     ax.scatter([x], [y], [z], s=(abs(c)**2)*5000, color=color, alpha=0.2)
-            ax.text(x-0.3, y, z, str(i), fontsize=17, ha="right", va="top")  # f"{c:.2f}", fontsize=17)
+            color = 'b' if c >= 0 else 'r'
+            ax.scatter([x], [y], [z], s=(abs(c)**2)*5000, color=color, alpha=0.2)
+            ax.text(x-0.3, y, z, f"{c:.{dp}f}", fontsize=17, ha="right", va="top")  # f"{c:.2f}", fontsize=17)
+
+        # Reshape axes
+        xlim = ax.get_xlim(); ylim = ax.get_ylim(); zlim = ax.get_zlim()
+        xdiff = np.diff(xlim); ydiff = np.diff(ylim); zdiff = np.diff(zlim)
+        max_diff = max([xdiff, ydiff, zdiff])
+        x_ext = abs(max_diff - xdiff) / 2.
+        y_ext = abs(max_diff - ydiff) / 2.
+        z_ext = abs(max_diff - zdiff) / 2.
+        ax.set_xlim([xlim[0] - x_ext, xlim[1] + x_ext])
+        ax.set_ylim([ylim[0] - y_ext, ylim[1] + y_ext])
+        ax.set_zlim([zlim[0] - z_ext, zlim[1] + z_ext])
+
+        # Make pretty
+        ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([])
+        ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z");
 
         if show:
             plt.show()
@@ -145,7 +159,7 @@ class ESP_File(gen_io.DataFileStorage):
     def plot_charge_density(self, ax=False, show=True):
         """
         Will plot the charge density as an isosurface.
-    
+
         Inputs:
             * ax <plt.axis> => An optional axis, if none is provided then one will be created.
                                 This must have 3D projection. The created axis will have
@@ -171,7 +185,7 @@ class ESP_File(gen_io.DataFileStorage):
         line = [i.strip() for i in self._ltxt[0].split(' - ')]
         if len(line) == 2:
             self.metadata['gauss_file_type'], self.metadata['units'] = line
-        
+
         else:
             raise SystemError("Parsing error in line 1.\n\n\tLine = '%s'" % self._ltxt[0]
                               + "\n\tError: Line split by ' - ' is not length 2.")

@@ -1,24 +1,53 @@
+"""
+This script will take positions and velocities from the \$pos_mol_folder
+and ammend CP2K input files to run MD simulations.
+
+This will work with multiple threads (by starting a new process on a new thread
+with bash i.e. cp2k -i run.inp &)
+
+This version will give an estimated time of completion too.
+"""
+
+
+
 # Some parameters
 nproc=8
 min_step=0
 save_data=false
 pos_mol_folder="../../Pos_From_Previous"
-#CP2K_EXE="mpirun -n 3 /scratch/mellis/flavoured-cptk/cp2k/exe/local/cp2k.popt"
 CP2K_EXE="/scratch/mellis/flavoured-cptk/cp2k/exe/local/cp2k.sopt"
+csv_headers="Step,Time,Kin,Temp,Pot,Etot,CPU,bonds,bends,urey-bradley,torsions,impropers,opbend,recip,real,self,neut,bonded,vdw"
+
 #CP2K_EXE=cp2k
+#CP2K_EXE="mpirun -n 3 /scratch/mellis/flavoured-cptk/cp2k/exe/local/cp2k.popt"
 
 # Creat the csv file
-echo "Step,Time,Kin,Temp,Pot,Etot,CPU,bonds,bends,urey-bradley,torsions,impropers,opbend,recip,real,self,neut,bonded,vdw" > all_data.csv
+echo "$csv_headers" > all_data.csv
 
+
+
+get_ES_val() {
+  # Get a number from a log file -for a given substring to search for.
+  # The number must be on the same line as the search term, if multiple
+  # lines fulfill the search criteria then multiple values will be returned.
+  name=$1
+  proc_num=$2
+
+  grep "$name" RUN_$proc_num.log | grep "\-*[0-9][0-9]*\.*[0-9]*E*[-+]*[0-9]*" -Poh
+}
 
 escape_for_sed() {
+  # Will print a string that has all special characters escaped with \
   KEYWORD="$1";
   printf '%s\n' "$KEYWORD" | sed -e 's/[]\/$*.^[]/\\&/g';
 }
 pos_mol_folder_escaped=`escape_for_sed "$pos_mol_folder"`
 
 displaytime() {
-  local T=$1
+  # Will convert seconds to hours, minutes, seconds
+  # Will print a string %d days %H hours %M minutes %s seconds
+  # If a non number is entered a python error will be returned
+  local T=`python -c "print(int($1))"`
   local D=$((T/60/60/24))
   local H=$((T/60/60%24))
   local M=$((T/60%60))
@@ -30,7 +59,7 @@ displaytime() {
   printf '%d seconds\n' $S
 }
 
-# make the step data folder
+# make the step data folder -to save data if requested
 if [ "$save_data" == "true" ]
 then
    data_fold="step_data"
@@ -73,13 +102,6 @@ do
 
    cp TOPOLOGY.include TOPOLOGY_$proc_num.include
 done
-
-get_ES_val() {
-  name=$1
-  proc_num=$2
-
-  grep "$name" RUN_$proc_num.log | grep "\-*[0-9][0-9]*\.*[0-9]*E*[-+]*[0-9]*" -Poh
-}
 
 # Run the sims
 for iter in `seq 0 $niter`

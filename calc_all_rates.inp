@@ -9,9 +9,12 @@
 
 ###############
 ## Read the data
-folder = "./examples/data"
-filename = "snapshot15000.dat"
+folder = "/home/matt/Data/Work/Pentacene_Final_With_RESP_Charges/Amorphous/Equilib/With_P3M_Charge/xyz_md"
+filename = "snapshot2430000.dat"
 read "$folder/$filename" lammps_dump as pos
+#folder = "./examples/data"
+#filename = "snapshot15000.dat"
+#read "$folder/$filename" lammps_dump as pos
 
 
 ##############
@@ -28,25 +31,24 @@ pos['AOM_COEFF_file'] = "$AOM_folder/Pentacene_Lammps_Single_Mol.include"
 #############
 ## Choose which things to plot
 pos['plot_coupling_connections'] = False
-pos['plot_coupling_annotations'] = True
+#pos['plot_coupling_annotations'] = True
 pos['plot_coupling_atoms'] = False
+pos['effective_nuclear_frequency'] = 1600
+pos['free_energy'] = 0.0
+pos['temperature'] = 300.0
+pos['coordinate_wrapping'] = "remove_split_mols"
 
 
 #############
 ## Choose which region to act on (default is all mols) 
-pos['xmin'] = 30
-pos['xmax'] = 50
-pos['ymin'] = 30
-pos['ymax'] = 50
-#pos['zmin'] = 0.7 
-pos['zmax'] = 3
+pos['xmin'] = 102 
+pos['xmax'] = 115
 
 
 ##############
 ## Calculate the couplings and plot the connections.
-calc all_aom_couplings from pos as data
+calc et_rates from pos as data
 
-
-##############
-## Write the couplings in the json format
-write data "couplings.json"
+#data['plot_params'] = {}
+data['a1_elev'] = 0
+plot coupling_network from data

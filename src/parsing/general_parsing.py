@@ -95,6 +95,39 @@ def rm_comment_from_line(line, comment_str='#'):
     """
     # Split the line by the comment_str and join the bit after the comment delim
     words = line.split(comment_str)
+
+    # print(words)
+    join_words = []
+    # Change to while loop
+    i = 0
+    while (i < len(words)):
+        wrd = words[i]
+        cnt = wrd.count('"')
+        # The number of occurances of '"' is odd (open str)
+        if cnt%2 == 1:
+            cnt = 0
+            # Loop over hash words and append to a list any indices that don't close the string
+            for j in range(i, len(words)):
+                new_wrd = words[j]
+                cnt += new_wrd.count('"')
+                if cnt%2 == 0:
+                    join_words.append(j)
+                    i = j
+                    break
+                join_words.append(j)
+        if cnt%2 == 0:
+            break
+        i += 1
+
+    # If there are any hashes within a string then don't remove by commenting.
+    if join_words:
+        tmp = ['#'.join([words[i] for i in join_words])]
+        tmp2 = []
+        if max(join_words)+1 < len(words):
+            tmp2 = words[max(join_words)+1:]
+        words = tmp + tmp2
+
+    # Remove comments
     if len(words) >= 1:
         line = words[0]
         comment = comment_str.join(words[1:])

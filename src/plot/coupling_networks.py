@@ -15,6 +15,7 @@ import numpy as np
 # Own Modules
 from src.plot import general_plot as gen_plot
 from src.calc import molecule_utils as mol_utils
+from src.calc import couplings as cp
 
 
 class Coupling_Networks(gen_plot.Plot_Type):
@@ -38,12 +39,53 @@ class Coupling_Networks(gen_plot.Plot_Type):
 	name = "Coupling Networks"
 
 	def __init__(self, Variable):
+		self.data_type = "coup" #default is coupling
+
+		if type(Variable.data) == cp.Calc_ET_Rates:
+			self.data_type = "ET"
+		elif type(Variable.data) == cp.Calc_All_AOM_Couplings:
+			self.data_type = "coup"
+
 		super().__init__(Variable)
+
+	def _init_plot_params_(self):
+		"""
+		Will initialise the plot_params dict.
+
+		The plot_params dict lets the code know how to group the couplings and 
+		how to draw connections between different categories.
+
+		This is different for the rates and the couplings.
+		"""
+		if self.data_type == "coup":
+			# Initialise the plot parameters
+			self.min_Hab = self.metadata["reorganisation_energy"] / 100.
+			reorg = self.metadata['reorganisation_energy']
+			self.plot_params = {
+						   reorg/2.: ({'color': 'r', 'lw': 3}, r"$H_{ab} \geq \frac{\lambda}{2}$"),
+						   reorg/10.: ({'color': 'g', 'lw': 1.2}, r"$\frac{\lambda}{2} > H_{ab} \geq \frac{\lambda}{10}$"),
+						   self.min_Hab: ({'color': 'b', 'lw': 0.3}, r"$\frac{\lambda}{10} > H_{ab} \geq \frac{\lambda}{100}$"),
+						  }		
+		elif self.data_type == "ET":
+			# Initialise the plot parameters
+			self.min_Hab = 0
+			self.plot_params = {
+						   #100: ({'color': 'b', 'lw': 0.3}, r"$\frac{1}{k} \geq 100 ps$"),
+						   100: ({'color': 'b', 'alpha': 0, 'lw': 0.0}, ""),
+						   10.: ({'color': 'y', 'lw': 0.7}, r"$100 ps > \frac{1}{k} \geq 10 ps$"),
+						   0.5: ({'color': 'g', 'lw': 1.2}, r"$10 ps > \frac{1}{k} \geq 0.5 ps$"),
+						   0: ({'color': 'r', 'lw': 3}, r"$0.5 ps > \frac{1}{k} \geq 0 ps$"),
+						  }
+
+		else:
+			raise SystemExit("Unkown Data Type")
 
 	def _plot_(self):
 		"""
 		The plotting function which gets called from the generic plot class
 		"""
+		self._init_plot_params_()
+
 		xyz_data = self.Var.get_xyz_data()
 		cols = self.Var.get_xyz_cols()
 		for istep in range(len(xyz_data)):
@@ -51,15 +93,6 @@ class Coupling_Networks(gen_plot.Plot_Type):
 			self.a1 = self.f.add_subplot(121, projection="3d", proj_type = 'ortho');
 			self.a2 = self.f.add_subplot(122, projection="3d", proj_type = 'ortho')
 
-			self.min_Hab = self.metadata["reorganisation_energy"] / 100.
-
-
-			reorg = self.metadata['reorganisation_energy']
-			self.plot_params = {
-						   reorg/2.: ({'color': 'r', 'lw': 3}, r"$H_{ab} \geq \frac{\lambda}{2}$"),
-						   reorg/10.: ({'color': 'g', 'lw': 1.2}, r"$\frac{\lambda}{2} > H_{ab} \geq \frac{\lambda}{10}$"),
-						   self.min_Hab: ({'color': 'b', 'lw': 0.3}, r"$\frac{\lambda}{10} > H_{ab} \geq \frac{\lambda}{100}$"),
-						  }
 			self.graph_data = self.__get_coupling_connections__(self.Var.mol_centroids[istep], self.Var.data[istep], self.plot_params)
 			self.nmol = len(self.Var.mol_centroids[0])
 			self._get_grains_()

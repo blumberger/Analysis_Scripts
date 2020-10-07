@@ -1256,7 +1256,9 @@ class INP_File(object):
             OutVar = plot_fnc(in_data)
         else: plot_fnc(in_data)
 
-        self.set_var(out_data, {plot_type: OutVar}, {})
+        if has_out_var:
+            self.set_var(out_data,
+                         {plot_type: OutVar}, {})
 
 
     def parse_load_cmd(self, line):
@@ -1945,7 +1947,7 @@ class INP_File(object):
             edit_line, comment = gen_parse.rm_comment_from_line(line)
             edit_line = edit_line.strip()
             if edit_line:
-                new_ltxt.append(line)
+                new_ltxt.append(edit_line)
         self.file_ltxt = new_ltxt[:]
 
         # Get line nums for error messages -before the inp cleaning
@@ -1955,6 +1957,7 @@ class INP_File(object):
         self.line_num = 0
 
         self.clean_open_close_brace()
+
 
     def clean_open_close_brace(self):
         """

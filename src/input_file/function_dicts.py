@@ -56,7 +56,8 @@ calc_fncs = {
              'psf_file': psf_calc.Create_PSF, 'crystallinity': crystallinity.Crystallinity,
              'couplings': coupl.Couplings, "coupling_connections": coupl.Coupling_Connections,
              "long_ax_rotation": rotate.Long_Ax_Rot, "mol_layers": layers.Molecular_Layers,
-             "tmp": tmp.TMP, "all_AOM_couplings": coupl.Calc_All_AOM_Couplings,
+             "tmp": tmp.TMP, "all_aom_couplings": coupl.Calc_All_AOM_Couplings,
+             "et_rates": coupl.Calc_ET_Rates,
 }
 plot_fncs = {
              'coupling_network': coup_net.Coupling_Networks,

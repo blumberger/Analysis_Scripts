@@ -59,7 +59,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				 "elev_increment":False, "azim_increment":1, "init_elev":30, "init_azim":0,
 				 "coupling_do_rotate": False,
 				 }
-	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file",)
+	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file", "reorganisation_energy")
 
 	AOM_mu = {
 			  'H': '1.0000',
@@ -153,6 +153,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				for i in all_data:	self.data[istep].update(i)
 			else: self.data[istep] = self.__calc_mol_couplings__(args[0])
 			print("\rCalculated for %i mols      \n" % self.tot_mols)
+
 		self.coup_calc_count = 0
 		# For some reason multiprocessing isn't terminating the processes before here.
 		if self.nproc > 1: pool.terminate()
@@ -186,6 +187,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		xmin, xmax = self.metadata['xmin'], self.metadata['xmax']
 		ymin, ymax = self.metadata['ymin'], self.metadata['ymax']
 		zmin, zmax = self.metadata['zmin'], self.metadata['zmax']
+		print(xmin, xmax)
 
 		# Add steps to the mol_nums if they aren't there
 		self.mol_nums = np.array(self.mol_nums)
@@ -466,6 +468,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		else:
 			return [i for i in range(len(self.nstep))]
 
+
 class Coupling_Connections(gen_calc.Calc_Type):
 	"""
 	Will get the distribution of couplings from hamiltonian data for each predefined layer.
@@ -600,6 +603,99 @@ class Coupling_Connections(gen_calc.Calc_Type):
 
 
 					break
+
+
+class Calc_ET_Rates(Calc_All_AOM_Couplings):
+	"""
+	Will calculate ET rates for a structure.
+
+	First we calclulate the couplings between molecules.
+	Then calculate rates from these.
+	"""
+	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file", "reorganisation_energy",
+						 "effective_nuclear_frequency")
+	def _calc_(self):
+		super()._calc_()
+
+		self.reorg_ener = self.metadata['reorganisation_energy']
+		self.nuc_freq = self.metadata['effective_nuclear_frequency']
+		self.nuc_freq = self.metadata['effective_nuclear_frequency']
+		self.free_ener = self.metadata.get("free_energy", 0.0)
+		self.temp = self.metadata.get("temperature", 300.0)
+
+		# delta A**_na
+		self.barrier = (self.reorg_ener + self.free_ener)**2  / (4 * self.reorg_ener)
+
+		for step_data in self.data:
+			self._calculate_rates_in_step_(step_data)
+
+	def _calculate_rates_in_step_(self, step_data):
+		"""
+		Will calculate the ET transfer rate for each molecule in the step.
+
+		Inputs:
+			* step_data <dict> => The coupling values for the mols in the step
+
+		Outputs:
+			None:
+				step_data in ammended in place
+		"""
+		for mol1 in step_data:
+			for mol2 in step_data[mol1]:
+				Hab = step_data[mol1][mol2]
+				rate = self._calculate_rate_(Hab)
+				step_data[mol1][mol2] = 1e-3/rate  # timescale in ps
+
+
+	def _calculate_correction_barrier_(self, reorganization, free_energy, couplings):
+		if couplings > reorganization/2:
+			return reorganization/4
+		else:
+			if free_energy == 0.0:
+				return couplings - couplings**2/reorganization
+			else:
+				print( "Free energy != O not implemented")
+				raise SystemExit
+
+	def _calculate_factor_(self, coupling, reorganization, free_energy, temperature, frequency):
+		exposent = (np.pi**1.5 * coupling**2) / ( 2*np.pi * np.sqrt(reorganization*temperature) * frequency)
+		Plz = 1 - np.exp(-exposent)
+		#print( "Hab", coupling
+		#print( "exposent", exposent
+		#print( "plz", Plz
+		#print( 2*Plz / (1 + Plz)
+		if free_energy >= - reorganization:
+			return 2*Plz / (1 + Plz)
+
+	def _calculate_rate_(self, coupling, method='TOT'):
+		#Convert everything in atomic units
+		coupling = coupling  / consts.Ha_to_meV
+		reorganization = self.reorg_ener  / consts.Ha_to_meV
+		free_energy = self.free_ener  / consts.Ha_to_meV
+		temperature = self.temp * (consts.boltzmann_meV / consts.Ha_to_meV)
+		frequency = self.nuc_freq * 0.0000046 / (2*np.pi)
+
+		barrier = np.square( ( reorganization + free_energy ) ) / ( 4 * reorganization)
+		if method == 'NA':
+			factor = (2 * np.pi) * np.square(coupling) / np.sqrt( 4 * np.pi * reorganization * temperature)
+		elif method == 'AD':
+			barrier += - self._calculate_correction_barrier_(reorganization, free_energy, coupling)
+			factor = frequency
+		elif 'TOT' in method:
+			barrier += - self._calculate_correction_barrier_(reorganization, free_energy, coupling)
+			factor = frequency * self._calculate_factor_(coupling, reorganization, free_energy, temperature, frequency)
+			#print( frequency
+			#print( factor
+		else:
+			print( "method should be NA or AD")
+	   
+		if barrier < 0:
+			barrier = 0.0
+		#print( barrier
+		expo = np.exp( - barrier / temperature)
+		#print( "expo", expo
+		rate = expo*factor / 0.024188  # 1au = 0.02418884 fs
+		return rate # in fs-1
 
 
 

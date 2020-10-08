@@ -52,6 +52,34 @@ def get_nmol(natom, natom_in_mol):
 
     return nmol
 
+def mols_to_atoms(mol_crds):
+    """
+    Will reshape an array of molecules to an array of atoms.
+
+    Inputs:
+        * mol_crds <array> => An array of shape (nstep, nmol, nat_per_mol, ndim)
+                              or (nmol, nat_per_mol, ndim).
+
+    Outputs:
+        np.array:
+            An array of shape (nstep, nat, ndim)
+                           or (nat, ndim).
+    """
+    if len(np.shape(mol_crds)) == 3:
+        nmol, nat_per_mol, ndim = mol_crds.shape
+        nat = nmol * nat_per_mol
+        return np.reshape(mol_crds, (nat, ndim))
+
+    elif len(np.shape(mol_crds)) == 4:
+        nstep, nmol, nat_per_mol, ndim = mol_crds.shape
+        nat = nmol * nat_per_mol
+        return np.reshape(mol_crds, (nstep, nat, ndim))
+
+    else:
+        raise SystemExit("Incorrect shape array should be (nmol, nat_per_mol, ndim) " +
+                         "or (nstep, nmol, nat_per_mol, ndim)")
+
+    
 
 def atoms_to_mols(crds, num_ats_in_mol, cart_dims=3, nstep=1):
     """

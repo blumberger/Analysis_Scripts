@@ -71,8 +71,8 @@ class Coupling_Networks(gen_plot.Plot_Type):
 			self.min_Hab = 0
 			self.plot_params = {
 						   #100: ({'color': 'b', 'lw': 0.3}, r"$\frac{1}{k} \geq 100 ps$"),
-						   100: ({'color': 'b', 'alpha': 0, 'lw': 0.0}, ""),
-						   10.: ({'color': 'y', 'lw': 0.7}, r"$100 ps > \frac{1}{k} \geq 10 ps$"),
+						   100: ({'color': 'y', 'alpha': 0, 'lw': 0.0}, ""),
+						   10.: ({'color': 'b', 'lw': 0.3}, r"$100 ps > \frac{1}{k} \geq 10 ps$"),
 						   0.5: ({'color': 'g', 'lw': 1.2}, r"$10 ps > \frac{1}{k} \geq 0.5 ps$"),
 						   0: ({'color': 'r', 'lw': 3}, r"$0.5 ps > \frac{1}{k} \geq 0 ps$"),
 						  }

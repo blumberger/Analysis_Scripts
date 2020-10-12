@@ -10,12 +10,21 @@
 ###############
 ## Read the data
 folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/100Traj_YZLayer_BestMob_InstantQuenching/run-fssh-0"
+#folder = "/home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Cut_By_Mol_Num"
+#folder = "/home/matt/Data/Work/Pentacene_Final_With_RESP_Charges/Amorphous/Quenching/Instant_Quench/xyz_md"
+#folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/OnlyActive_Region/run-fssh-0"
 filename = "pos-init.xyz"
+#filename = "test.xyz"
+#filename = "snapshot2250002.dat"
 
-folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/OnlyActive_Region/run-fssh-0"
-filename = "pos-init.xyz"
+#folder = "."
+#filename = "plane_final2.xyz"
+
+#folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/OnlyActive_Region/run-fssh-0"
+#filename = "pos-init.xyz"
 
 read "$folder/$filename" xyz as pos
+#read "$folder/$filename" lammps_dump as pos
 
 
 ##############
@@ -37,28 +46,68 @@ pos['plot_coupling_atoms'] = False
 pos['effective_nuclear_frequency'] = 1600
 pos['free_energy'] = 0.0
 pos['temperature'] = 300.0
-#pos['coordinate_wrapping'] = "into_cell"
+pos['coordinate_wrapping'] = "into_cell"
 pos['cella'] = 111.357
 pos['cellb'] = 106.181
 pos['cellc'] = 111.088
 
+
+write_folder="xy_planes_all_new_pbc"
+
+#xmin = $i
+#xmax = $i + 13
+pos['xmin'] = 52
+##pos['ymin'] = 0
+##pos['zmin'] = 115
+pos['xmax'] = 60.0
+#pos['ymax'] = 107
+#pos['zmax'] = 41
+
+
 write pos "test.xyz" as xyz
 
-#############
-## Choose which region to act on (default is all mols) 
-pos['xmin'] = 0
-pos['xmax'] = 111.357
-pos['ymin'] = 0
-pos['ymax'] = 106.181
-pos['zmin'] = 0
-pos['zmax'] = 111.088
 
-
+#glue "$write_folder" "/" "$xmin" "_" "$xmax" ".png" as filename
 ##############
-## Calculate the couplings and plot the connections.
+# Calculate the couplings and plot the connections.
 #calc et_rates from pos as data
 calc all_aom_couplings from pos as data
 
 data['a1_elev'] = 0
+data['a1_azim'] = 0
+
 data['a2_azim'] = 90
+data['a2_elev'] = 0
+
+#glue "$ang" "_" "$bang" ".png" as filename
+#data['save_coupling_connection_plot'] = "$filename"
+
+#data['plot_coupling_mol_numbers'] = True
+data['save_coupling_connection_plot'] = "rate_map.png"
 plot coupling_network from data
+
+exit
+
+#############
+## Choose which region to act on (default is all mols) 
+for i in range(0, 97) {
+    xmin = $i
+    xmax = $i + 13
+    pos['zmin'] = $xmin
+    pos['zmax'] = $xmax
+
+    glue "$write_folder" "/" "$xmin" "_" "$xmax" ".png" as filename
+    ##############
+    # Calculate the couplings and plot the connections.
+    #calc et_rates from pos as data
+    calc all_aom_couplings from pos as data
+    
+
+    data['a1_elev'] = 90
+    data['a1_azim'] = 0
+
+    data['a2_azim'] = 0
+    data['a2_elev'] = 0
+    data['save_coupling_connection_plot'] = "$filename"
+    plot coupling_network from data
+}

@@ -1794,10 +1794,12 @@ class INP_File(object):
 
         py_script = self.file_ltxt[self.line_num+2:end_line]
 
+
         # Now shift everything back to the minimum indentation
         # Find the minimum indentation that is on every line
         min_indent = 100000
         for line in py_script:
+
             if line.strip()[0] != '#':
                 indent = re.findall("^ *", line)[0]
             else:
@@ -1810,6 +1812,7 @@ class INP_File(object):
             line = re.sub(ind_search, "", py_script[line_num])
             py_script[line_num] = line
         py_script = '\n'.join(py_script)
+
 
         self.exec_python_script(script_txt=py_script)
 
@@ -1945,7 +1948,7 @@ class INP_File(object):
         new_ltxt = []
         for line_num, line in enumerate(self.file_ltxt):
             edit_line, comment = gen_parse.rm_comment_from_line(line)
-            edit_line = edit_line.strip()
+            edit_line = edit_line.rstrip()
             if edit_line:
                 new_ltxt.append(edit_line)
         self.file_ltxt = new_ltxt[:]

@@ -187,7 +187,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		xmin, xmax = self.metadata['xmin'], self.metadata['xmax']
 		ymin, ymax = self.metadata['ymin'], self.metadata['ymax']
 		zmin, zmax = self.metadata['zmin'], self.metadata['zmax']
-		print(xmin, xmax)
 
 		# Add steps to the mol_nums if they aren't there
 		self.mol_nums = np.array(self.mol_nums)
@@ -212,6 +211,19 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		# Apply the mask
 		if do_mol_nums:
 			self.mol_nums = np.array([nums[mask[i]] for i, nums in enumerate(self.mol_nums)])
+			
+			# If we have removed some mols then change the mol_nums list
+			s = "\n".join(map(lambda x: ' '.join(map(str, x)), self.mol_nums))
+			if 'lammps_dump' in self.Var.data:
+				if hasattr(self.Var.data['lammps_dump'], "split_to_mol"):
+					s = " "
+					for i in self.mol_nums:
+						mol_map = self.Var.data['lammps_dump'].split_to_mol
+						s += " ".join(map(lambda x: str(mol_map[x]), i)) + "\n"
+
+			# Write the mol numbers that are shown in the slice if we have removed some!
+			with open('mol_nums.txt', 'w') as f:
+				f.write(s)
 
 		return np.array([cent[mask[i]] for i, cent in enumerate(mol_centres)]), mask
 
@@ -241,6 +253,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			* all_mol_crds <array> => This is the molecular coordinates array
 			* all_mol_crds <array> => This is the element type of each atom in the shape (nmol, nat_per_mol, 3)
 		"""
+		print(self.metadata['molecule_numbers'])
 		if type(self.metadata['molecule_numbers']) == str:
 			if self.metadata['molecule_numbers'] == 'all':
 				# Create the molecule numbers/indicess
@@ -640,19 +653,31 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 			None:
 				step_data in ammended in place
 		"""
+		# couplings, rates = [], []
 		for mol1 in step_data:
 			for mol2 in step_data[mol1]:
 				Hab = step_data[mol1][mol2]
 				rate = self._calculate_rate_(Hab)
 				step_data[mol1][mol2] = 1e-3/rate  # timescale in ps
 
+				# couplings.append(Hab)
+				# rates.append(rate)
 
-	def _calculate_correction_barrier_(self, reorganization, free_energy, couplings):
-		if couplings > reorganization/2:
+		# import matplotlib.pyplot as plt
+		# plt.plot(couplings, rates, 'k.')
+
+		# plt.xlabel("Hab")
+		# plt.ylabel("ET Rate")
+
+		# plt.show()
+
+
+	def _calculate_correction_barrier_(self, reorganization, free_energy, coupling):
+		if coupling > reorganization/2:
 			return reorganization/4
 		else:
 			if free_energy == 0.0:
-				return couplings - couplings**2/reorganization
+				return abs(coupling) - (coupling**2/reorganization)
 			else:
 				print( "Free energy != O not implemented")
 				raise SystemExit
@@ -669,7 +694,7 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 
 	def _calculate_rate_(self, coupling, method='TOT'):
 		#Convert everything in atomic units
-		coupling = coupling  / consts.Ha_to_meV
+		coupling = abs(coupling)  / consts.Ha_to_meV
 		reorganization = self.reorg_ener  / consts.Ha_to_meV
 		free_energy = self.free_ener  / consts.Ha_to_meV
 		temperature = self.temp * (consts.boltzmann_meV / consts.Ha_to_meV)

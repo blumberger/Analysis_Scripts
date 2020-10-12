@@ -50,6 +50,22 @@ class XYZ_File(gen_io.DataFileStorage):
 
 		self._coord_wrapping_()
 
+		# at_inds = list(range(len(self.xyz_data[0])))
+		# nat = len(self.xyz_data[0])
+		# min_vals = []
+		# for i in range(len(self.xyz_data[0])):
+		# 	min_vals.append(np.min(np.linalg.norm(self.xyz_data[0, at_inds[:i] + at_inds[i+1:]] - self.xyz_data[0, i], axis=1)))
+
+		# 	print("\r%i/%i" % (i, nat), end="        \r")
+
+		# with open("min_vals.txt", 'w') as f:
+		# 	f.write(",".join(map(str, min_vals)))
+
+		# import matplotlib.pyplot as plt
+
+		# plt.hist(min_vals, bins="auto")
+		# plt.show()
+
 
 	def _coord_wrapping_(self):
 		"""
@@ -61,6 +77,12 @@ class XYZ_File(gen_io.DataFileStorage):
 							 each molecule will be inside the cell.
 							 This will NOT fix molecules that have been split by pbc and is
 							 not appropriate to use when that is the case.
+
+							 CAVEATS:
+
+								 * This wrapping (like 'into_cell') assumes that all molecules
+								 are not split by wrapping and are all whole molecules.
+								 * Only works for cubic cells
 
 			* "into_cell_img" => The same as 'into_cell'. However, for each molecule which has
 								 any atoms outside the cell the whole thing will be repeated
@@ -85,12 +107,19 @@ class XYZ_File(gen_io.DataFileStorage):
 
 								 This is useful when making the coupling maps to get the bulk 
 								 properties on the edge of the sim.
+
+								 CAVEATS:
+
+								 * This wrapping (like 'into_cell') assumes that all molecules
+								 are not split by wrapping and are all whole molecules.
+								 * Only works for cubic cells
+
 		"""
 		if self.metadata.get("coordinate_wrapping", "") != "":
 			wrap_type = self.metadata['coordinate_wrapping']
 
-			wrap_methods = {'into_cell': self.wrap_type_method1,
-							'into_cell_img': self.wrap_type_method2}
+			wrap_methods = {'into_cell': self.wrap_into_cell,
+							'into_cell_img': self.wrap_into_cell_img}
 
 			if wrap_type in wrap_methods:
 				wrap_methods[wrap_type]()
@@ -100,14 +129,14 @@ class XYZ_File(gen_io.DataFileStorage):
 								 "\n\t*".join(list(wrap_methods.keys())))
 
 
-	def wrap_type_method1(self):
+	def wrap_into_cell(self):
 		"""
 		#ONLY FOR ORTHOGRAPHIC
 		# 1) Read in the cell dimensions and determine if we need to coordinate wrap
 		# 2) Find the molecules with all atoms outside the unit cell
 		# 3) For all molecules with all atoms outside the cell:
 		#    a)  find in which dimension the molecule is outside (A, B, C)
-		#          ABC correspond to XYZ in orthographic (for triclinic need to re-think)
+		#          ABC correspond to XYZ in cubic (for triclinic need to re-think)
 		#    b)  Find how many cell dimensions away from the cell the molecule is
 		#    c)  Translate it by A, B and/or C back into the unit cell.
 		"""
@@ -149,9 +178,65 @@ class XYZ_File(gen_io.DataFileStorage):
 
 		self.xyz_data = mol_utils.mols_to_atoms(mol_crds)
 
-	def wrap_type_method2(self):
-		raise SystemExit("Not Yet Implemented.")
-		
+		return mol_crds
+
+	def wrap_into_cell_img(self):
+		"""
+		See self._coord_wrapping_ docstr for more info.
+		"""
+		mol_crds = mol_utils.atoms_to_mols(self.xyz_data, self.metadata['atoms_per_molecule'])
+		A, B, C = self.metadata['cella'], self.metadata['cellb'], self.metadata['cellc']
+		nstep, nmol, nat_per_mol, ndim = mol_crds.shape
+		if nstep != 1:
+			raise SystemExit("This coordinate wrapping only work with 1 xyz step!")
+
+		# Find which atoms are outside the cell
+		x_outside_mask = (mol_crds[:,:,:,0] < 0) + (mol_crds[:,:,:,0] > A)
+		y_outside_mask = (mol_crds[:,:,:,1] < 0) + (mol_crds[:,:,:,1] > B)
+		z_outside_mask = (mol_crds[:,:,:,2] < 0) + (mol_crds[:,:,:,2] > C)
+		mols_outside_mask = x_outside_mask + y_outside_mask + z_outside_mask
+
+		mols_outside_step_mask = np.any(mols_outside_mask[0], axis=1)
+		mols_outside = np.arange(nmol)[mols_outside_step_mask]
+
+		# Get some parameters to save having to reference the big array in the loop
+		xmask_step = x_outside_mask[0]
+		ymask_step = y_outside_mask[0]
+		zmask_step = z_outside_mask[0]
+		step_crds = mol_crds[0]
+		new_step_crds = list(step_crds[:])
+
+		mol_cols = mol_utils.cols_to_mols(self.cols, self.metadata['atoms_per_molecule'])[0]
+		new_step_cols = list(mol_cols)
+
+		# Loop over the mols outside the cell
+		for imol in mols_outside:
+			# Find which how the mol is outside
+			for mask, dim, cell in ((xmask_step[imol], 0, A),
+							  		(ymask_step[imol], 1, B),
+							  		(zmask_step[imol], 2, C)):
+				# If the whole molecule is outside the cell then translate it back in
+				if all(mask):
+					trans_vec = cell * max(step_crds[imol, :, dim] // cell)
+					new_step_crds = np.array(new_step_crds)
+					new_step_crds[imol, :, dim] -= trans_vec
+					new_step_crds = list(new_step_crds)
+
+				if any(mask):
+					molI_crds = step_crds[imol]
+					trans_vec = np.unique(molI_crds[:, dim] // cell)
+
+					# Add any periodic images
+					for i in trans_vec:
+						if i != 0: # Just leave the original where it is
+							new_mol = molI_crds[:]
+							new_mol[:, dim] -= (i * cell)
+							new_step_crds.append(new_mol)
+							new_step_cols.append(mol_cols[imol])
+
+		self.xyz_data = mol_utils.mols_to_atoms(np.array([new_step_crds]))
+		self.cols = mol_utils.mols_to_cols(np.array([new_step_cols]))
+
 
 	def _parse_(self):
 		"""

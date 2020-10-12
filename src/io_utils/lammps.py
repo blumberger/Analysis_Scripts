@@ -931,8 +931,53 @@ class Lammps_Dump(gen_io.DataFileStorage):
         split_mols = mol_crds[mask].index
         self.rm_split_mols['split'] = self.rm_split_mols['mol'].apply(lambda x: x in split_mols)
 
+        # Get a map which maps the molecules that are still there to the original molecules
+        split_ind = 0
+        self.split_to_mol = {}
+        ats_per_mol = self.metadata['atoms_per_molecule']
+        nmol = len(self.rm_split_mols) // ats_per_mol
+        for mol_ind in range(nmol):
+            all_splits = self.rm_split_mols['split'][mol_ind*ats_per_mol : (mol_ind+1)*ats_per_mol]
+            split = not any(all_splits)
+            if split:
+                self.split_to_mol[split_ind] = mol_ind
+                split_ind += 1
+
         # Remove the split molecules together.
         self.rm_split_mols = self.rm_split_mols[self.rm_split_mols['split'] == False]
+
+
+    def unwrap_add_images(self):
+        """
+        Will unwrap the molecules but for every molecule that has been split an image molecule
+        will be put in every place the atoms of that molecule are.
+        """
+        self.add_img_csv = copy.deepcopy(self.csv_data)
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+
+        # Check we can do the wrapping
+        if not all(j in self.add_img_csv.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z', 'mol')):
+            self.unwrapped_avail = False
+            return self.add_img_csv
+
+        # Find the split mols
+        mol_crds = self.add_img_csv[['mol', 'ix', 'iy', 'iz']].groupby("mol", axis=0).std()
+        mask = (mol_crds['ix'] != 0) | (mol_crds['iy'] != 0) | (mol_crds['iz'] != 0)
+        split_mol_inds = mol_crds[mask].index
+        self.add_img_csv.loc[:, 'split'] = self.add_img_csv.loc[:, 'mol'].apply(lambda x: x in split_mol_inds)
+
+        for i in self.add_img_csv['mol'].unique():
+            mol_df = self.add_img_csv[self.add_img_csv['mol'] == i]
+            print(mol_df)
+
+            for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
+                for idim, dim in enumerate('xyz'):
+                    if unit_vec[idim] != 0:
+                        mol_df[dim] += mol_df[wrap_dim] * unit_vec[idim]
+
+            break
+        raise SystemExit
+
 
     def unwrap_split_mols(self):
         """

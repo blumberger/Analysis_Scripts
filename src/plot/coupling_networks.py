@@ -10,6 +10,7 @@ import matplotlib.cm as cm
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
+from collections import OrderedDict
 import numpy as np
 
 # Own Modules
@@ -36,6 +37,11 @@ class Coupling_Networks(gen_plot.Plot_Type):
 							   "data", "all_centroids", "spliced_crds",
 							   "spliced_cols", "mol_nums",
 							  )
+	network_colors = {1: ('r',), 2: ('r', 'b',), 3: ('r', 'g', 'b',),
+					  4: ('r', 'y', 'g', 'b'), 5: ('r', (1, 0.5, 0), 'y', 'g', 'b'),
+					  6: ('r', (1, 0, 0.8), (1, 0.5, 0), (1, 1, 0), 'g', 'b')}
+	network_lw = {1: (3,), 2: (3, 1), 3: (3, 1.2, 0.7), 4: (3, 1.2, 0.7, 0.3),
+				  5: (3, 1.8, 1.2, 0.7, 0.2), 6: (4, 2.1, 1.7, 1.1, 0.6, 0.1)}
 	name = "Coupling Networks"
 
 	def __init__(self, Variable):
@@ -67,15 +73,23 @@ class Coupling_Networks(gen_plot.Plot_Type):
 						   self.min_Hab: ({'color': 'b', 'lw': 0.3}, r"$\frac{\lambda}{10} > H_{ab} \geq \frac{\lambda}{100}$"),
 						  }		
 		elif self.data_type == "ET":
+			dividers = (0, 0.1, 0.5, 1, 10, 100)
+
+
 			# Initialise the plot parameters
-			self.min_Hab = 0
-			self.plot_params = {
-						   #100: ({'color': 'b', 'lw': 0.3}, r"$\frac{1}{k} \geq 100 ps$"),
-						   100: ({'color': 'y', 'alpha': 0, 'lw': 0.0}, ""),
-						   10.: ({'color': 'b', 'lw': 0.3}, r"$100 ps > \frac{1}{k} \geq 10 ps$"),
-						   0.5: ({'color': 'g', 'lw': 1.2}, r"$10 ps > \frac{1}{k} \geq 0.5 ps$"),
-						   0: ({'color': 'r', 'lw': 3}, r"$0.5 ps > \frac{1}{k} \geq 0 ps$"),
-						  }
+			self.min_Hab = dividers[0]
+			dividers = tuple(sorted(dividers))
+			if len(dividers) - 1 not in self.network_colors:
+				raise SystemError("Don't know how to color the network.")
+			l = len(dividers)-1
+			self.plot_params = OrderedDict()
+			for i in range(len(dividers)-2, -1, -1):
+				self.plot_params[dividers[i]] = ( {'color': self.network_colors[l][i],
+												   'lw': self.network_lw[l][i]        },
+												 r"$%s ps > \frac{1}{k} \geq %s ps$" % (dividers[i+1], dividers[i]))
+
+			if len(dividers) > 1:
+				self.plot_params[dividers[-1]] = ({'color': 'y', 'alpha': 0, 'lw': 0.0}, "")
 
 		else:
 			raise SystemExit("Unkown Data Type")
@@ -120,7 +134,7 @@ class Coupling_Networks(gen_plot.Plot_Type):
 			# Decide how to handle the plotted data
 			plt.tight_layout()
 			if bool(self.metadata['save_coupling_connection_plot']):
-				plt.savefig(self.metadata['save_coupling_connection_plot'])
+				plt.savefig(self.metadata['save_coupling_connection_plot'], dpi=350)
 				plt.close()
 			else:
 				plt.show()
@@ -248,7 +262,7 @@ class Coupling_Networks(gen_plot.Plot_Type):
 			ax = fig.add_subplot(111, projection="3d")
 
 		for i, xyz in enumerate(all_mol_centre):
-			ax.text(xyz[0], xyz[1], xyz[2], r"$\mathbf{%i}$" % self.Var.mol_nums[istep][i])
+			ax.text(xyz[0], xyz[1], xyz[2], r"$\mathbf{%i}$ (%i)" % (self.Var.mol_nums[istep][i], i))
 
 	def _plot_coupling_connections_(self, all_mol_crds, plot_params, ax=False,
 									ignore_cats=()):
@@ -320,8 +334,8 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		mnx, mny, mnz = np.min(all_mol_crds, axis=0)
 		mxx, mxy, mxz = np.max(all_mol_crds, axis=0)
 		rx, ry, rz = np.array([mxx, mxy, mxz]) - np.array([mnx, mny, mnz])
-		ax.text(x=mxx+0.2*rx, y=mny, z=mnz, s=stats_msg, fontsize=13,
-				verticalalignment="top", horizontalalignment="left")
+		# ax.text(x=mxx+0.2*rx, y=mny, z=mnz, s=stats_msg, fontsize=13,
+		# 		verticalalignment="top", horizontalalignment="left")
 
 	def _plot_mol_selection_(self, all_mols, mol_selection, ax=False):
 		"""

@@ -9,12 +9,15 @@
 
 ###############
 ## Read the data
-folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/100Traj_YZLayer_BestMob_InstantQuenching/run-fssh-0"
+#folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/100Traj_YZLayer_BestMob_InstantQuenching/run-fssh-0"
 #folder = "/home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Cut_By_Mol_Num"
 #folder = "/home/matt/Data/Work/Pentacene_Final_With_RESP_Charges/Amorphous/Quenching/Instant_Quench/xyz_md"
 #folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/OnlyActive_Region/run-fssh-0"
-filename = "pos-init.xyz"
-#filename = "test.xyz"
+#folder = "/home/matt/Data/Work/restraint_CP2K/AdStates/run-fssh-0/state_data/AdState_28"
+folder = "/home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC"
+#filename = "pos-init.xyz"
+#filename = "run-pos-1.xyz"
+filename = "test.xyz"
 #filename = "snapshot2250002.dat"
 
 #folder = "."
@@ -46,20 +49,20 @@ pos['plot_coupling_atoms'] = False
 pos['effective_nuclear_frequency'] = 1600
 pos['free_energy'] = 0.0
 pos['temperature'] = 300.0
-pos['coordinate_wrapping'] = "into_cell"
-pos['cella'] = 111.357
-pos['cellb'] = 106.181
-pos['cellc'] = 111.088
+#pos['coordinate_wrapping'] = "into_cell"
+#pos['cella'] = 111.357
+#pos['cellb'] = 106.181
+#pos['cellc'] = 111.088
 
 
 write_folder="xy_planes_all_new_pbc"
 
 #xmin = $i
 #xmax = $i + 13
-pos['xmin'] = 52
+#pos['xmin'] = 52
 ##pos['ymin'] = 0
 ##pos['zmin'] = 115
-pos['xmax'] = 60.0
+#pos['xmax'] = 60.0
 #pos['ymax'] = 107
 #pos['zmax'] = 41
 
@@ -83,7 +86,7 @@ data['a2_elev'] = 0
 #data['save_coupling_connection_plot'] = "$filename"
 
 #data['plot_coupling_mol_numbers'] = True
-data['save_coupling_connection_plot'] = "rate_map.png"
+data['save_coupling_connection_plot'] = "/home/matt/Documents/PhD/Notes/Perculation_Pathway/52-60x7A_3img_couplingMap.png"
 plot coupling_network from data
 
 exit

@@ -408,10 +408,86 @@ class Lammps_Input_File(Lammps_Log_File):
                 if splitter[2] == "types":
                     self.metadata[f"number {splitter[1]} types"] = type_check.eval_type(splitter[0])
 
+# class Write_Lammps_Dump(gen_io.Write_File):
+#     """
+#     Will write a lammps dump file.
+
+#     The main method in this class is creating a string that can be written to a file. This
+#     is done in the create_file_str method. This string is then handled by the parent class
+#     and written to a file.
+
+#     See gen_io.Write_File for more info.
+    
+#     Inputs:
+#        * Data_Class <class> => The class containing all the data to be written
+#        * filepath <str>     => The path to the file to be written.
+#        * extension <str> OPTIONAL   => The file extension. Default is False.
+#     """    
+#     def __set_data__(self):
+#         """
+#         Will check we have the correct info for writing the file.
+#         """
+#         if type(self.Data) == inp_types.Vars:
+#             if 'lammps_dump' in self.Data:
+#                 self.write_data = self.Data['lammps_dump']
+#                 self.write_metadata = self.Data['lammps_dump'].metadata
+#             else:
+#                 raise SystemError(f"Can't write data of types: {self.Data.keys()} as a Lammps dump file.")
+
+#         else:
+#             raise SystemError(f"Can't write data of types: {type(self.Data)} as a Lammps Dump file.")
+
+
+#     def create_file_str(self):
+#         """
+#         Will create the text that can be written to a file.
+#         """
+#         self.__set_data__()
+
+#         csv_data = self.Data.__get_lammps_csv_data__()
+        
+#         s = self._create_header_str()
+#         print(s)
+
+
+#         return s   
+
+#     def _create_header_str(self):
+#         """
+#         Will create the header string from the lammps_dump class.
+#         """
+#         timestep = self.write_metadata.get('timestep', 0)
+#         nat = self.write_metadata["number_atoms"]
+#         xlo, xhi = self.write_metadata['xlo'], self.write_metadata['xhi']
+#         ylo, yhi = self.write_metadata['ylo'], self.write_metadata['yhi']
+#         zlo, zhi = self.write_metadata['zlo'], self.write_metadata['zhi']
+
+#         # This s is only for periodic orthorhombic systems
+#         s = "ITEM: TIMESTEP\n" + str(timestep) + "\n" + \
+#             "ITEM: NUMBER OF ATOMS\n" + str(nat) + "\n" + \
+#             "ITEM: BOX BOUNDS pp pp pp\n" + \
+#             f"{xlo:.10e} {xhi:.10e}" + "\n" + \
+#             f"{ylo:.10e} {yhi:.10e}" + "\n" + \
+#             f"{zlo:.10e} {zhi:.10e}" + "\n"
+
+#         return s
+
+
+#     def _create_atom_section(self):
+#         """
+#         Will create the big atom section with crds, ix and charge etc...
+#         """
+#         s = "ITEM: ATOMS id mol type x y z ix iy iz"
+
+
+        
+        
+
+
 
 class Write_Lammps_Input(gen_io.Write_File):
     """
-    Will write a lammps input file.
+    Will write a lammps input file. This is the file read in by read_data command.
 
     The main method in this class is creating a string that can be written to a file. This
     is done in the create_file_str method. This string is then handled by the parent class
@@ -435,13 +511,13 @@ class Write_Lammps_Input(gen_io.Write_File):
             if 'lammps_input' in self.Data:
                 self.Data = self.Data['lammps_input']
             else:
-                raise SystemError(f"Can't write data of types: {self.Data.keys()} as a Lammps input_file.")
+                raise SystemError(f"Can't write data of types: {self.Data.keys()} as a Lammps input file.")
         
         elif type(self.Data) == Lammps_Input_File:
             pass
 
         else:
-            raise SystemError(f"Can't write data of types: {type(self.Data)} as a Lammps input_file.")
+            raise SystemError(f"Can't write data of types: {type(self.Data)} as a Lammps input file.")
 
     def _create_header_str_(self):
         """Will create the header string for the input file."""
@@ -910,6 +986,10 @@ class Lammps_Dump(gen_io.DataFileStorage):
             for idim, dim in enumerate('xyz'):
                 if unit_vec[idim] != 0:
                     self.unwrapped_csv[dim] += self.unwrapped_csv[wrap_dim] * unit_vec[idim]
+
+        self.unwrapped_csv['ix'] = 0
+        self.unwrapped_csv['iy'] = 0
+        self.unwrapped_csv['iz'] = 0
 
     def remove_split_mols(self):
         """

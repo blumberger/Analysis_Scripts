@@ -48,7 +48,7 @@ write_fncs = {
               'json': json.write_json, 'csv': csv_files.Write_CSV,
               "psf": gen_io.Write_File, "mol_layers": json.write_json,
               "numpy": numpy_files.Numpy, "lammps_input": lammps.Write_Lammps_Input,
-              "txt": gen_io.Write_File
+              "txt": gen_io.Write_File,  #"lammps_dump": lammps.Write_Lammps_Dump,
 }
 calc_fncs = {
              'pvecs': pvec_lib.PVecs, 'NN': NN.NN, 'density': dens.Density,

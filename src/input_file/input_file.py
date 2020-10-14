@@ -1405,7 +1405,10 @@ class INP_File(object):
         any_vars = re.findall("\$[A-Za-z_-]+", echo_cmd)
         for check_var in any_vars:
             var = getattr(self, check_var.lstrip('$'))
-            echo_cmd = echo_cmd.replace(check_var, str(var))
+            if hasattr(var, 'data'):
+                echo_cmd = echo_cmd.replace(check_var, str(var.data))
+            else:
+                echo_cmd = echo_cmd.replace(check_var, str(var))
 
         # Print the statement
         print(gen_parse.rm_quotation_marks(echo_cmd))

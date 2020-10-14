@@ -1,0 +1,167 @@
+#####################################################################################
+#                                                                                   #
+# Will create the files to run an NVE CP2K simulation                               #
+#                                                                                   #
+#####################################################################################
+
+
+root_folder = "/home/matt/Data/Work/Pentacene_Final_With_RESP_Charges/Amorphous/Quenching/Instant_Quench.bak"
+restart_file = "resume_equil_300_nvt_md_run6"
+new_NVE_folder = "NVE_folder"
+
+
+do_restart = False
+
+if ($do_restart) {
+    # Re-run lammps and get velocities
+    bash {
+        cp restart_file.inp $root_folder;
+    
+        cd $root_folder;
+        mkdir restarted_for_vel
+        cp $restart_file restarted_for_vel/
+        mv restart_file.inp restarted_for_vel/
+    
+        cd restarted_for_vel
+        sed -i s/"\${RESTART_FILE}"/"$restart_file"/ restart_file.inp
+        mpirun -n 4 lmp_stable -in restart_file.inp
+    }
+}
+snapshot_folder = "$root_folder/restarted_for_vel/xyz_md"
+
+# Get the file with the max timestep
+python {
+    import os, re;
+    all_files = [int(re.findall("[0-9]+", i)[0]) for i in os.listdir(snapshot_folder.data) if 'snapshot' in i and '.dat' in i]
+    max_file = max(all_files) 
+}
+glue "$snapshot_folder/snapshot" "$max_file" ".dat" as snapshot_filepath
+
+# Read the dump data
+read $snapshot_filepath lammps_dump as dump_data
+set system dump_data to pentacene
+
+# Create a folder for the CP2K NVE data
+bash {
+    if [ -d "$new_NVE_folder" ]
+    then
+        rm -rf $new_NVE_folder
+    fi
+    mkdir $new_NVE_folder
+}
+
+# Write the positions
+dump_data['coordinate_wrapping'] = 'unwrapped'
+write dump_data "$new_NVE_folder/pos-init.xyz" as xyz
+
+# Write velocities as VELOC.init
+python {
+    import numpy as np
+    vel = dump_data.data['lammps_dump'].csv_data[['vx', 'vy', 'vz']].to_numpy()
+    cvt_num = 1.8897161646320724 * 2.4188843265857e-2
+    np.savetxt("NVE_folder/VELOC.init", vel * cvt_num,
+               fmt='%.10f', delimiter='    ')
+}
+
+# Copy the FE, Top and run.inp templates
+bash {
+    cp src/data/CP2K_Input_Files/TOPOLOGY_TEMPLATE.inp $new_NVE_folder/TOPOLOGY.inp
+    cp src/data/CP2K_Input_Files/FORCE_EVAL_TEMPLATE.inp $new_NVE_folder/FORCE_EVAL.inp
+    cp src/data/CP2K_Input_Files/RUN_NVE_TEMPLATE.inp $new_NVE_folder/run.inp
+    cp src/data/TOPOLOGY_FILES/PENCEN01_HOLE_beta_0.910.prm $new_NVE_folder/pentacene_Hole_FF.prm
+    cp src/data/TOPOLOGY_FILES/pentacene_lammps.psf $new_NVE_folder/pentacene_lammps.psf
+}
+
+dt = 1
+python {
+    import os, re
+
+    nat = dump_data.data['lammps_dump'].metadata['number_atoms']
+    napm = dump_data.data['lammps_dump'].metadata['atoms_per_molecule']
+    nmol = dump_data.data['lammps_dump'].metadata['nmol']
+    
+    files = {'run': "run.inp", 'FE': "FORCE_EVAL.inp", 'TOP': "TOPOLOGY.inp"}
+    files = {i: f"{new_NVE_folder.data}/{files[i]}" for i in files}
+
+    fileTxt = {}
+    for i in files:
+        with open(files[i], 'r') as f:
+            fileTxt[i] = f.read()
+
+    # The run.inp file
+    print_freq = int(1000//dt.data)
+    params = {'DT': dt.data, 'NUM_STEPS': 200*dt.data*1000, 'CONSTRAINT_COMMENT': '',
+              'TRAJ_PRINT': print_freq, 'VEL_PRINT': print_freq,
+              'RESTART_SWITCH': 'ON', 'RESTART_STEP': print_freq,
+              'FORCE_EVAL_FILE': "FORCE_EVAL.inp"}
+    for i in params: fileTxt['run'] = fileTxt['run'].replace("{%s}" % i, f"{str(params[i])}")
+
+    # Force Eval file
+    params = {'FF_PARAM_FILE': './pentacene_Hole_FF.prm', 'VELOCITY_INIT_FILE': 'VELOC.init',
+              'COLVAR_COMMENT': '', 'TOPOLOGY_FILE': 'TOPOLOGY.inp'}
+    for i in params: fileTxt['FE'] = fileTxt['FE'].replace("{%s}" % i, f"{str(params[i])}")
+
+    # Topology file
+    params = {'PSF_FILE': 'pentacene_lammps.psf', 'PERIODICITY': 'XYZ',
+              'CELLA': dump_data.data['lammps_dump'].metadata['a'][0],
+              'CELLB': dump_data.data['lammps_dump'].metadata['b'][1],
+              'CELLC': dump_data.data['lammps_dump'].metadata['c'][2],
+              'ALPHA': 90, 'BETA': 90, 'GAMMA': 90,
+              'POS_FILENAME': 'pos-init.xyz',
+              'NUM_ATOMS': nat, 'NUM_MOLS': nmol }
+    for i in params: fileTxt['TOP'] = fileTxt['TOP'].replace("{%s}" % i, f"{str(params[i])}")
+
+    for i in fileTxt:
+        fileLoc = files[i]
+        with open(fileLoc, 'w') as f:
+            f.write(fileTxt[i])
+
+}
+
+
+# Tell the user to create the mol2 file
+glue "$new_NVE_folder" "/pos-init.mol2" as molFile
+echo " "
+echo "\n"
+echo "################################################################################################################"
+echo " "
+echo "The files have been created in './$new_NVE_folder/'."
+echo "Please now open the file '$new_NVE_folder.data/pos-init.xyz' in Mercury and save the positions as a file named:"
+echo " "
+echo "      '$molFile'"
+echo " "
+echo "Then when ready press enter in this terminal."
+echo " "
+echo "If you don't want to proceed simply kill this process by hitting Ctrl-C"
+python {
+    input(f"\n\nPress enter after you've created the mol2 file in the folder '{new_NVE_folder.data}'")
+}
+echo " "
+echo "################################################################################################################"
+
+
+# Check the file is there and run the restraint code.
+bash {
+    if ! [ -f "$molFile" ]
+    then
+        echo "I can't find the file '$molFile'. Please create it."
+        exit 1;
+    fi
+
+    mkdir $new_NVE_folder/Restraint_Stuff
+    cp $new_NVE_folder/pos-init.mol2 $new_NVE_folder/Restraint_Stuff/pos-init.mol2
+    cp ./scripts/Construct_restarints_file_from_mol2.py $new_NVE_folder/Restraint_Stuff/
+    cd $new_NVE_folder/Restraint_Stuff
+
+    sed -i s/"natom *= *[0-9]*"/"natom = $nat"/ Construct_restarints_file_from_mol2.py
+    sed -i s/"at_per_mol *= *[0-9]*"/"at_per_mol = $napm"/ Construct_restarints_file_from_mol2.py
+    sed -i s/"mol2_file *= *\".*\" *$"/"mol2_file = \"pos-init.mol2\""/ Construct_restarints_file_from_mol2.py
+
+    python2 Construct_restarints_file_from_mol2.py
+
+    cp COL* ../
+}
+
+
+
+

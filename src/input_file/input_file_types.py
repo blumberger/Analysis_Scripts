@@ -1057,9 +1057,9 @@ class Vars(dict):
                 self['lammps_dump'].unwrap_split_mols()
                 wrap = "unwrap_split_mols"
 
-            elif self.metadata['coordinate_wrapping'] == "add_images":
-                self['lammps_dump'].unwrap_add_images()
-                wrap = "add_img"
+            elif self.metadata['coordinate_wrapping'] == "into_cell":
+                self['lammps_dump'].wrap_into_cell()
+                wrap = "into_cell"
 
             else:
                 raise SystemExit("I don't understand the coordinate_wrapping instruction." +
@@ -1068,7 +1068,7 @@ class Vars(dict):
                                  "\n\t* remove_split_mols" + 
                                  "\n\t* wrapped" + 
                                  "\n\t* unwrap_split_mols" +
-                                 "\n\t* add_img"
+                                 "\n\t* into_cell"
                                  )
 
         # Set which data to use
@@ -1077,7 +1077,7 @@ class Vars(dict):
         elif wrap == "rem_split": csv_data = self['lammps_dump'].rm_split_mols
         elif wrap == "wrap": csv_data = self['lammps_dump'].wrapped_csv
         elif wrap == "unwrap_split_mols": csv_data = self['lammps_dump'].unwrapped_csv
-        elif wrap == "add_img": csv_data = self['lammps_dump'].add_img_csv
+        elif wrap == "into_cell": csv_data = self['lammps_dump'].unwrapped_csv
         else: raise SystemExit("Can't find correct csv data from lammps log. Please point me to where it is.")
 
         csv_data.index = range(len(csv_data))

@@ -31,6 +31,7 @@ class Coupling_Networks(gen_plot.Plot_Type):
 				 "a2_elev": 0, "a1_azim": 0, "a2_azim": 0, "elev_increment":False,
 				 "azim_increment":1, "init_elev":30, "init_azim":0,
 				 "do_coupling_rotate": False, 'plot_coupling_grains': False,
+				 "plot_coupling_COM": True,
 				 }
 	required_metadata = ("reorganisation_energy",)
 	required_var_attributes = ("get_xyz_data", "get_xyz_cols", "mol_centroids",
@@ -63,6 +64,7 @@ class Coupling_Networks(gen_plot.Plot_Type):
 
 		This is different for the rates and the couplings.
 		"""
+		self.do_COM_plot = self.metadata['plot_coupling_COM']
 		if self.data_type == "coup":
 			# Initialise the plot parameters
 			self.min_Hab = self.metadata["reorganisation_energy"] / 100.
@@ -104,10 +106,16 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		cols = self.Var.get_xyz_cols()
 		for istep in range(len(xyz_data)):
 			self.f = plt.figure(figsize=(16, 9))
-			self.a1 = self.f.add_subplot(121, projection="3d", proj_type = 'ortho');
-			self.a2 = self.f.add_subplot(122, projection="3d", proj_type = 'ortho')
+			if self.do_COM_plot:
+				self.a1 = self.f.add_subplot(121, projection="3d", proj_type = 'ortho');
+				self.a2 = self.f.add_subplot(122, projection="3d", proj_type = 'ortho')
+			else:
+				self.a1 = self.f.add_subplot(111, projection="3d", proj_type = 'ortho');
 
-			self.graph_data = self.__get_coupling_connections__(self.Var.mol_centroids[istep], self.Var.data[istep], self.plot_params)
+
+			self.graph_data = self.__get_coupling_connections__(self.Var.mol_centroids[istep],
+																self.Var.data[istep],
+																self.plot_params)
 			self.nmol = len(self.Var.mol_centroids[0])
 			self._get_grains_()
 
@@ -118,7 +126,10 @@ class Coupling_Networks(gen_plot.Plot_Type):
 												 self.a1, ignore_cats=[0, 2])
 				self.plot_grains(self.Var.mol_centroids[istep], self.a1)
 
-			self._plot_mol_selection_(self.Var.all_centroids[istep], self.Var.mol_centroids[istep], self.a2)
+			if self.do_COM_plot:
+				self._plot_mol_selection_(self.Var.all_centroids[istep],
+										  self.Var.mol_centroids[istep],
+										  self.a2)
 
 			if self.metadata['plot_coupling_atoms']:
 				self._plot_coupling_atoms_(self.Var.spliced_crds[istep], self.Var.spliced_cols[istep], self.a1)
@@ -126,7 +137,9 @@ class Coupling_Networks(gen_plot.Plot_Type):
 				self._plot_mol_nums_(self.Var.mol_centroids[istep], istep, self.a1)
 
 			self.a1.view_init(elev=self.metadata['a1_elev'], azim=self.metadata['a1_azim'])
-			self.a2.view_init(elev=self.metadata['a2_elev'], azim=self.metadata['a2_azim'])
+			if self.do_COM_plot:
+				self.a2.view_init(elev=self.metadata['a2_elev'],
+			 					  azim=self.metadata['a2_azim'])
 
 			# Rotate the plot
 			if self.metadata['do_coupling_rotate']:	self.rotate_plot()

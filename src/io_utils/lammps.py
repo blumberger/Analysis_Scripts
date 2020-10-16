@@ -1058,6 +1058,57 @@ class Lammps_Dump(gen_io.DataFileStorage):
             break
         raise SystemExit
 
+    def wrap_into_cell(self):
+        """
+        Will first unwrap all atoms and then translate the molecules so they are as close
+        to the simulation box as possible. Steps are below:
+
+        1) Run the unwrap_coords() function. This will generally unwrap coords for any
+           simulation cell type. This just applies the ix, iy and iz translations as 
+           in the lammps documentation.
+
+        2) Group the data frame by molecule number and find how many integer cell vecs the 
+           first atom in the molecule is from the sim box.
+
+        2) Use the number of cell vecs away to translate the molecule.
+
+
+        N.B. Will only work for orthorhombic cells.
+        """
+        self.unwrapped_avail = True
+        # First unwrap the mols so they're all together
+        self.unwrap_coords()
+        # Translate the pos for convenience
+        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+        xlo, a = self.metadata['xlo'], self.metadata['xhi']
+        ylo, b = self.metadata['ylo'], self.metadata['yhi']
+        zlo, c = self.metadata['zlo'], self.metadata['zhi']
+
+        self.unwrapped_csv['x'] -= xlo
+        self.unwrapped_csv['y'] -= ylo
+        self.unwrapped_csv['z'] -= zlo
+
+
+        def do_wrap(data):
+            if all(data['x'] < 0) or all(data['x'] > a):
+                d = a - data.iloc[0]['x']
+                x = int(d//a) * a
+                data['x'] += x
+
+            if all(data['y'] < 0) or all(data['y'] > b):
+                d = b - data.iloc[0]['y']
+                y = int(d//b) * b
+                data['y'] += y
+
+            if all(data['z'] < 0) or all(data['z'] > c):
+                d = c - data.iloc[0]['z']
+                z = int(d//c) * c
+                data['z'] += z
+
+            return data
+
+        self.unwrapped_csv = self.unwrapped_csv.groupby("mol", axis=0).apply(do_wrap)
+
 
     def unwrap_split_mols(self):
         """
@@ -1065,7 +1116,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         self.unwrapped_avail = True
         self.unwrapped_csv = copy.deepcopy(self.csv_data)
-
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
 
         # Check we can do the wrapping
@@ -1082,13 +1132,15 @@ class Lammps_Dump(gen_io.DataFileStorage):
         # Wrap the split molecules together.
         unsplit = self.unwrapped_csv[self.unwrapped_csv['split'] == False]
 
+        # mask == mols that are split
         mask = self.unwrapped_csv['split'] == True
         tmp = self.unwrapped_csv.loc[mask, :]
-        unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+        # unwrap the split mols
         for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
             for idim, dim in enumerate('xyz'):
                 if unit_vec[idim] != 0:
                     self.unwrapped_csv.loc[mask, dim] += tmp.loc[:, wrap_dim] * unit_vec[idim]
+
 
     def append(self, val):
         """

@@ -95,12 +95,23 @@ class Coupling_Networks(gen_plot.Plot_Type):
 
 		else:
 			raise SystemExit("Unkown Data Type")
+		
+		self.show_pop = False
+		if 'coeff_file' in self.Var.metadata:
+			self.show_pop = True
+			xyz = self.Var.metadata['coeff_file']['xyz'].xyz_data
+			coeff = np.zeros(xyz.shape[:2], dtype=complex)
+			coeff.real = xyz[:, :, 0]
+			coeff.imag = xyz[:, :, 1]
+			self.pops = (coeff * np.conj(coeff)).real
+
 
 	def _plot_(self):
 		"""
 		The plotting function which gets called from the generic plot class
 		"""
 		self._init_plot_params_()
+
 
 		xyz_data = self.Var.get_xyz_data()
 		cols = self.Var.get_xyz_cols()
@@ -135,6 +146,9 @@ class Coupling_Networks(gen_plot.Plot_Type):
 				self._plot_coupling_atoms_(self.Var.spliced_crds[istep], self.Var.spliced_cols[istep], self.a1)
 			if self.metadata['plot_coupling_mol_numbers']:
 				self._plot_mol_nums_(self.Var.mol_centroids[istep], istep, self.a1)
+			if self.show_pop:
+				self._plot_pops(self.Var.mol_centroids[istep], self.a1, istep)
+
 
 			self.a1.view_init(elev=self.metadata['a1_elev'], azim=self.metadata['a1_azim'])
 			if self.do_COM_plot:
@@ -261,6 +275,26 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		ax.set_zlim([zlim[0] - z_ext, zlim[1] + z_ext])
 
 		return ax
+
+	def _plot_pops(self, all_mol_centre, ax, istep=0):
+		"""
+		Will plot the populations on the coupling network
+
+		Inputs:
+			* all_mol_centre <array> => The coordinates of the molecular centers in shape (nmol, 3)
+			* ax <plt.axis> OPTIONAL => The axis to plot on
+		"""
+		mols_available = self.Var.mol_nums[istep]
+		pops_for_mols = self.pops[istep, mols_available]
+		
+		mask = pops_for_mols > 5e-2
+		mol_pos = all_mol_centre[mask]
+		pops_for_mols = pops_for_mols[mask]
+
+		for (x, y, z), pop in zip(mol_pos, pops_for_mols):
+			ax.plot([x], [y], [z], ms=50*pop, color='b',
+					ls='None', marker='o')
+
 
 	def _plot_mol_nums_(self, all_mol_centre, istep=0, ax=False):
 		"""

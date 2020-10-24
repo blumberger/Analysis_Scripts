@@ -1,0 +1,33 @@
+# How to slice the structure = = = fdlskfjsldk j=sd sdf sdklfj sd=f sd
+zmin = 15
+zmax = 29
+xmin = 60
+xmax = 160
+ymin = 70
+ymax = 170
+
+# Nearest neighbour distance
+NN_cutoff = 14
+
+# Some system properties
+atoms_per_molecule=36
+
+# Input files
+in_folder = /home/matt/Data/Work/NewPentaceneSlab/24_25_5/Fixed_Atoms_FSSH
+pos_filename = pos-init.xyz
+vel_filename = VELOC.init
+AOM_single_mol = ../../data/AOM_COEFFs/Pentacene_Lammps_Single_Mol.include
+
+# Output files
+out_folder = ./Data
+MD_system = pos-init.xyz
+inactive_ats_filename = inactive_ats.xyz
+all_ats_filename = all_ats.xyz
+active_ats_filename = active_ats.xyz
+new_veloc_filename = VELOC.init
+fixed_atoms_filename = FIXED_ATOMS.inp
+mol_nums_filename = mol_nums.txt
+COM_filename = COM.xyz
+NN_filename = NN.xyz
+decomp_filename = DECOMP.inp
+AOM_filename = AOM_COEFF.include

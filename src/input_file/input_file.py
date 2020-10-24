@@ -1101,7 +1101,8 @@ class INP_File(object):
                     word = word.replace(f"METADATA_{var_i}", str(metadata))
                 value = word
 
-            value = type_check.eval_type(value)
+            if type(value) == str:
+                value = type_check.eval_type(value)
             values.append(value)
 
         value = values
@@ -1476,22 +1477,22 @@ class INP_File(object):
             getattr(self, set_fnc)(line)
 
 
-    def parse_set_params(self, line):
-        """
-        Will set parameter data to the metadata in a Variable.
+    # def parse_set_params(self, line):
+    #     """
+    #     Will set parameter data to the metadata in a Variable.
 
-        Inputs:
-            * line <str> => A string containing the cleaned line from a input file.
-        """
-        _, _, var_name, _, set_name = line.split()
+    #     Inputs:
+    #         * line <str> => A string containing the cleaned line from a input file.
+    #     """
+    #     _, _, var_name, _, set_name = line.split()
 
-        Var = getattr(self, var_name)
-        set_data = getattr(self, set_name).data
-        if set_data == "^EMPTY^": return
+    #     Var = getattr(self, var_name)
+    #     set_data = getattr(self, set_name).data
+    #     if set_data == "^EMPTY^": return
 
-        # Get the variable and add metadata
-        for key in set_data['params'].data:
-            Var[key] = set_data['params'].data[key]
+    #     # Get the variable and add metadata
+    #     for key in set_data['params'].data:
+    #         Var[key] = set_data['params'].data[key]
 
     def parse_set_system(self, line):
         """
@@ -2044,9 +2045,13 @@ class INP_File(object):
                 self.print_error(f"Can't find variable '{check_var}'")
 
             Var = getattr(self, check_var)
-            str_var = str(Var)
-            str_var = re.sub("Variable .*:[\n]+", "", str_var)
-            line = line.replace(f"${check_var}", str_var)
+            if type(Var.data) == str:
+                str_var = str(Var)
+                str_var = re.sub("Variable .*:[\n]+", "", str_var)
+                line = line.replace(f"${check_var}", str_var)
+            
+            else:
+                line = Var.data
 
         return line, any_vars
 

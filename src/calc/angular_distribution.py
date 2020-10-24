@@ -236,9 +236,11 @@ class Angular_Dist(gen_calc.Calc_Type):
         #bars = axis.bar(bin_edges[:-1], counts, width=np.diff(bin_edges),
         #                label=label, alpha=0.7)
         min_bin, max_bin = min(bin_edges), max(bin_edges)
-        #axis.plot([-1, min_bin], [0, 0], 'k-')
-        #axis.plot([max_bin, 1], [0, 0], 'k-')
         line, = axis.plot(bin_edges[:-1], counts, '-', label=label)
+
+        if min_bin > -1: axis.plot([-1, min_bin], [0, 0], color=line.get_color())
+        if max_bin < 1:  axis.plot([max_bin, 1], [0, 0], color=line.get_color())
+
         return line, axis
 
     def plot(self, axes=False, label=""):

@@ -1080,27 +1080,31 @@ class Lammps_Dump(gen_io.DataFileStorage):
         self.unwrap_coords()
         # Translate the pos for convenience
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
-        xlo, a = self.metadata['xlo'], self.metadata['xhi']
-        ylo, b = self.metadata['ylo'], self.metadata['yhi']
-        zlo, c = self.metadata['zlo'], self.metadata['zhi']
+        xlo, xhi = self.metadata['xlo'], self.metadata['xhi']
+        ylo, yhi = self.metadata['ylo'], self.metadata['yhi']
+        zlo, zhi = self.metadata['zlo'], self.metadata['zhi']
 
-        self.unwrapped_csv['x'] -= xlo
-        self.unwrapped_csv['y'] -= ylo
-        self.unwrapped_csv['z'] -= zlo
+        a = xhi - xlo
+        b = yhi - ylo
+        c = zhi - zlo
+
+        # self.unwrapped_csv['x'] -= xlo
+        # self.unwrapped_csv['y'] -= ylo
+        # self.unwrapped_csv['z'] -= zlo
 
 
         def do_wrap(data):
-            if all(data['x'] < 0) or all(data['x'] > a):
+            if all(data['x'] < xlo) or all(data['x'] > xhi):
                 d = a - data.iloc[0]['x']
                 x = int(d//a) * a
                 data['x'] += x
 
-            if all(data['y'] < 0) or all(data['y'] > b):
+            if all(data['y'] < ylo) or all(data['y'] > yhi):
                 d = b - data.iloc[0]['y']
                 y = int(d//b) * b
                 data['y'] += y
 
-            if all(data['z'] < 0) or all(data['z'] > c):
+            if all(data['z'] < zlo) or all(data['z'] > zhi):
                 d = c - data.iloc[0]['z']
                 z = int(d//c) * c
                 data['z'] += z

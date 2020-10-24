@@ -6,18 +6,12 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <algorithm>
+
+#include "Periodic_table.hpp"
+#include "input_file.hpp"
 
 namespace xyz {
-
-	const double unset = -921983741.719823712;
-	struct slice_instruct {
-		double xmin = unset;
-		double xmax = unset;
-		double ymin = unset;
-		double ymax = unset;
-		double zmin = unset;
-		double zmax = unset;
-	};
 
 	class XYZ_File {
 	    private:
@@ -32,6 +26,7 @@ namespace xyz {
 	            file.open(fp, std::ios::in);
 
 	            if (! file.is_open()) {
+	            	std::cerr << "Can't find file " << fp << std::endl;
 	                throw "No File Found!";
 	            }
 	        }
@@ -228,11 +223,6 @@ namespace xyz {
 	        std::vector<std::vector<std::vector<double>>> xyz;
 	        std::vector<std::vector<std::vector<std::string>>> cols;
 
-	        void parse(std::string line) {
-
-	            std::cout << line << std::endl;
-	        }
-
 	        // Will read the xyz file.
 	        void read(std::string filepath) {
 	            fp = filepath;
@@ -251,7 +241,7 @@ namespace xyz {
 	        }
 
 	        // Will write the data to a xyz file.
-	        void write(std::string filepath, std::vector<std::vector<int>> at_inds={{}}) {
+	        void write(std::string &filepath, std::vector<std::vector<int>> at_inds={{}}) {
 	        	file.open(filepath, std::ios::out);
 	        	if (nsteps == -1) {
 	        		std::cerr << "Steps not properly set" << std::endl;
@@ -337,7 +327,7 @@ namespace xyz {
 
 	        // Will return a 3D array of shape (nstep, nmol, nat_per_mol, ncol)
 	        // Will reshape the cols array to group by molecule
-	        std::vector<std::vector<std::vector<std::vector<std::string>>>> cols_to_mols(int natom_per_molecule) {
+	        std::vector<std::vector<std::vector<std::vector<std::string>>>> cols_to_mols(const int natom_per_molecule) {
 	            // Create the array
 	            auto nmol = get_nmol_from_atoms_atoms_per_mol(natoms, natom_per_molecule);
 	            auto istep=0;
@@ -370,7 +360,7 @@ namespace xyz {
 
 	        // Will return a 4D array of shape (nstep, nmol, nat_per_mol, ndim)
 	        // Will reshape the xyz array to group by molecule
-	        std::vector<std::vector<std::vector<std::vector<double>>>> atoms_to_mols(int natom_per_molecule) {
+	        std::vector<std::vector<std::vector<std::vector<double>>>> atoms_to_mols(const int natom_per_molecule) {
 	            // Create the array
 	            auto nmol = get_nmol_from_atoms_atoms_per_mol(natoms, natom_per_molecule);
 	            auto istep=0;
@@ -402,7 +392,7 @@ namespace xyz {
 	        }
 
 	        // Will get the columns for just 1 molecule of shape (nat_per_mol, ndim)
-	        std::vector<std::vector<std::string>> get_1mol_col(int atoms_per_molecule, int imol=0, int istep=0) {
+	        std::vector<std::vector<std::string>> get_1mol_col(const int atoms_per_molecule, int imol=0, int istep=0) {
 	            auto nmol = get_nmol_from_atoms_atoms_per_mol(natoms, atoms_per_molecule);
 	            std::vector<std::vector<std::string>> mol_col;
 	            auto iapm=0;
@@ -424,19 +414,20 @@ namespace xyz {
 	        }
 
 	        // Will get which indices are within constrainst defined by slice_instruct
-	        std::vector<std::vector<int>> get_inds_of_slice(struct slice_instruct slice_instruct) {
+	        //  Return Shape: (nstep, natom)
+	        std::vector<std::vector<int>> get_inds_of_slice(const struct inp::slice_instruct slice_instruct) {
 	        	std::vector<std::vector<int>> at_inds;
 	        	double xmin, xmax, ymin, ymax, zmin, zmax;
 	        	xmin = -9999999999; xmax = 9999999999;
 	        	ymin = -9999999999; ymax = 9999999999;
 	        	zmin = -9999999999; zmax = 9999999999;
 
-	        	if (slice_instruct.xmin != unset) xmin = slice_instruct.xmin;
-	        	if (slice_instruct.xmax != unset) xmax = slice_instruct.xmax;
-	        	if (slice_instruct.ymin != unset) ymin = slice_instruct.ymin;
-	        	if (slice_instruct.ymax != unset) ymax = slice_instruct.ymax;
-	        	if (slice_instruct.zmin != unset) zmin = slice_instruct.zmin;
-	        	if (slice_instruct.zmax != unset) zmax = slice_instruct.zmax;
+	        	if (slice_instruct.xmin != inp::unset) xmin = slice_instruct.xmin;
+	        	if (slice_instruct.xmax != inp::unset) xmax = slice_instruct.xmax;
+	        	if (slice_instruct.ymin != inp::unset) ymin = slice_instruct.ymin;
+	        	if (slice_instruct.ymax != inp::unset) ymax = slice_instruct.ymax;
+	        	if (slice_instruct.zmin != inp::unset) zmin = slice_instruct.zmin;
+	        	if (slice_instruct.zmax != inp::unset) zmax = slice_instruct.zmax;
 
 	        	std::vector<bool> false_vec (natoms, false);
 	        	std::vector<std::vector<bool>> mask (nsteps, false_vec);
@@ -477,7 +468,7 @@ namespace xyz {
 	    
 	        // Get the center of masses with shape (nstep, nmol, ndim)
 	        //  This will return an XYZ_File.
-	        XYZ_File get_COMs(int atoms_per_molecule) {
+	        XYZ_File get_COMs(const int atoms_per_molecule) {
 	            auto istep=0;
 	            auto imol=0;
 	            auto idim=0;
@@ -537,23 +528,64 @@ namespace xyz {
 					}
 				}
 
-
-
 				xyz::XYZ_File COM_File;
 				COM_File.set_data(COM, COM_cols);
 
 	            return COM_File;
 	        }
 
+	        // Convert an array of atomic indices to molecular indices
+	        inline std::vector<int> mol_inds_to_at_inds(std::vector<int> &mol_inds, const int ats_per_mol) {
+	        	std::vector<int> at_inds;
+			    at_inds.resize(mol_inds.size() * ats_per_mol);
+
+			    int count = 0;
+		    	for (auto imol: mol_inds) {
+		    		for (int iapm=0; iapm<ats_per_mol; iapm++) {
+		    			int iat = (ats_per_mol * imol) + iapm;
+
+		    			at_inds[count] = iat;
+		    			count++;
+		    		}
+		    	}
+			    return at_inds;
+	        }
+
 	        // Will slice an xyz file data by the molecule and return the atom indices of the slice
-	        std::vector<std::vector<int>> slice_by_COM(int atoms_per_molecule,
-	         										   struct slice_instruct slice_instruct)
+	        //  Return has shape (nstep, natom)
+	        std::vector<std::vector<int>> slice_by_COM(const int atoms_per_molecule,
+	         										   const struct inp::slice_instruct slice_instruct,
+	         										   std::vector<std::vector<int>> &mol_inds,
+	         										   std::string mol_num_filename="",
+	         										   std::string COM_filename=""
+	         										   )
 	        {
 			    // Calculate COMs
-			    XYZ_File COM_File = get_COMs(36);
+			    XYZ_File COM_File = get_COMs(atoms_per_molecule);
+			    if (COM_filename != "")	COM_File.write(COM_filename);
+
 
 			    // Get the molecular indices within the slice
-			    auto mol_inds = COM_File.get_inds_of_slice(slice_instruct);
+			    mol_inds = COM_File.get_inds_of_slice(slice_instruct);
+                std::cout << "\n\nNumber of molecules in slice each slice:" << std::endl;
+                auto step_count = 0;
+                for (auto slice_inds : mol_inds)
+                    std::cout << "\t * Step " << step_count << ": " << slice_inds.size() << "\n";
+
+
+                // Write the molecule numbers if required.
+                if (mol_num_filename != "") {
+				    std::fstream mol_num_file;
+				    mol_num_file.open(mol_num_filename, std::ios::out);
+				    for (int istep=0; istep<mol_inds.size(); istep++) {
+				    	mol_num_file << istep << ":\n";
+					    for (auto i: mol_inds[istep])
+					    	mol_num_file << i << " ";
+					    mol_num_file << "\n";
+				    }
+				    mol_num_file.close();
+				}
+
 
 			    // Convert mol index to atom index
 			    std::vector<std::vector<int>> at_inds;
@@ -576,9 +608,150 @@ namespace xyz {
 			    }
 			    return at_inds;
 	        }
+
+	        // Will return an XYZ File object -the indexed atoms.
+	        XYZ_File index_atoms(std::vector<std::vector<int>> const &at_inds) {
+	        	std::vector<std::vector<std::vector<double>>> new_xyz;
+	        	std::vector<std::vector<std::vector<std::string>>> new_col;
+	        	XYZ_File NewFile;
+
+	        	new_xyz.resize(nsteps);
+	        	new_col.resize(nsteps);
+	        	for (int istep=0; istep<at_inds.size(); istep++) {
+	        		new_xyz[istep].resize(at_inds[istep].size());
+	        		new_col[istep].resize(at_inds[istep].size());
+
+	        		for (int iat=0; iat<at_inds[istep].size(); iat++) {
+	        			new_xyz[istep][iat].resize(ndata_cols);
+	        			new_col[istep][iat].resize(nmeta_cols);
+
+	        			for (int idim=0; idim<ndata_cols; idim++) 
+	        				new_xyz[istep][iat][idim] = xyz[istep][at_inds[istep][iat]][idim];
+	        			for (int idim=0; idim<nmeta_cols; idim++)
+	        				new_col[istep][iat][idim] = cols[istep][at_inds[istep][iat]][idim];
+	        		}
+	        	}
+
+	        	NewFile.set_data(new_xyz, new_col);
+
+	        	return NewFile;
+	        }
+
+	        // Will get the nearest molecules indexed by mol_inds.
+	        std::vector<std::vector<int>> get_nearest_COM_to_pos(XYZ_File &Check_COM_Pos,
+	        								std::vector<int> mols_to_ignore,
+	        								const int ats_per_mol,
+	        								double const cutoff=12.0) 
+	        {
+	        	XYZ_File ThisCOM = get_COMs(ats_per_mol);
+
+	        	std::vector<int> nearest_mol_inds;
+
+	        	auto rmax2=cutoff*cutoff;
+				int count=0;
+        		for (auto imol=0; imol<ThisCOM.natoms; imol++) {
+        			if (imol == mols_to_ignore[count]) {
+        				count++;
+        				continue;
+        			}
+
+        			auto m1 = ThisCOM.xyz[0][imol];
+        			for (auto m2 : Check_COM_Pos.xyz[0]) {
+        				if ((m1[0]-m2[0])*(m1[0]-m2[0])+ 
+        					(m1[1]-m2[1])*(m1[1]-m2[1]) +
+        					(m1[2]-m2[2])*(m1[2]-m2[2]) < rmax2) {
+        					nearest_mol_inds.push_back(imol);
+        					break;
+        				}
+        			}
+        		}
+
+        		auto at_inds = mol_inds_to_at_inds(nearest_mol_inds, ats_per_mol);
+        		std::vector<std::vector<int>> step_at_inds (1, at_inds);
+        		step_at_inds[0] = at_inds;
+        		return step_at_inds;
+        		// auto NewFile = index_atoms(step_at_inds);
+
+	        	// return NewFile;
+	        }
 	};
 }
 
 
-
 #endif
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+	        		// First discretise data into xyz grids.
+	        		std::vector<double> x_data (ThisCOM.natoms, 0.0);
+	        		std::vector<double> y_data (ThisCOM.natoms, 0.0);
+	        		std::vector<double> z_data (ThisCOM.natoms, 0.0);
+	        		for (auto iat=0; iat<ThisCOM.natoms; iat++) {
+	        			x_data[iat] = ThisCOM.xyz[istep][iat][0];
+	        			y_data[iat] = ThisCOM.xyz[istep][iat][1];
+	        			z_data[iat] = ThisCOM.xyz[istep][iat][2];
+	        		}
+	        		double minx=*std::min_element(x_data.begin(), x_data.end()); double maxx=*std::max_element(x_data.begin(), x_data.end());
+	        		double miny=*std::min_element(y_data.begin(), y_data.end()); double maxy=*std::max_element(y_data.begin(), y_data.end());
+	        		double minz=*std::min_element(z_data.begin(), z_data.end()); double maxz=*std::max_element(z_data.begin(), z_data.end());
+	        		double rx=maxx-minx; double ry=maxy-miny; double rz=maxz-minz;
+	        		int Nx=1+(int)(rx+0.6)/cutoff; int Ny=1+(int)(ry+0.6)/cutoff; int Nz=1+(int)(rz+0.6)/cutoff;
+
+	        		std::vector<std::vector<double>> grid_datax;
+	        		std::vector<std::vector<double>> grid_datay;
+	        		std::vector<std::vector<double>> grid_dataz;
+	        		grid_datax.resize(Nx);
+	        		grid_datay.resize(Ny);
+	        		grid_dataz.resize(Nz);
+
+	        		for (auto iat=0; iat<ThisCOM.natoms; iat++) {
+	        			double x=x_data[iat];
+	        			double y=y_data[iat];
+	        			double z=z_data[iat];
+
+	        			for (auto igr=0; igr<Nx; igr++){
+	        				double x1=minx+(cutoff*igr);
+	        				double x2=minx+(cutoff*(igr+1));
+	        				if (x >= x1 and x < x2) {
+	        					grid_datax[igr].push_back(x);
+	        					break;
+	        				}
+	        			}
+
+	        			// for (auto igr=0; igr<Ny; igr++){
+	        			// 	double y1=miny+(cutoff*igr);
+	        			// 	double y2=miny+(cutoff*(igr+1));
+	        			// 	if (y >= y1 and y < y2) {
+	        			// 		grid_datay[igr].push_back(y);
+	        			// 		break;
+	        			// 	}
+	        			// }
+	        			// for (auto igr=0; igr<Nz; igr++){
+	        			// 	double z1=minz+(cutoff*igr);
+	        			// 	double z2=minz+(cutoff*(igr+1));
+	        			// 	if (z >= z1 and z < z2) {
+	        			// 		grid_dataz[igr].push_back(z);
+	        			// 		break;
+	        			// 	}
+	        			// }
+	        		}
+
+	        		auto sum_ = 0;
+	        		for (auto igr=0; igr<Nx; igr++) 
+	        			sum_ += grid_datax[igr].size();
+	        			std::cout << sum_ << std::endl;
+
+	        		}
+*/

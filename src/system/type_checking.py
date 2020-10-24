@@ -58,11 +58,10 @@ def is_float(Str):
 	Outputs:
 	  <bool> Whether the string can be represented as a non-integer float or not.
 	"""
-	if type(Str) == str:
-		if is_num(Str):
-			if not float(Str).is_integer():
-				return True
-	return False
+	if isinstance(Str, (str, )):
+	    if is_num(Str) and '.' in Str: 
+	        return True 
+	    return False
 
 
 def is_int(num, msg=False):

@@ -84,35 +84,6 @@ class XYZ_File(gen_io.DataFileStorage):
 								 are not split by wrapping and are all whole molecules.
 								 * Only works for cubic cells
 
-			* "into_cell_img" => The same as 'into_cell'. However, for each molecule which has
-								 any atoms outside the cell the whole thing will be repeated
-								 as an image on whichever side is appropriate.
-
-								 e.g. say a sim box looks like:
-
-										  -------
-										  |     |
-								 		xx|x    |
-								 		  |     |
-								 		  -------   
-											 
-								 the molecule on the left will be repeated on the right so the
-								 atoms outside of the cell are contained within the cell e.g:
-
-								 		  --------
-								 		  |      |
-								 		xx|x   xx|x
-								 		  |		 |
-								 		  --------
-
-								 This is useful when making the coupling maps to get the bulk 
-								 properties on the edge of the sim.
-
-								 CAVEATS:
-
-								 * This wrapping (like 'into_cell') assumes that all molecules
-								 are not split by wrapping and are all whole molecules.
-								 * Only works for cubic cells
 
 		"""
 		if self.metadata.get("coordinate_wrapping", "") != "":
@@ -531,7 +502,7 @@ def get_num_data_cols(ltxt, filename, num_title_lines, lines_in_step):
 		for line in step:
 			splitter = line.split()
 			count = 0
-			for item in splitter[-1::-1]:
+			for item in splitter[::-1]:
 				if not type_check.is_float(item):
 					num_data_cols_all.append(count)
 					break

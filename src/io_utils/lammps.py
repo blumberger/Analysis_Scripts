@@ -1027,36 +1027,77 @@ class Lammps_Dump(gen_io.DataFileStorage):
         self.rm_split_mols = self.rm_split_mols[self.rm_split_mols['split'] == False]
 
 
-    def unwrap_add_images(self):
+    def wrap_into_cell_with_image(self):
         """
-        Will unwrap the molecules but for every molecule that has been split an image molecule
-        will be put in every place the atoms of that molecule are.
+        Will call the wrap_into_cell function then add images on the boundaries of the cell
+        for every molecule that is a molecular length/1.9 from the edge.
+
+        For more info see the wrap_into_cell docstr.
+
+        This could be optimised by copying and pasting the wrap_into_cell function code
+        and doing the wrapping and adding of images together. I don't think it is needed though.
         """
-        self.add_img_csv = copy.deepcopy(self.csv_data)
+        self.unwrapped_avail = True
+        self.wrap_into_cell()
+
+        # Translate the pos for convenience
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+        xlo, xhi = self.metadata['xlo'], self.metadata['xhi']
+        ylo, yhi = self.metadata['ylo'], self.metadata['yhi']
+        zlo, zhi = self.metadata['zlo'], self.metadata['zhi']
 
-        # Check we can do the wrapping
-        if not all(j in self.add_img_csv.columns for j in ('ix', 'iy', 'iz', 'x', 'y', 'z', 'mol')):
-            self.unwrapped_avail = False
-            return self.add_img_csv
+        a = xhi - xlo
+        b = yhi - ylo
+        c = zhi - zlo
 
-        # Find the split mols
-        mol_crds = self.add_img_csv[['mol', 'ix', 'iy', 'iz']].groupby("mol", axis=0).std()
-        mask = (mol_crds['ix'] != 0) | (mol_crds['iy'] != 0) | (mol_crds['iz'] != 0)
-        split_mol_inds = mol_crds[mask].index
-        self.add_img_csv.loc[:, 'split'] = self.add_img_csv.loc[:, 'mol'].apply(lambda x: x in split_mol_inds)
+        # Get 1 molecular length
+        mol1 = self.unwrapped_csv[self.unwrapped_csv['mol'] == 1]
+        mol1.index = range(len(mol1))
+        self.mol_len = 0
+        for i in range(len(mol1)):
+            for j in range(i+1, len(mol1)):
+                R = mol1.loc[i, ['x', 'y', 'z']] - mol1.loc[j, ['x', 'y', 'z']]
+                R = (R['x']**2 + R['y']**2 + R['z']**2)**(0.5)
+                self.mol_len = max((self.mol_len, R))
+        self.mol_len /= 1.9
+        self.nmol = max(self.unwrapped_csv['mol'])
+        self.mol_map = list(self.unwrapped_csv['mol'].unique())
 
-        for i in self.add_img_csv['mol'].unique():
-            mol_df = self.add_img_csv[self.add_img_csv['mol'] == i]
-            print(mol_df)
+        def add_images(df):
+            mol = df['mol'].iloc[0]
+            centroid = np.mean(df[['x', 'y', 'z']], axis=0)
+            img = []
+            if centroid[0] > xhi - self.mol_len:
+                img.append(('x', -a))
+            if centroid[1] > yhi - self.mol_len:
+                img.append(('y', -b))
+            if centroid[2] > zhi - self.mol_len:
+                img.append(('z', -c))
+            if centroid[0] < xlo + self.mol_len:
+                img.append(('x', a))
+            if centroid[1] < ylo + self.mol_len:
+                img.append(('y', b))
+            if centroid[2] < zlo + self.mol_len:
+                img.append(('z', c))
 
-            for unit_vec, wrap_dim in zip(unit_vectors, ('ix', 'iy', 'iz')):
-                for idim, dim in enumerate('xyz'):
-                    if unit_vec[idim] != 0:
-                        mol_df[dim] += mol_df[wrap_dim] * unit_vec[idim]
+            # Add any images
+            df_orig = df.copy()
+            for dim, vec in img:
+                self.mol_map.append(mol)
+                new_df = df_orig.copy()
+                # new_df.index = range(self.nmol*self.metadata['atoms_per_molecule'], *self.metadata['atoms_per_molecule']*(self.nmol+1))
+                new_df.loc[:, dim] = new_df.loc[:, dim] + vec
+                new_df.loc[:, 'mol'] = self.nmol + 1
+                self.nmol += 1
+                df = df.append(new_df)
 
-            break
-        raise SystemExit
+            return df
+
+        self.unwrapped_csv = self.unwrapped_csv.groupby("mol", axis=0).apply(add_images)
+        self.unwrapped_csv.index = range(len(self.unwrapped_csv))
+
+        with open("mol_map_added_images.list", 'w') as f:
+            f.write(', '.join(map(str, self.mol_map)))
 
     def wrap_into_cell(self):
         """
@@ -1087,11 +1128,6 @@ class Lammps_Dump(gen_io.DataFileStorage):
         a = xhi - xlo
         b = yhi - ylo
         c = zhi - zlo
-
-        # self.unwrapped_csv['x'] -= xlo
-        # self.unwrapped_csv['y'] -= ylo
-        # self.unwrapped_csv['z'] -= zlo
-
 
         def do_wrap(data):
             if all(data['x'] < xlo) or all(data['x'] > xhi):

@@ -57,7 +57,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				 "coordinate_wrapping": "wrapped", "delete_files": True, "a1_elev": 90,
 				 "a2_elev": 0, "a1_azim": 0, "a2_azim": 0, "xy_rotation_matrix": False,
 				 "elev_increment":False, "azim_increment":1, "init_elev":30, "init_azim":0,
-				 "coupling_do_rotate": False,
+				 "coupling_do_rotate": False, "dist_cutoff": False, "dist_center_mol": 0
 				 }
 	required_metadata = ("atoms_per_molecule", "AOM_COEFF_file", "reorganisation_energy")
 
@@ -87,6 +87,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 
 		self.ats_per_mol = self.metadata['atoms_per_molecule']
+
 
 		# Only act on the first pos file.
 		xyz_data = self.Var.data.get_xyz_data()[0]
@@ -152,6 +153,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				all_data = pool.map(self.__calc_mol_couplings__, args)
 				for i in all_data:	self.data[istep].update(i)
 			else: self.data[istep] = self.__calc_mol_couplings__(args[0])
+
 			print("\rCalculated for %i mols      \n" % self.tot_mols)
 
 		self.coup_calc_count = 0
@@ -226,6 +228,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				f.write(s)
 
 		return np.array([cent[mask[i]] for i, cent in enumerate(mol_centres)]), mask
+
 
 	def _set_nproc_(self, xyz_data):
 		""" Will refine the number of processors to use."""
@@ -642,6 +645,158 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 		for step_data in self.data:
 			self._calculate_rates_in_step_(step_data)
 
+		# Do the cutoff wrt transition time.
+		if self.metadata['dist_cutoff'] is not False:
+			self._perform_dijkstra_cutoff_(self.metadata['dist_center_mol'],
+			                               self.metadata['dist_cutoff'])
+
+
+	def _perform_dijkstra_cutoff_(self, molA, cutoff):
+		"""
+		Will get the mols that are within a minimum value from a specified molecule.
+
+		Inputs:
+			* molA <int> => The mol to choose to find distance from
+			* cutoff <float> => The distance from the center mol. This depends on the
+							    data. E.g: if we have rate data then the cutoff should
+							    be in the same units as the rate (ps).
+
+		Outputs:
+			Will modify the self.Var.data varaible to only contain molecules that are
+			within a cutoff of molA.
+		"""
+		# if molA not in self.Var.mol_nums[istep]:
+		# 	raise SystemExit(f"Couldn't find molecule {molA} in the coupling data.")
+		# print(self.Var.data[istep])
+		print("Doing Dijkstra")
+		for istep in range(len(self.data)):
+			mol_nums = {i: j for j, i in enumerate(self.mol_nums[istep])}
+			if molA not in mol_nums:
+				raise SystemExit(f"Can't find mol {molA} in the selected data."
+								 + "\n\nPlease choose a molecule index (starting from 0)"
+								 + f" that appears in the range(0, {self.nmol})."
+								 + "\n\nBe careful also that the molecule chosen is in the"
+								 + " set of indices of the molecules that have been spliced"
+								 + " by any boundaries you have specified."
+								 + "\n\nAvailable molecules are: "
+								 + f"{', '.join(self.mol_nums)}.")
+
+			name_map = {j: i for i, j in mol_nums.items()}
+			data = {i: {j: self.data[istep][i][j] for j in self.data[istep][i]}
+					for i in self.data[istep]}
+
+			# # # Remove any connections larger than the cutoff by themselves
+			# # for i in self.data[istep]:
+			# # 	for j in self.data[istep][i]:
+			# # 		if data[i][j] <= cutoff: continue
+			# # 		data[i].pop(j)
+			# # 	if not data[i]: 
+			# # 		data.pop(i)
+			# # 		if i == molA:
+			# # 			print(f"Mol {molA} has no suitable connections.")
+			# # 			self.data[istep] = {}
+			# # 			return
+
+			data = self.fill_graph(data, name_map)
+			minDists = self._do_dijkstra_(data, molA)
+			# Convert back to indices
+			minDists = {mol_nums[i]: j for i, j in minDists.items()}
+			data = {mol_nums[i]: {mol_nums[j]: k for j, k in data[i].items()}
+					for i in data}
+			# print(minDists, cutoff)
+
+			for badInd, dist in minDists.items():
+				if dist <= cutoff: continue
+
+				# popped_inds = set()
+				if badInd in data:
+					# We don't need any connections with this node
+					data.pop(badInd)
+				else:
+					pop_inds = []
+					for j in data:
+						if badInd in data[j]: pops_inds.append(j)
+					for j in pop_inds: 
+						data[j].pop(badInd)
+						
+
+
+
+			# # for i in popped_inds: self.mol_nums[istep].pop(i)
+			# # print(data, "\n\n\n")
+			self.data[istep] = data.copy()
+			# raise SystemExit
+
+			# print(self.data[istep])
+			# raise SystemExit
+
+
+	def fill_graph(self, graph, name_map=False):
+		"""
+		Will return a weighted graph with the both directions.
+
+		The coupling graph is usually stored in a reduced (sparse) form.
+		i.e. all edges are bi-directional so only 1 direction is stored.
+
+		This function will add the other direction to the graph.
+
+		Inputs:
+			* graph <dict<dict>> => The graph stored as a dict of dicts.
+			* name_map <dict> => A map to change the names of the keys in
+								 the graph.
+
+		Ouputs:
+			The new complete graph.
+		"""
+		new_graph = {}
+		for i in graph:
+			for j in graph[i]:
+				val = graph[i][j]
+
+				if name_map is not False:
+					iname, jname = name_map[i], name_map[j]
+				else: iname, jname = i, j
+
+				new_graph.setdefault(iname, {})[jname] = val
+				new_graph.setdefault(jname, {})[iname] = val
+
+		return new_graph
+
+	def _do_dijkstra_(self, graph, molA):
+		"""
+		Will perform dijkstra and return a list of weights to all other nodes from the
+		selected mol.
+		"""
+		unvisited_nodes=graph.copy()
+		shortest_distance={}
+
+		for nodeA in unvisited_nodes:
+		    shortest_distance[nodeA]=float("inf")
+
+		    for nodeB in unvisited_nodes[nodeA]:
+		    	shortest_distance[nodeB] = float("inf")
+		shortest_distance[molA]=0
+
+		while(unvisited_nodes):
+		    min_Node=None
+		    
+		    for current_node in unvisited_nodes: 
+		        if min_Node is None:
+		            min_Node=current_node
+		        elif shortest_distance[min_Node] > shortest_distance[current_node]:
+		            min_Node=current_node
+		    
+		    for child_node,value in unvisited_nodes[min_Node].items():
+		        if value + shortest_distance[min_Node] < shortest_distance[child_node]:  
+		            shortest_distance[child_node] = value + shortest_distance[min_Node]
+
+		    unvisited_nodes.pop(min_Node)
+		    
+		return shortest_distance
+
+
+
+
 	def _calculate_rates_in_step_(self, step_data):
 		"""
 		Will calculate the ET transfer rate for each molecule in the step.
@@ -749,6 +904,7 @@ class Couplings(gen_calc.Calc_Type):
 			plt.show()
 			# f.savefig(f'Coupling_Layer_{re.sub("[a-zA-Z ]", "", self.Var["title"])}.png')
 			# plt.close()
+
 
 	def plot_couplings(self, a=False):
 		if a is False:

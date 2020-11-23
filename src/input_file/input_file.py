@@ -1743,14 +1743,17 @@ class INP_File(object):
         if script_txt is False and type(filepath) is str:
             with open(filepath, 'r') as file_:
                 script_txt = file_.read()
+        
         elif type(script_txt) is str and filepath is False:
             filepath = "inline-script"
+        
         else:
             SystemError("'exec_python_script' function used incorrectly!"
                         +" Choose either script_txt or filepath")
 
         # Declare all the variables in the global scope so the user can use them
         _vars = {var_name: getattr(self, var_name) for var_name in self.variables}
+
 
         # Run the script in a try loop
         try:
@@ -1764,7 +1767,7 @@ class INP_File(object):
 
             err_msg += "\n\n\n\n\n\nPython Script:\n" + script_txt
 
-            self.print_error(err_msg)#, errorFunc=SystemExit)
+            self.print_error(err_msg)
 
         for var_name in _vars:
             setattr(self, var_name, _vars[var_name])
@@ -1816,7 +1819,6 @@ class INP_File(object):
             line = re.sub(ind_search, "", py_script[line_num])
             py_script[line_num] = line
         py_script = '\n'.join(py_script)
-
 
         self.exec_python_script(script_txt=py_script)
 
@@ -2045,13 +2047,16 @@ class INP_File(object):
                 self.print_error(f"Can't find variable '{check_var}'")
 
             Var = getattr(self, check_var)
-            if type(Var.data) == str:
+            if hasattr(Var, "data") and type(Var.data) == str:
                 str_var = str(Var)
                 str_var = re.sub("Variable .*:[\n]+", "", str_var)
                 line = line.replace(f"${check_var}", str_var)
-            
+
+            elif hasattr(Var, "data"):
+                line = line.replace(f"${check_var}", str(Var.data))
+
             else:
-                line = Var.data
+                line = line.replace(f"${check_var}", str(Var))
 
         return line, any_vars
 

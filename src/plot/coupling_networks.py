@@ -112,10 +112,10 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		"""
 		self._init_plot_params_()
 
-
 		xyz_data = self.Var.get_xyz_data()
 		cols = self.Var.get_xyz_cols()
 		for istep in range(len(xyz_data)):
+
 			self.f = plt.figure(figsize=(16, 9))
 			if self.do_COM_plot:
 				self.a1 = self.f.add_subplot(121, projection="3d", proj_type = 'ortho');

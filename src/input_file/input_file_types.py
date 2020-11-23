@@ -1061,6 +1061,10 @@ class Vars(dict):
                 self['lammps_dump'].wrap_into_cell()
                 wrap = "into_cell"
 
+            elif self.metadata['coordinate_wrapping'] == "into_cell_with_img":
+                self['lammps_dump'].wrap_into_cell_with_image()
+                wrap = "into_cell_with_img"
+
             else:
                 raise SystemExit("I don't understand the coordinate_wrapping instruction." +
                                  "\n\nChoose from:" + 
@@ -1069,6 +1073,7 @@ class Vars(dict):
                                  "\n\t* wrapped" + 
                                  "\n\t* unwrap_split_mols" +
                                  "\n\t* into_cell"
+                                 "\n\t* into_cell_with_img"
                                  )
 
         # Set which data to use
@@ -1078,6 +1083,7 @@ class Vars(dict):
         elif wrap == "wrap": csv_data = self['lammps_dump'].wrapped_csv
         elif wrap == "unwrap_split_mols": csv_data = self['lammps_dump'].unwrapped_csv
         elif wrap == "into_cell": csv_data = self['lammps_dump'].unwrapped_csv
+        elif wrap == "into_cell_with_img": csv_data = self['lammps_dump'].unwrapped_csv
         else: raise SystemExit("Can't find correct csv data from lammps log. Please point me to where it is.")
 
         csv_data.index = range(len(csv_data))

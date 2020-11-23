@@ -33,7 +33,7 @@ class Angular_Dist(gen_calc.Calc_Type):
     _write_types = ('json', 'csv',)
     required_metadata = ('atoms_per_molecule', 'plot_angular_distribution')
     _defaults = {'number_bins': 'auto', 'histogram_density': True,
-                 'plot_angular_distribution': False,
+                 'plot_angular_distribution': False, 'nearest_neighbour_dist': float("inf"),
                 }
     # Need these 3 attributes to create a new variable type
     data = {}
@@ -83,22 +83,25 @@ class Angular_Dist(gen_calc.Calc_Type):
             # Get the angle of the long and short axis with every other molecule
             nmol = len(mol_crds)
             data_size = int(nmol * (nmol - 1) / 2)
-            self.long_angles = np.zeros(data_size)
-            self.short_angles = np.zeros(data_size)
+            self.long_angles = []
+            self.short_angles = []
             count = 0
-            for mol1 in range(1, nmol):
-                long_angles = self.get_angles_between_vecs(mol1, self.long_vecs,
-                                                           long_mags)
-                short_angles = self.get_angles_between_vecs(mol1, self.short_vecs,
-                                                            short_mags)
+            centroids = np.mean(mol_crds, axis=1)
+            inds = np.arange(nmol)
 
-                self.short_angles[count: count + len(short_angles)] = short_angles
-                self.long_angles[count: count + len(short_angles)] = long_angles
-                count += len(short_angles)
+            for mol1 in range(nmol):
+                disp = centroids - centroids[mol1]
+                dist = np.linalg.norm(disp, axis=1)
+                close_inds = inds[dist < self.metadata['nearest_neighbour_dist']]
 
-            # Convert to degress cuz they're nicer
-            #self.long_angles  *= 180. / np.pi
-            #self.short_angles *= 180. / np.pi
+                long_angles = self.get_angles_between_vecs(self.long_vecs[mol1], self.long_vecs[close_inds],
+                                                           long_mags[mol1], long_mags[close_inds])
+                short_angles = self.get_angles_between_vecs(self.short_vecs[mol1], self.short_vecs[close_inds],
+                                                            short_mags[mol1], short_mags[close_inds])
+
+                self.short_angles.extend(short_angles)
+                self.long_angles.extend(long_angles)
+                count += len(close_inds)
 
             self.long_counts, self.long_bin_edges = np.histogram(self.long_angles,
                                   density=True, bins=self.metadata['number_bins'])
@@ -109,7 +112,7 @@ class Angular_Dist(gen_calc.Calc_Type):
             self.plot()
             plt.show()
 
-    def get_angles_between_vecs(self, vec_ind, vecs, mags):
+    def get_angles_between_vecs(self, vec, vecs, mag, mags):
         """
         Will get the angle a vector makes with many other vectors
 
@@ -120,13 +123,8 @@ class Angular_Dist(gen_calc.Calc_Type):
         Outputs:
             <array> All angles between vecA and other_vecs
         """
-        vecA = vecs[vec_ind]
-        magA = mags[vec_ind]
-        vecs = vecs[:vec_ind]
-        mags = mags[:vec_ind]
-
-        dots = np.sum(vecA * vecs, axis=1)
-        mags = magA * mags
+        dots = np.sum(vec * vecs, axis=1)
+        mags = mag * mags
         angles = dots/mags #) * 180/np.pi
 
         return angles

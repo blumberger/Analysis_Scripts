@@ -9,6 +9,7 @@
 #include "XYZ_File.hpp"
 #include "Veloc_File.hpp"
 #include "input_file.hpp"
+#include "CP2K_files.hpp"
 
 
 namespace fs = std::filesystem;
@@ -16,8 +17,39 @@ namespace fs = std::filesystem;
 bool do_NN = false;
 double NN_cutoff = -1;
 
+// Init some arrays to store at indices
+std::vector<std::vector<int>> NN_ats; // Nearest neighbour
+std::vector<std::vector<int>> fixed_ats; // atoms which get fixed.
+std::vector<std::vector<int>> act_ats; // active ats
+std::vector<std::vector<int>> inact_ats; // inactive ats
+std::vector<std::vector<int>> MD_ats; // NN + act ats
+
 
 int main() {
+
+    // cp2k::INP NVE_Equilib;
+    // NVE_Equilib.add_section("global");
+    // NVE_Equilib.add_section("bob", "global");
+    // // NVE_Equilib.add_section("bob", "global");
+    // // // NVE_Equilib.add_tag("BLACS_GRID", "SQUARE", "global");
+    // // // NVE_Equilib.add_tag("PREFERRED_FFT_LIBRARY", "FFTW", "global");
+    // // // NVE_Equilib.add_tag("PRINT_LEVEL", "LOW", "global");
+    // // // NVE_Equilib.add_tag("PROGRAM_NAME", "CP2K", "global");
+    // // // NVE_Equilib.add_tag("PROJECT_NAME", "run", "global");
+    // // // NVE_Equilib.add_tag("RUN_TYPE", "MD", "global");
+    
+    // // // NVE_Equilib.add_section("MOTION");
+    // // // NVE_Equilib.add_section("MD", "MOTION");
+    // // // NVE_Equilib.add_tag("ENSEMBLE", "NVE", "MD");
+
+
+    // // // NVE_Equilib.add_tag("@INCLUDE", "FORCE_EVAL.inp");
+
+
+    // // std::cout << "\n\n" << NVE_Equilib.construct_file() << "\n\n" << std::endl;
+
+    // std::cout << NVE_Equilib.sections[0].name << std::endl;
+    // throw 0;
 
     /* 
         Init
@@ -32,7 +64,8 @@ int main() {
     fno["MD"] = INP.get_string("MD_system", "");
     fno["act_at"] = INP.get_string("active_ats_filename", "");
     fno["all_at"] = INP.get_string("all_ats_filename", "");
-    fno["veloc"] = INP.get_string("new_veloc_filename", "");
+    fno["veloc_MD"] = INP.get_string("new_veloc_MD_filename", "");
+    fno["veloc_act"] = INP.get_string("new_veloc_active_filename", "");
     fno["fix_at"] = INP.get_string("fixed_atoms_filename", "");
     fno["decomp"] = INP.get_string("decomp_filename", "");
     fno["AOM"] = INP.get_string("AOM_filename", "");
@@ -89,7 +122,8 @@ int main() {
         fs::remove_all(folder_out);
         fs::create_directories(folder_out);
     }
-    std::vector<std::vector<int>> NN_ats;
+
+    fs::copy("instruct.txt", folder_out + "/instruct.txt");
 
 
     /* 
@@ -111,67 +145,128 @@ int main() {
     */
     // Slice the data
     std::vector<std::vector<int>> mol_nums;
-    auto act_atoms = Pos.slice_by_COM(apm, slices, mol_nums, fno["mol_nums"], fno["COM"]);
+    act_ats = Pos.slice_by_COM(apm, slices, mol_nums, fno["mol_nums"], fno["COM"]);
+    int num_act_ats = act_ats[0].size();
+    int num_tot_ats = Pos.natoms;
+    int num_inact_ats = num_tot_ats - num_act_ats;
+
+    // Get the inactive atom indices
+    // Total Atoms - active ones
+    inact_ats.resize(Pos.nsteps);
+    for (auto istep=0; istep<Pos.nsteps; istep++) {
+        int count = 0; int j = 0;
+        inact_ats[istep].resize(num_inact_ats);
+
+        for (auto i=0; i<Pos.natoms; i++) {
+            if (i == act_ats[istep][count]) {
+                count++;
+            } else {
+                inact_ats[istep][j] = i;
+                j++;
+            }
+        }
+
+    }
+
     // Get the molecules with COM within a defined distance of the active molecules.
     if (do_NN) {
-        auto Active_Pos_File = Pos.index_atoms(act_atoms);
+        auto Active_Pos_File = Pos.index_atoms(act_ats);
         auto COM_File = Active_Pos_File.get_COMs(apm);
         NN_ats = Pos.get_nearest_COM_to_pos(COM_File, mol_nums[0], apm, NN_cutoff);
         Pos.write(fno["NN"], NN_ats);
 
         if (fno["MD"] != "") {
-            // Populate an array with all the 
-            std::vector<int> tmp (NN_ats[0].size() + act_atoms[0].size(), 0);
-
+            // Populate an MD_ats array with all the indices
+            std::vector<int> tmp (NN_ats[0].size() + act_ats[0].size(), 0);
+            fixed_ats.resize(1);
+            fixed_ats[0].resize(NN_ats[0].size());
             for (auto i=0; i<NN_ats[0].size(); i++) {
                 tmp[i] = NN_ats[0][i];
+                fixed_ats[0][i] = i;
             }
             auto count=NN_ats[0].size();
-            for (auto i=0; i<act_atoms[0].size(); i++) {
-                tmp[count] = act_atoms[0][i];
+            for (auto i=0; i<act_ats[0].size(); i++) {
+                tmp[count] = act_ats[0][i];
                 count ++;
             }
-            std::vector<std::vector<int>> MD_ats(1, tmp);
+            MD_ats.resize(1);
+            MD_ats[0] = tmp;
             Pos.write(fno["MD"], MD_ats);
+
+            std::fstream mol_num_file;
+            mol_num_file.open(fno["mol_nums"], std::ios::out);
+            for (auto istep=0; istep<NN_ats.size(); istep++) {
+                mol_num_file << istep << ":\n";
+                for (auto i=(int) NN_ats[istep].size()/apm; i<MD_ats[0].size()/apm; i++) {
+                    mol_num_file << i << " ";
+                }
+                mol_num_file << "\n";
+            }   
+            mol_num_file.close();
         }
+    } 
+
+    // Otherwise the MD ats are all atoms and fixed ats are inactive atoms
+    else {
+        MD_ats.resize(Pos.nsteps);
+        for (auto istep=0; istep<Pos.nsteps; istep++) {
+            MD_ats[istep].resize(Pos.natoms);
+            for (auto iat=0; iat<Pos.natoms; iat++) {
+                MD_ats[istep][iat] = iat;
+            }
+        }
+        fixed_ats = inact_ats;
     }
+
+
 
     /*
         Write Any Data Required.
     */
     // Write the files
     if (fno["all_at"] != "")
-        Pos.write(fno["act_at"], act_atoms);
-    if (fno["veloc"] != "")
-        Vel.write(fno["veloc"], act_atoms[0]);
+        Pos.write(fno["act_at"], act_ats);
+    if (fno["veloc_MD"] != "")
+        Vel.write(fno["veloc_MD"], MD_ats[0]);
+    if (fno["veloc_act"] != "")
+        Vel.write(fno["veloc_act"], act_ats[0]);
 
     // Set the active atoms in an array
     if (fno["fix_at"] != "" or fno["inact_at"] != "") {
         // Create mask of bools: shape (natoms, ); true = active; false = inactive
         std::vector<bool> act_at_mask (Pos.natoms, false);
-        for (auto iat : act_atoms[0])
+        for (auto iat : act_ats[0])
             act_at_mask[iat] = true;
 
-        // Total Atoms - active ones
-        int inact_atoms = Pos.natoms - act_atoms[0].size();
+
         // Write the fixed atoms file.
         if (fno["fix_at"] != "") {
             std::fstream fix_at_file;
             fix_at_file.open(fno["fix_at"], std::ios::out);
-            fix_at_file << "&FIXED_ATOMS\n\tLIST ";
+            fix_at_file << "&FIXED_ATOMS";
 
             // Write the FIXED_ATOMS file
-            if (do_NN) 
-                for (auto i=0; i<NN_ats[0].size(); i++)
-                    fix_at_file << i+1 << " ";
+            const int fixed_at_list_lim = apm;
+            const int niter = (int) (fixed_ats[0].size() + apm -1) / fixed_at_list_lim;
 
-            else {
-                for (auto iat=0; iat<Pos.natoms; iat++) {
-                    if (not act_at_mask[iat]) {
-                        fix_at_file << iat+1 << " ";
-                    }
+            auto iat = 0;
+            for (auto i=0; i<niter; i++) {
+                fix_at_file << "\n\tLIST ";
+                iat = i*fixed_at_list_lim;
+                for (auto j=0; j<fixed_at_list_lim; j++) {
+                    fix_at_file << iat << " ";
+                    iat++;
                 }
             }
+            fix_at_file << iat << " ";
+
+
+            // for (auto i=0; i<fixed_ats[0].size(); i++) {
+            //     fix_at_file << fixed_ats[0][i]+1 << " ";
+            //     if (i % fixed_at_list_lim == 0)
+            //         fix_at_file << "\n\tLIST ";
+            // }
+
             fix_at_file << "\n&END FIXED_ATOMS";            
             fix_at_file.close();
         } 
@@ -181,7 +276,7 @@ int main() {
         if (fno["inact_at"] != "") {
             std::vector<std::vector<int>> inactive_atoms_arr;
             inactive_atoms_arr.resize(1);
-            inactive_atoms_arr[0].resize(inact_atoms);
+            inactive_atoms_arr[0].resize(num_inact_ats);
             int count = 0;
             for (auto iat=0; iat<Pos.natoms; iat++){
                 if (not act_at_mask[iat]) {
@@ -195,9 +290,16 @@ int main() {
 
         }
 
-        std::cout << "Num inactive atoms: " << inact_atoms << std::endl;
-        std::cout << "Num Active atoms:   " << act_atoms[0].size() << std::endl;
+        std::cout << "Num inactive atoms: " << num_inact_ats << std::endl;
+        std::cout << "Num Active atoms:   " << num_act_ats << std::endl;
         std::cout << "Num Total atoms:    " << Pos.natoms << std::endl;
+        std::cout << "Num Active Mols:    " << num_act_ats / apm << std::endl;
+        if (do_NN)
+            std::cout << "Num NN atoms:       " << NN_ats[0].size() << std::endl;
+            std::cout << "Num System Mols:    " << (num_act_ats + NN_ats[0].size()) / apm << std::endl;
+        if (num_inact_ats + num_act_ats != Pos.natoms) {
+            std::cerr << "\n\nERROR: # Inactive Ats != # Active Ats\n\n" << std::endl;
+        }
     }
 
     // Write the DECOMP file if requested.
@@ -207,10 +309,10 @@ int main() {
             decomp_file.open(fno["decomp"], std::ios::out);
             decomp_file << "&ENERGY_DECOMP\n\tINDEX_MOL_DECOMP ";
             int first_mol = (int) NN_ats[0].size() / apm;
-            int num_mols = (int) act_atoms[0].size() / apm;
+            int num_mols = (int) act_ats[0].size() / apm;
             for (auto i=first_mol+1; i<1+num_mols+first_mol; i++)
                 decomp_file << i << " ";
-            decomp_file << "\n\tNUM_ACTIVE_ATOMS " << act_atoms[0].size();
+            decomp_file << "\n\tNUM_ACTIVE_ATOMS " << act_ats[0].size();
             decomp_file << "\n&END ENERGY_DECOMP";
             decomp_file.close();
         } else {
@@ -242,7 +344,7 @@ int main() {
                 while( getline(AOM_in_file, line))
                     single_mol = single_mol + "\n" + line;
 
-                for (auto i=0; i<(int)act_atoms[0].size()/36; i++)
+                for (auto i=0; i<(int) act_ats[0].size()/36; i++)
                     AOM_out_file << single_mol;
 
                 AOM_out_file.close();

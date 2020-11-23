@@ -1,30 +1,37 @@
-# How to slice the structure = = = fdlskfjsldk j=sd sdf sdklfj sd=f sd
+# How to slice the structure
 zmin = 15
 zmax = 29
-xmin = 60
-xmax = 160
-ymin = 70
-ymax = 170
+xmin = 105
+xmax = 190
+ymin = 0
+ymax = 80
+
+#xpoints: 25, 105, 185
+#ypoints: 25, 87, 158, 230
 
 # Nearest neighbour distance
-NN_cutoff = 14
+NN_cutoff = 11
 
 # Some system properties
 atoms_per_molecule=36
 
 # Input files
-in_folder = /home/matt/Data/Work/NewPentaceneSlab/24_25_5/Fixed_Atoms_FSSH
-pos_filename = pos-init.xyz
-vel_filename = VELOC.init
+#in_folder = /home/matt/Data/Work/NewPentaceneSlab/24_25_5/Fixed_Atoms_FSSH
+in_folder = /home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC
+pos_filename = wrapped_in_added_img.xyz
+vel_filename = NEW_VELOC.init
 AOM_single_mol = ../../data/AOM_COEFFs/Pentacene_Lammps_Single_Mol.include
 
 # Output files
-out_folder = ./Data
+out_folder = ./Slice2
 MD_system = pos-init.xyz
 inactive_ats_filename = inactive_ats.xyz
 all_ats_filename = all_ats.xyz
 active_ats_filename = active_ats.xyz
-new_veloc_filename = VELOC.init
+
+new_veloc_MD_filename = VELOC.init
+new_veloc_active_filename = VELOC_ACTIVE.init
+
 fixed_atoms_filename = FIXED_ATOMS.inp
 mol_nums_filename = mol_nums.txt
 COM_filename = COM.xyz

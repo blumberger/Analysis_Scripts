@@ -1765,7 +1765,9 @@ class INP_File(object):
                 err_msg += f"Bad Line: {e.text}" + "\n" + f"Line Num: {e.lineno}"
                 err_msg += "\nError Msg: " + f"{e.msg}"
 
-            err_msg += "\n\n\n\n\n\nPython Script:\n" + script_txt
+            ltxt = script_txt.split("\n")
+            ltxt[e.lineno-1] += "   <------- BAD LINE"
+            err_msg += "\n\n\n\n\n\nPython Script:\n" + '\n'.join(ltxt)
 
             self.print_error(err_msg)
 
@@ -1800,6 +1802,8 @@ class INP_File(object):
         end_line = self.get_end_brace()
 
         py_script = self.file_ltxt[self.line_num+2:end_line]
+        # Replace tabs with spaces so things run!
+        py_script = list(map(lambda x: x.replace("\t", "    "), py_script))
 
 
         # Now shift everything back to the minimum indentation

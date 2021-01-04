@@ -34,8 +34,8 @@ class Coupling_Networks(gen_plot.Plot_Type):
 				 "plot_coupling_COM": True,
 				 }
 	required_metadata = ("reorganisation_energy",)
-	required_var_attributes = ("get_xyz_data", "get_xyz_cols", "mol_centroids",
-							   "data", "all_centroids", "spliced_crds",
+	required_var_attributes = ("get_xyz_data", "get_xyz_cols", "mol_COM",
+							   "data", "all_COM", "spliced_crds",
 							   "spliced_cols", "mol_nums",
 							  )
 	network_colors = {1: ('r',), 2: ('r', 'b',), 3: ('r', 'g', 'b',),
@@ -124,30 +124,30 @@ class Coupling_Networks(gen_plot.Plot_Type):
 				self.a1 = self.f.add_subplot(111, projection="3d", proj_type = 'ortho');
 
 
-			self.graph_data = self.__get_coupling_connections__(self.Var.mol_centroids[istep],
+			self.graph_data = self.__get_coupling_connections__(self.Var.mol_COM[istep],
 																self.Var.data[istep],
 																self.plot_params)
-			self.nmol = len(self.Var.mol_centroids[0])
+			self.nmol = len(self.Var.mol_COM[0])
 			self._get_grains_()
 
 			if not self.metadata['plot_coupling_grains']:
-				self._plot_coupling_connections_(self.Var.mol_centroids[istep], self.plot_params, self.a1)
+				self._plot_coupling_connections_(self.Var.mol_COM[istep], self.plot_params, self.a1)
 			else: 
-				self._plot_coupling_connections_(self.Var.mol_centroids[istep], self.plot_params,
+				self._plot_coupling_connections_(self.Var.mol_COM[istep], self.plot_params,
 												 self.a1, ignore_cats=[0, 2])
-				self.plot_grains(self.Var.mol_centroids[istep], self.a1)
+				self.plot_grains(self.Var.mol_COM[istep], self.a1)
 
 			if self.do_COM_plot:
-				self._plot_mol_selection_(self.Var.all_centroids[istep],
-										  self.Var.mol_centroids[istep],
+				self._plot_mol_selection_(self.Var.all_COM[istep],
+										  self.Var.mol_COM[istep],
 										  self.a2)
 
 			if self.metadata['plot_coupling_atoms']:
 				self._plot_coupling_atoms_(self.Var.spliced_crds[istep], self.Var.spliced_cols[istep], self.a1)
 			if self.metadata['plot_coupling_mol_numbers']:
-				self._plot_mol_nums_(self.Var.mol_centroids[istep], istep, self.a1)
+				self._plot_mol_nums_(self.Var.mol_COM[istep], istep, self.a1)
 			if self.show_pop:
-				self._plot_pops(self.Var.mol_centroids[istep], self.a1, istep)
+				self._plot_pops(self.Var.mol_COM[istep], self.a1, istep)
 
 
 			self.a1.view_init(elev=self.metadata['a1_elev'], azim=self.metadata['a1_azim'])
@@ -274,6 +274,12 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		ax.set_ylim([ylim[0] - y_ext, ylim[1] + y_ext])
 		ax.set_zlim([zlim[0] - z_ext, zlim[1] + z_ext])
 
+		ax.set_xticks([xlim[0], xlim[-1]])
+		ax.set_yticks([ylim[0], ylim[-1]])
+		ax.set_zticks([zlim[0], zlim[-1]])
+
+		plt.connect("motion notify event", lambda evt: print(evt))
+
 		return ax
 
 	def _plot_pops(self, all_mol_centre, ax, istep=0):
@@ -332,6 +338,7 @@ class Coupling_Networks(gen_plot.Plot_Type):
 
 		self._plot_xyz_data(all_mol_crds, ax,
 							args={'ls': 'none', 'marker': '.', 'color': 'k', 'ms': 3})
+
 		for plot_data in self.graph_data:
 			if plot_data['category'] in ignore_cats:
 				continue
@@ -384,6 +391,12 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		# ax.text(x=mxx+0.2*rx, y=mny, z=mnz, s=stats_msg, fontsize=13,
 		# 		verticalalignment="top", horizontalalignment="left")
 
+		# Plot the start of dijkstra (needs to be last so the dot is on top)
+		if self.Var.metadata['dist_center_mol']:
+			molA = self.Var.metadata['dist_center_mol']
+			xyz = all_mol_crds[self.Var.data.rev_mol_nums[0][molA]]
+			ax.plot([xyz[0]], [xyz[1]], [xyz[2]], 'bo', ms=10)
+
 	def _plot_mol_selection_(self, all_mols, mol_selection, ax=False):
 		"""
 		Will plot the molecules selected within the full system.
@@ -407,6 +420,7 @@ class Coupling_Networks(gen_plot.Plot_Type):
 		# Plot the selected molecules as red blobs
 		self._plot_xyz_data(mol_selection, ax,
 							args={'ls': 'none', 'marker': 'o', 'color': 'r'})
+
 
 		ax.set_title("Mols selected in red")
 		return ax

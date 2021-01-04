@@ -1118,7 +1118,7 @@ class Lammps_Dump(gen_io.DataFileStorage):
         """
         self.unwrapped_avail = True
         # First unwrap the mols so they're all together
-        self.unwrap_coords()
+        self.unwrapped_csv = copy.deepcopy(self.csv_data)
         # Translate the pos for convenience
         unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
         xlo, xhi = self.metadata['xlo'], self.metadata['xhi']
@@ -1129,26 +1129,54 @@ class Lammps_Dump(gen_io.DataFileStorage):
         b = yhi - ylo
         c = zhi - zlo
 
-        def do_wrap(data):
-            if all(data['x'] < xlo) or all(data['x'] > xhi):
-                d = a - data.iloc[0]['x']
-                x = int(d//a) * a
-                data['x'] += x
+        def do_unwrap(mol_data):
+            """
+            If a molecule is split then this will unwrap it.
+            """
+            ignore_dims = [False, False, False]
+            for in_, name in enumerate(('ix', 'iy', 'iz')):
+                test_val = mol_data[name].iloc[0]
+                if all(j == test_val for j in mol_data[name]):
+                    ignore_dims[in_] = True
 
-            if all(data['y'] < ylo) or all(data['y'] > yhi):
-                d = b - data.iloc[0]['y']
-                y = int(d//b) * b
-                data['y'] += y
+            # Do the wrapping.
+            if all(ignore_dims): return mol_data
+            mol_data['split'] = True
+            unit_vectors = self.metadata['a'], self.metadata['b'], self.metadata['c']
+            for in_, (unit_vec, wrap_dim) in enumerate(zip(unit_vectors, ('ix', 'iy', 'iz'))):
+                if ignore_dims[in_]: continue
+                for idim, dim in enumerate('xyz'):
+                    if unit_vec[idim] != 0:
+                        mol_data[dim] += mol_data[wrap_dim] * unit_vec[idim]
 
-            if all(data['z'] < zlo) or all(data['z'] > zhi):
-                d = c - data.iloc[0]['z']
-                z = int(d//c) * c
-                data['z'] += z
+            return mol_data
 
-            return data
+        def do_wrap(mol_data):
+            """
+            Will take the dataframe for each mol (use groupby) and move it correctly
+            """
+            if not all(mol_data['split']): return mol_data
 
+            if all(mol_data['x'] < xlo) or all(mol_data['x'] > xhi):
+                d = a - mol_data['x'].iloc[0]
+                x = round(d/a) * a
+                mol_data['x'] += x
+
+            if all(mol_data['y'] < ylo) or all(mol_data['y'] > yhi):
+                d = b - mol_data['y'].iloc[0]
+                y = round(d/b) * b
+                mol_data['y'] += y
+
+            if all(mol_data['z'] < zlo) or all(mol_data['z'] > zhi):
+                d = c - mol_data['z'].iloc[0]
+                z = round(d/c) * c
+                mol_data['z'] += z
+
+            return mol_data
+
+        self.unwrapped_csv['split'] = False
+        self.unwrapped_csv = self.unwrapped_csv.groupby("mol", axis=0).apply(do_unwrap)
         self.unwrapped_csv = self.unwrapped_csv.groupby("mol", axis=0).apply(do_wrap)
-
 
     def unwrap_split_mols(self):
         """

@@ -17,6 +17,23 @@ PT = json.read_json("src/data/periodic_table.json")
 PT_abbrv = {PT[i]['abbreviation']: {**PT[i], **{'full_name': i}} for i in PT}
 
 
+def get_central_mol(COM):
+    """
+    Will get the index of the central molecule
+
+    Inputs:
+        * COM <array> => The centers of mass of the molecules (nmol, ndim).
+
+    Outputs:
+        <int> The central molecule index
+    """
+    center = np.mean(COM, axis=0)
+    dists = COM - center
+
+    ind = np.argmin(np.linalg.norm(dists, axis=1))
+    return ind
+
+
 def get_atom_type(mass):
     """
     Get the atom type from the atomic mass.

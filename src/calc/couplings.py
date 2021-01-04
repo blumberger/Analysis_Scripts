@@ -104,14 +104,14 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 
 
 		# Decide which molecules to calculate the coupling for.
-		self.all_centroids = mol_utils.get_COM_split_mols(all_mol_crds_orig, all_mol_cols_orig[0])
+		self.all_COM = mol_utils.get_COM_split_mols(all_mol_crds_orig, all_mol_cols_orig[0])
 		all_mol_crds, all_mol_cols = self._get_mol_nums_(all_mol_crds_orig, all_mol_cols_orig)
-		self.mol_centroids = np.array([cent[mask] for cent, mask in zip(self.all_centroids, self.mol_nums)])
+		self.mol_COM = np.array([cent[mask] for cent, mask in zip(self.all_COM, self.mol_nums)])
 
-		self.mol_centroids, mol_mask = self._apply_boundaries_(self.mol_centroids, do_mol_nums=True)
+		self.mol_COM, mol_mask = self._apply_boundaries_(self.mol_COM, do_mol_nums=True)
 		mol_cols = np.array([col[mask] for col, mask in zip(all_mol_cols, mol_mask)])
 		mol_crds = np.array([crds[mask] for crds, mask in zip(all_mol_crds, mol_mask)])
-		
+
 
 		# Decide how many procs to use
 		self._set_nproc_(mol_crds)
@@ -127,7 +127,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		# Get the Nearest neighbour dict
 		mol_NN = np.array([[calc_all_dists(pos_ind, step_data, self.metadata['NN_cutoff'])
 							for pos_ind in range(len(step_data))]
-						   for step_data in self.mol_centroids])
+						   for step_data in self.mol_COM], dtype=object)
 
 		# Create all the configuration files that will be needed.
 		unique_elm = self.__get_unique_elements__(all_mol_cols)
@@ -213,7 +213,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		# Apply the mask
 		if do_mol_nums:
 			self.mol_nums = np.array([nums[mask[i]] for i, nums in enumerate(self.mol_nums)])
-			
+
 			# If we have removed some mols then change the mol_nums list
 			s = "\n".join(map(lambda x: ' '.join(map(str, x)), self.mol_nums))
 			if 'lammps_dump' in self.Var.data:
@@ -226,6 +226,9 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			# Write the mol numbers that are shown in the slice if we have removed some!
 			with open('mol_nums.txt', 'w') as f:
 				f.write(s)
+
+		self.rev_mol_nums = [{i: j for j, i in enumerate(mol_nums)}
+							 for mol_nums in self.mol_nums]
 
 		return np.array([cent[mask[i]] for i, cent in enumerate(mol_centres)]), mask
 
@@ -240,7 +243,7 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 		# Decide how many procs to use.
 		if self.nproc > mp.cpu_count(): self.nproc = mp.cpu_count()
 		elif self.nproc < 1: self.nproc = 1
-		
+
 		max_proc = np.ceil(xyz_data.shape[1] / min_mol_per_proc)
 		if self.nproc > max_proc: self.nproc = max_proc
 
@@ -276,6 +279,9 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 							 + f"'{type(self.metadata['molecule_numbers'])}' not understood "
 							 + " for parameter 'molecule_numbers'.")
 
+		self.rev_mol_nums = [{i: j for j, i in enumerate(mol_nums)}
+							 for mol_nums in self.mol_nums]
+
 		return all_mol_crds, all_mol_cols
 
 	def __calc_mol_couplings__(self, args):#mol_nums, proc_num=0):
@@ -304,10 +310,10 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 				data.setdefault(imol1, {})[imol2] = coupling * self.metadata['AOM_scaling_factor']
 
 				self.coup_calc_count += 1
-				
+
 				num_done_blocks = int((self.coup_calc_count * self.nproc)/self.num_calcs * 19) + 1
 				# num_to_do_blocks = 20 - num_done_blocks
-				print("\r" + f"{self.num_calcs} vals to calculate ({self.tot_mols} mols) :   " 
+				print("\r" + f"{self.num_calcs} vals to calculate ({self.tot_mols} mols) :   "
 					  + "*"*num_done_blocks, end="\r")
 
 		print("\rFinished                                                                      ",
@@ -365,10 +371,10 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			<float> The coupling between mol1 and mol2
 		"""
 		t1 = time.time()
+
 		# Get mol crds
 		dimer_crds = mol_crds[[imol1, imol2]]
 		dimer_cols = mol_cols[[imol1, imol2]]
-
 		natom = np.shape(dimer_crds)[1] * 2
 		t2 = time.time()
 
@@ -384,7 +390,6 @@ class Calc_All_AOM_Couplings(gen_calc.Calc_Type):
 			self._create_config_file_(xyz_filepath, config_filepath, unique_elm)
 
 		exe_filepath = self.metadata['coupling_calc_exe']
-
 		exe_cmd = [exe_filepath, config_filepath]
 		res = subprocess.run(exe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		if res.stderr:
@@ -648,7 +653,40 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 		# Do the cutoff wrt transition time.
 		if self.metadata['dist_cutoff'] is not False:
 			self._perform_dijkstra_cutoff_(self.metadata['dist_center_mol'],
-			                               self.metadata['dist_cutoff'])
+										   self.metadata['dist_cutoff'])
+			print("\n\nFinished Dijkstra")
+			mol_nums, num_mols = self._write_mol_nums()
+			print(f"Total number of mols with connections: {' | '.join(map(str, num_mols))}" + "\n")
+
+
+	def _write_mol_nums(self, fp="mol_nums.txt"):
+		"""
+		Will write whichever molecules appear in the data graph to a file.
+
+		Inputs:
+			* fp <str> => the filepath to write to
+		"""
+		mol_nums = []
+		for istep, data in enumerate(self.data):
+			tmp = set()
+			molNums = self.mol_nums[istep]
+
+			for i in data:
+				tmp.add(molNums[i])
+
+				for j in data[i]:
+					tmp.add(molNums[j])
+
+			mol_nums.append(tmp)
+
+		num_mols = list(map(len, mol_nums))
+		mol_nums = [f"Step {i}:\n" + " ".join(map(str, list(tmp))) + "\n" for i, tmp in enumerate(mol_nums)]
+		mol_nums = ''.join(mol_nums).strip("\n")
+
+		with open(fp, 'w') as f:
+			f.write(mol_nums)
+
+		return mol_nums, num_mols
 
 
 	def _perform_dijkstra_cutoff_(self, molA, cutoff):
@@ -658,8 +696,8 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 		Inputs:
 			* molA <int> => The mol to choose to find distance from
 			* cutoff <float> => The distance from the center mol. This depends on the
-							    data. E.g: if we have rate data then the cutoff should
-							    be in the same units as the rate (ps).
+								data. E.g: if we have rate data then the cutoff should
+								be in the same units as the rate (ps).
 
 		Outputs:
 			Will modify the self.Var.data varaible to only contain molecules that are
@@ -668,42 +706,62 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 		# if molA not in self.Var.mol_nums[istep]:
 		# 	raise SystemExit(f"Couldn't find molecule {molA} in the coupling data.")
 		# print(self.Var.data[istep])
-		print("Doing Dijkstra")
 		for istep in range(len(self.data)):
-			mol_nums = {i: j for j, i in enumerate(self.mol_nums[istep])}
-			if molA not in mol_nums:
-				raise SystemExit(f"Can't find mol {molA} in the selected data."
-								 + "\n\nPlease choose a molecule index (starting from 0)"
-								 + f" that appears in the range(0, {self.nmol})."
-								 + "\n\nBe careful also that the molecule chosen is in the"
-								 + " set of indices of the molecules that have been spliced"
-								 + " by any boundaries you have specified."
-								 + "\n\nAvailable molecules are: "
-								 + f"{', '.join(self.mol_nums)}.")
+			molA_ind = molA
+			mol_nums = {mn: j for j, mn in enumerate(self.mol_nums[istep])}
+			if type(molA) == str:
+				if "cent" in molA_ind.lower():
+					xyz_data = self.Var.data.get_xyz_data()
+					molA_ind = mol_utils.get_central_mol(self.mol_COM[0])
+					molA_ind = self.mol_nums[istep][molA_ind]
+					self.metadata['dist_center_mol'] = molA_ind
+
+			while(molA_ind not in mol_nums):
+				Q = input("\n\n" + f"Can't find mol {molA_ind} in the selected data."
+						+ "\n\nPlease choose a molecule index (starting from 0)"
+						+ f" that appears in the range(0, {self.nmol})."
+						+ "\n\nBe careful also that the molecule chosen is in the"
+						+ " set of indices of the molecules that have been spliced"
+						+ " by any boundaries you have specified."
+						+ "\n\nAvailable molecules are: "
+						+ f"{', '.join(map(str, self.mol_nums))}."
+						+ "\n\nPlease choose a molecule to perform Dijkstra from"
+						+ " (select from the list above). Else type 'n'.\n\nInput: ")
+
+				if Q == "n":
+					raise SystemExit("Ok, exitting.")
+
+				else:
+					try:
+						molA_ind = int(Q)
+						self.metadata['dist_center_mol'] = molA_ind
+					except ValueError:
+						print("Please input 'n' or an integer.")
+
 
 			name_map = {j: i for i, j in mol_nums.items()}
 			data = {i: {j: self.data[istep][i][j] for j in self.data[istep][i]}
 					for i in self.data[istep]}
 
-			# # # Remove any connections larger than the cutoff by themselves
-			# # for i in self.data[istep]:
-			# # 	for j in self.data[istep][i]:
-			# # 		if data[i][j] <= cutoff: continue
-			# # 		data[i].pop(j)
-			# # 	if not data[i]: 
-			# # 		data.pop(i)
-			# # 		if i == molA:
-			# # 			print(f"Mol {molA} has no suitable connections.")
-			# # 			self.data[istep] = {}
-			# # 			return
+			# Remove any connections larger than the cutoff by themselves
+			for i in self.data[istep]:
+				for j in self.data[istep][i]:
+					if data[i][j] <= cutoff: continue
+					data[i].pop(j)
+				if not data[i]:
+					data.pop(i)
+					if i == molA_ind:
+						print(f"Mol {molA_ind} has no suitable connections.")
+						self.data[istep] = {}
+						return
 
 			data = self.fill_graph(data, name_map)
-			minDists = self._do_dijkstra_(data, molA)
+			minDists = self._do_dijkstra_(data, molA_ind)
+
 			# Convert back to indices
 			minDists = {mol_nums[i]: j for i, j in minDists.items()}
 			data = {mol_nums[i]: {mol_nums[j]: k for j, k in data[i].items()}
 					for i in data}
-			# print(minDists, cutoff)
 
 			for badInd, dist in minDists.items():
 				if dist <= cutoff: continue
@@ -712,23 +770,15 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 				if badInd in data:
 					# We don't need any connections with this node
 					data.pop(badInd)
-				else:
-					pop_inds = []
-					for j in data:
-						if badInd in data[j]: pops_inds.append(j)
-					for j in pop_inds: 
-						data[j].pop(badInd)
-						
 
+				# Remove any extra connections that may exists with the 'bad' node.
+				pop_inds = []
+				for j in data:
+					if badInd in data[j]: pop_inds.append(j)
+				for j in pop_inds:
+					data[j].pop(badInd)
 
-
-			# # for i in popped_inds: self.mol_nums[istep].pop(i)
-			# # print(data, "\n\n\n")
 			self.data[istep] = data.copy()
-			# raise SystemExit
-
-			# print(self.data[istep])
-			# raise SystemExit
 
 
 	def fill_graph(self, graph, name_map=False):
@@ -771,27 +821,27 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 		shortest_distance={}
 
 		for nodeA in unvisited_nodes:
-		    shortest_distance[nodeA]=float("inf")
+			shortest_distance[nodeA]=float("inf")
 
-		    for nodeB in unvisited_nodes[nodeA]:
-		    	shortest_distance[nodeB] = float("inf")
+			for nodeB in unvisited_nodes[nodeA]:
+				shortest_distance[nodeB] = float("inf")
 		shortest_distance[molA]=0
 
 		while(unvisited_nodes):
-		    min_Node=None
-		    
-		    for current_node in unvisited_nodes: 
-		        if min_Node is None:
-		            min_Node=current_node
-		        elif shortest_distance[min_Node] > shortest_distance[current_node]:
-		            min_Node=current_node
-		    
-		    for child_node,value in unvisited_nodes[min_Node].items():
-		        if value + shortest_distance[min_Node] < shortest_distance[child_node]:  
-		            shortest_distance[child_node] = value + shortest_distance[min_Node]
+			min_Node=None
 
-		    unvisited_nodes.pop(min_Node)
-		    
+			for current_node in unvisited_nodes:
+				if min_Node is None:
+					min_Node=current_node
+				elif shortest_distance[min_Node] > shortest_distance[current_node]:
+					min_Node=current_node
+
+			for child_node,value in unvisited_nodes[min_Node].items():
+				if value + shortest_distance[min_Node] < shortest_distance[child_node]:
+					shortest_distance[child_node] = value + shortest_distance[min_Node]
+
+			unvisited_nodes.pop(min_Node)
+
 		return shortest_distance
 
 
@@ -868,7 +918,7 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 			#print( factor
 		else:
 			print( "method should be NA or AD")
-	   
+
 		if barrier < 0:
 			barrier = 0.0
 		#print( barrier

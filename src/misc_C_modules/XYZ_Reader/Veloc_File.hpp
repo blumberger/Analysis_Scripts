@@ -18,9 +18,9 @@ namespace vel {
 	            file.open(fp, std::ios::in);
 
 	            if (! file.is_open()) {
-	            	std::cerr << "Can't Find VELOC File!" << std::endl;
+	            	std::cerr << "\n\nCan't Find VELOC File!" << std::endl;
 	            	std::cerr << "Filepath: " << fp << "\n" << std::endl;
-	                throw "No File Found!";
+	                exit(1);
 	            }
 
 	        }
@@ -62,11 +62,11 @@ namespace vel {
 	            float nmolF = natoms / natom_per_molecule;
 	            int nmol = (int) nmolF;
 	            if (nmol != nmolF) {
-	                std::cerr << "Incorrect number of atoms per molecule" << std::endl << std::endl;
+	                std::cerr << "\n\nIncorrect number of atoms per molecule" << std::endl << std::endl;
 	                std::cerr << "\t* Num Atoms: " << natoms << std::endl;
 	                std::cerr << "\t* Num Atoms Per Mol: " << natom_per_molecule << std::endl;
 	                std::cerr << "\t* Num Mol: " << nmolF << std::endl;
-	                throw "Incorrect number of atoms per molecule";
+	                exit(1);
 	            }
 
 	            return nmol;
@@ -76,6 +76,7 @@ namespace vel {
 			std::fstream file;
 			std::string fp="";
 			int natoms = -1;
+			bool empty = true;
 			std::vector<std::vector<double>> vel;
 
 			// Will read a VELOC.init file
@@ -92,6 +93,7 @@ namespace vel {
 				parse_lines();
 
 				file.close();
+				empty = false;
 			}
 
  			// Will return a 4D array of shape (nmol, nat_per_mol, ndim)
@@ -128,16 +130,27 @@ namespace vel {
 	        	int count = 0;
 	        	for (auto i : at_inds)	{
 	        		new_vel_arr[count] = vel[i];
+					count++;
 	        	}
 
-	        	Veloc_File new_vel;
-	        	new_vel.natoms = at_inds.size();
-	        	new_vel.vel = new_vel_arr;
-	        	return new_vel;
+	        	Veloc_File NewVel;
+	        	NewVel.natoms = at_inds.size();
+	        	NewVel.vel = new_vel_arr;
+				NewVel.empty = NewVel.vel.size() == 0;
+	        	return NewVel;
 	        }
+
+			// Return an exact copy of the class
+			Veloc_File copy() {
+				std::vector<int> at_inds (natoms, 0);
+				for (auto i=0; i<natoms; i++) at_inds[i] = i;
+				empty = false;
+				return index_arr(at_inds);
+			}
 
 	        // Will write a VELOC init file
 	        void write(std::string fp, std::vector<int> at_inds={}) {
+				if (empty) return;
 	        	std::fstream out_file;
 	        	out_file.open(fp, std::ios::out);
 

@@ -715,7 +715,7 @@ class Calc_ET_Rates(Calc_All_AOM_Couplings):
 					molA_ind = mol_utils.get_central_mol(self.mol_COM[0])
 					molA_ind = self.mol_nums[istep][molA_ind]
 					self.metadata['dist_center_mol'] = molA_ind
-
+					
 			while(molA_ind not in mol_nums):
 				Q = input("\n\n" + f"Can't find mol {molA_ind} in the selected data."
 						+ "\n\nPlease choose a molecule index (starting from 0)"

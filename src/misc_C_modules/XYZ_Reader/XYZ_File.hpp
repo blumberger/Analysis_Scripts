@@ -10,8 +10,25 @@
 
 #include "Periodic_table.hpp"
 #include "input_file.hpp"
+#include "Clustering.hpp"
 
 namespace xyz {
+	// Convert an array of atomic indices to molecular indices
+	std::vector<int> mol_inds_to_at_inds(std::vector<int> &mol_inds, const int ats_per_mol) {
+		std::vector<int> at_inds;
+	    at_inds.resize(mol_inds.size() * ats_per_mol);
+
+	    int count = 0;
+		for (auto imol: mol_inds) {
+			for (int iapm=0; iapm<ats_per_mol; iapm++) {
+				int iat = (ats_per_mol * imol) + iapm;
+
+				at_inds[count] = iat;
+				count++;
+			}
+		}
+	    return at_inds;
+	}
 
 	class XYZ_File {
 	    private:
@@ -26,8 +43,8 @@ namespace xyz {
 	            file.open(fp, std::ios::in);
 
 	            if (! file.is_open()) {
-	            	std::cerr << "Can't find file " << fp << std::endl;
-	                throw "No File Found!";
+	            	std::cerr << "\n\nCan't find file " << fp << std::endl;
+	                exit(1);
 	            }
 	        }
 
@@ -50,7 +67,7 @@ namespace xyz {
 	            float nstepsF = nlines / ((float) natoms + 2.);
 	            int nstepsI = (int) nstepsF;
 	            if (nstepsF != nstepsI) {
-	                throw "Corrupted XYZ File!";
+	                exit(1);
 	            }
 	            nsteps = nstepsI;
 
@@ -153,8 +170,8 @@ namespace xyz {
 	                if (getline(file, line)) {
 	                    parse_line(0, iat);
 	                } else {
-	                    std::cerr << "Declaration of natom at the top of the file is incorrect!" << std::endl;
-	                    throw "Corrupted XYZ File";
+	                    std::cerr << "\n\nDeclaration of natom at the top of the file is incorrect!" << std::endl;
+	                    exit(1);
 	                }
 	            }
 
@@ -168,8 +185,8 @@ namespace xyz {
 	                    if (getline(file, line)) {
 	                        parse_line(0, iat);
 	                    } else {
-	                        std::cerr << "Declaration of natom at the top of the file is incorrect!" << std::endl;
-	                        throw "Corrupted XYZ File";
+	                        std::cerr << "\n\nDeclaration of natom at the top of the file is incorrect!" << std::endl;
+	                        exit(1);
 	                    }
 	                }
 	            }
@@ -185,11 +202,11 @@ namespace xyz {
 	            float nmolF = natoms / natom_per_molecule;
 	            int nmol = (int) nmolF;
 	            if (nmol != nmolF) {
-	                std::cerr << "Incorrect number of atoms per molecule" << std::endl << std::endl;
+	                std::cerr << "\n\nIncorrect number of atoms per molecule" << std::endl << std::endl;
 	                std::cerr << "\t* Num Atoms: " << natoms << std::endl;
 	                std::cerr << "\t* Num Atoms Per Mol: " << natom_per_molecule << std::endl;
 	                std::cerr << "\t* Num Mol: " << nmolF << std::endl;
-	                throw "Incorrect number of atoms per molecule";
+	                exit(1);
 	            }
 
 	            return nmol;
@@ -222,6 +239,7 @@ namespace xyz {
 	        int nall_cols=-1;
 	        std::vector<std::vector<std::vector<double>>> xyz;
 	        std::vector<std::vector<std::vector<std::string>>> cols;
+			bool empty = true;
 
 	        // Will read the xyz file.
 	        void read(std::string filepath) {
@@ -238,26 +256,28 @@ namespace xyz {
 	            fill_arrays();
 
 	            file.close();
+				empty = false;
 	        }
 
 	        // Will write the data to a xyz file.
+			// at_inds has shape (tsteps, nat)
 	        void write(std::string &filepath, std::vector<std::vector<int>> at_inds={{}}) {
 	        	file.open(filepath, std::ios::out);
 	        	if (nsteps == -1) {
-	        		std::cerr << "Steps not properly set" << std::endl;
-	        		throw "Steps not properly set";
+	        		std::cerr << "\n\nSteps not properly set" << std::endl;
+	        		exit(1);
 	        	}
 	        	if (natoms == -1) {
-	        		std::cerr << "Atoms not properly set" << std::endl;
-	        		throw "Atoms not properly set";
+	        		std::cerr << "\n\nAtoms not properly set" << std::endl;
+	        		exit(1);
 	        	}
 	        	if (nmeta_cols == -1) {
-	        		std::cerr << "Cols not properly set" << std::endl;
-	        		throw "Cols not properly set";
+	        		std::cerr << "\n\nCols not properly set" << std::endl;
+	        		exit(1);
 	        	}
 	        	if (ndata_cols == -1) {
-	        		std::cerr << "xyz data not properly set" << std::endl;
-	        		throw "xyz data not properly set";
+	        		std::cerr << "\n\nxyz data not properly set" << std::endl;
+	        		exit(1);
 	        	}
 
 	        	// Write all atoms -standard behaviour
@@ -303,6 +323,7 @@ namespace xyz {
 	        	nsteps = xyz_in.size();
 	        	natoms = xyz_in[0].size();
 	        	ndata_cols = xyz_in[0][0].size();
+				empty = false;
 	        }
 
 	        void set_cols(std::vector<std::vector<std::vector<std::string>>> &cols_in)
@@ -312,6 +333,7 @@ namespace xyz {
 	        	nsteps = cols_in.size();
 	        	natoms = cols_in[0].size();
 	        	nmeta_cols = cols_in[0][0].size();
+				empty = false;
 	        }
 
 	        // Will set the xyz and cols data.
@@ -320,6 +342,7 @@ namespace xyz {
 	        {
 	        	set_xyz(xyz_in);
 	        	set_cols(cols_in);
+				empty = false;
 	        }
 
 
@@ -489,8 +512,8 @@ namespace xyz {
 						count++;	
 						tot_mass = tot_mass + mass;
 					} else {
-						std::cerr << "I don't know the atomic mass of " << col[0] << "!" << std::endl;
-						throw "Unkown Atom Abbreviation";
+						std::cerr << "\n\nI don't know the atomic mass of " << col[0] << "!" << std::endl;
+						exit(1);
 					}
 				}
 
@@ -534,22 +557,6 @@ namespace xyz {
 	            return COM_File;
 	        }
 
-	        // Convert an array of atomic indices to molecular indices
-	        inline std::vector<int> mol_inds_to_at_inds(std::vector<int> &mol_inds, const int ats_per_mol) {
-	        	std::vector<int> at_inds;
-			    at_inds.resize(mol_inds.size() * ats_per_mol);
-
-			    int count = 0;
-		    	for (auto imol: mol_inds) {
-		    		for (int iapm=0; iapm<ats_per_mol; iapm++) {
-		    			int iat = (ats_per_mol * imol) + iapm;
-
-		    			at_inds[count] = iat;
-		    			count++;
-		    		}
-		    	}
-			    return at_inds;
-	        }
 
 	        // Will slice an xyz file data by the molecule and return the atom indices of the slice
 	        //  Return has shape (nstep, natom)
@@ -567,10 +574,10 @@ namespace xyz {
 
 			    // Get the molecular indices within the slice
 			    mol_inds = COM_File.get_inds_of_slice(slice_instruct);
-                std::cout << "\n\nNumber of molecules in slice each slice:" << std::endl;
+                std::cerr << "\nNumber of molecules in slice each slice:" << std::endl;
                 auto step_count = 0;
                 for (auto slice_inds : mol_inds)
-                    std::cout << "\t * Step " << step_count << ": " << slice_inds.size() << "\n";
+                    std::cerr << "\t * Step " << step_count << ": " << slice_inds.size() << "\n";
 
 
                 // Write the molecule numbers if required.
@@ -674,6 +681,36 @@ namespace xyz {
 
 	        	// return NewFile;
 	        }
+
+			/*
+			 * Will cluster the postiion data by grouping any values within a certain distance of each other
+			 */
+			std::vector<std::set<int>> get_clusters(double cutoff, std::string clusterType, int min_points) {
+				std::vector<std::set<int>> cluster_inds;
+
+				if (clusterType == "naive") {
+					cluster_inds = clust::naive(xyz[0], cutoff);
+				}
+				else {
+					std::cerr << "\n\nUnrecognised clustering algorithm: '"<<clusterType<<"'"<<std::endl;
+				}
+
+				std::vector<int> delete_elms;
+				for (auto i=0; i<cluster_inds.size(); i++) {
+					if (cluster_inds[i].size() < min_points) {
+						delete_elms.push_back(i);
+					}
+				}
+				int count = 0;
+				for (auto i: delete_elms) {
+					cluster_inds.erase(cluster_inds.begin() + i-count);
+					count++;
+				}
+
+				std::cerr << "Clustering done. Found " << cluster_inds.size() << " clusters." << std::endl;
+
+				return cluster_inds;
+			}
 	};
 }
 
@@ -751,7 +788,7 @@ namespace xyz {
 	        		auto sum_ = 0;
 	        		for (auto igr=0; igr<Nx; igr++) 
 	        			sum_ += grid_datax[igr].size();
-	        			std::cout << sum_ << std::endl;
+	        			std::cerr << sum_ << std::endl;
 
 	        		}
 */

@@ -1,37 +1,39 @@
 # How to slice the structure
-zmin = 3
-zmax = 22
-xmin = 10
-xmax = 110
-ymin = 170
-ymax = 250
+xmin = 60
+xmax = 150
 
 
 # Nearest neighbour distance
 NN_cutoff = 10.5
 
+# Nearest neighbour cutoff for clustering
+cluster_cutoff = 6
+cluster_min_points = 10
+
 # Some system properties
 atoms_per_molecule=36
 
 # Input files
-in_folder = /home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC
-pos_filename = 1nsQuench_addImg.xyz
+in_folder = /home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC/100ns
+pos_filename = unwrap_intoCell_100ns_augmented.xyz
 vel_filename = NEW_VELOC.init
 AOM_single_mol = ../../data/AOM_COEFFs/Pentacene_Lammps_Single_Mol.include
 
+# The cluster layer
+cluster_selection = 7
+
+# What to do in the code
+methods = (CALC_COM, CALC_CLUSTERS, SELECT_CLUSTER, SLICE_POS, MAKE_CP2K)
+
+
+# Mercury filepath
+mercury_filepath = /home/matt/Mercury/bin/mercury
+
 # Output files
-out_folder = ./1nsQuenching/Slice5
-MD_system = pos-init.xyz
-inactive_ats_filename = inactive_ats.xyz
-all_ats_filename = all_ats.xyz
-active_ats_filename = active_ats.xyz
-
-new_veloc_MD_filename = VELOC.init
-new_veloc_active_filename = VELOC_ACTIVE.init
-
-fixed_atoms_filename = FIXED_ATOMS.inp
-mol_nums_filename = mol_nums.txt
-COM_filename = COM.xyz
-NN_filename = NN.xyz
-decomp_filename = DECOMP.inp
-AOM_filename = AOM_COEFF.include
+out_folder = ./100nsQuench/GoodCrystal
+COM_filepath = com_full_system.xyz
+#cluster_filepath = cluster*.xyz
+#cluster_vel_filepath = cluster_veloc*.init
+#selected_cluster_filepath = selected_cluster.xyz
+slice_filepath = pos-init.xyz
+slice_vel_filepath = VELOC.init

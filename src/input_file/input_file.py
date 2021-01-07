@@ -1762,11 +1762,13 @@ class INP_File(object):
             err_msg = repr(e)
             if hasattr(e, 'txt'):
                 err_msg = "Error in your python code.\n\n"+f"Script: {filepath}" + "\n"
-                err_msg += f"Bad Line: {e.text}" + "\n" + f"Line Num: {e.lineno}"
+                if hasattr(e, "lineno"):
+                    err_msg += f"Bad Line: {e.text}" + "\n" + f"Line Num: {e.lineno}"
                 err_msg += "\nError Msg: " + f"{e.msg}"
 
             ltxt = script_txt.split("\n")
-            ltxt[e.lineno-1] += "   <------- BAD LINE"
+            if hasattr(e, "lineno"):
+                ltxt[e.lineno-1] += "   <------- BAD LINE"
             err_msg += "\n\n\n\n\n\nPython Script:\n" + '\n'.join(ltxt)
 
             self.print_error(err_msg)

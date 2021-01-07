@@ -140,9 +140,12 @@ class Angular_Dist(gen_calc.Calc_Type):
         if len(np.shape(at_inds)) == 1:
             at_inds = [at_inds]
 
-        print(at_inds)
+        # The mean averages over multiple pairs of atoms.
+        #  i.e. if [[3, 5], [10, 13]] was given then we would get the
+        #       average the vector from 3 -> 5 and 10 -> 13.
         ats = mol_crds[:, at_inds, :]
         ats = np.mean(ats, axis=1)
+
         vecs = ats[:, 0] - ats[:, 1]
         return vecs
 

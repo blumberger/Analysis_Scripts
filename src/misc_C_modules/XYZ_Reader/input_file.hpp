@@ -7,13 +7,40 @@
 #include <algorithm>
 #include <fstream>
 #include <unordered_map>
+#include <set>
 #include <vector>
 
+std::unordered_map <int, std::string> reverse_str2int (std::unordered_map <std::string, int> inDict) {
+	std::unordered_map <int, std::string> outDict;
+	for (auto key_val: inDict) {
+		outDict[key_val.second] = key_val.first;
+	}
+	return outDict;
+}
 
 
 namespace inp {
 
-	enum var_type {typeINT, typeFLOAT, typeSTR};
+	enum var_type {typeINT, typeFLOAT, typeSTR, typeARR};
+	enum methods {SLICE_POS, CALC_COM, CLUSTER_POS, SELECT_CLUSTER, MAKE_CP2K};
+	enum data_files {POS_XYZ, VEL_INP, AOM_INP};
+
+
+	std::unordered_map <int, std::vector<int>> data_dep_map = {
+		{MAKE_CP2K, {VEL_INP, POS_XYZ, AOM_INP}},
+		{SELECT_CLUSTER, {}},
+		{CLUSTER_POS, {POS_XYZ}},
+		{CALC_COM, {POS_XYZ}},
+		{SLICE_POS, {POS_XYZ}}
+	};
+	std::unordered_map <std::string, int> method_codes = {
+		{"MAKE_CP2K", MAKE_CP2K},
+		{"SELECT_CLUSTER", SELECT_CLUSTER},
+		{"CALC_CLUSTERS", CLUSTER_POS},
+		{"CALC_COM", CALC_COM},
+		{"SLICE_POS", SLICE_POS}
+	};
+	std::unordered_map <int, std::string> method_codes_rev = reverse_str2int(method_codes);
 
 	const double unset = -921983741.71982323423712;
 	struct slice_instruct {
@@ -33,11 +60,15 @@ namespace inp {
 
 			void parse() {
 				std::string line;
+				std::cerr << "|------------------------" << std::endl;
+				std::cerr << "|Input File Type Rundown:";
 				while (getline(file, line)) {
 					if (line.empty())  continue;
 
 					parse_line(line);
 				}
+				std::cerr << "\n|------------------------\n" << std::endl;
+				empty = false;
 			}
 
 			std::vector<std::string> split_string(std::string const &str, std::string const &delim) {
@@ -80,14 +111,63 @@ namespace inp {
 					data = data + "=" + splitter[i];
 
 				auto type = get_type(data);
-				if (type == typeFLOAT)
-					doubleVals[var_name] = std::stod(data);
-				else if (type == typeINT)
-					intVals[var_name] = std::stoi(data);
-				else if (type == typeSTR)
+				if (type == typeFLOAT) {
+					doubleVals[var_name] = std::stod(data);	
+					std::cerr << "\n|\t* " << doubleVals[var_name] << "\t\t -> float";
+				}
+				else if (type == typeINT) {
+					intVals[var_name] = std::stoi(data); 
+					std::cerr << "\n|\t* " << intVals[var_name] << "\t\t -> int";
+				}
+				else if (type == typeSTR) {
 					first_elm = data.substr(0, 1);
 					if (first_elm == space) data = data.substr(1, data.size()-1);
-					stringVals[var_name] = data;
+					stringVals[var_name] = data; 
+					std::cerr << "\n|\t* " << stringVals[var_name] << " -> string";
+				}
+				else if (type == typeARR and var_name == "methods") {
+					std::cerr << "\n\t* "<< data <<" methods array";
+					parse_methods(data);				}
+			}
+
+			/*
+			 * Will parse an array from the input file and add values to the dicts
+			 *
+			 * This will only parse non-nested arrays.
+			*/
+			void parse_methods(std::string str) {
+				int startInd=0; int endInd=0;
+				for (auto i=0; i<str.size(); i++) {
+					auto c = str.substr(i, 1);
+					if (c == "(") startInd = i;
+					if (c == ")") endInd = i;
+				}
+				
+				std::vector<std::string> str_methods = split_string(str.substr(startInd+1,
+																			   endInd-startInd-1),
+																    ",");
+
+				for (auto &method_name: str_methods) {
+					// Clean up the string
+					method_name.erase(std::remove(method_name.begin(), method_name.end(), ' '),
+												  method_name.end());
+					std::transform(method_name.begin(), method_name.end(), method_name.begin(),
+								   ::toupper);
+
+					// Add the method and any data dependencies
+					if (method_codes.find(method_name) != method_codes.end()) {
+						auto method = method_codes[method_name];
+						for (auto i: data_dep_map[method]) {
+							data_deps.insert(i);
+						}
+						methods.push_back(method);
+
+	                } else {
+						std::cerr << "\n\n\nUnknown method: '"<<method_name<<"'"<<std::endl;
+						std::cerr << "\n\n\n\n" << std::endl;
+						exit(1);
+					}
+				}
 			}
 
 			inline int get_type(std::string str) {
@@ -116,6 +196,13 @@ namespace inp {
 				} 
 
 				catch (const std::invalid_argument& e) {
+					auto Ostr = str;
+					str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+					if (str.find("(") == 0) {
+						if (str.find(")") == str.length()-1) {
+							return typeARR;
+						}
+					}
 					return typeSTR;
 				}
 			}
@@ -129,12 +216,17 @@ namespace inp {
 			std::unordered_map<std::string, double> doubleVals {};
 			std::unordered_map<std::string, int> intVals {};
 
+			std::vector<int> methods={};
+			std::set<int> data_deps;
+
+			bool empty = true;
+
 
 			void read(std::string filepath) {
 				fp = filepath;
 				file.open(fp, std::ios::in);
 
-				std::cout << "Opened " << fp << std::endl;
+				std::cerr << "Opened " << fp << std::endl;
 
 				parse();
 
@@ -149,8 +241,8 @@ namespace inp {
 
 				else {
 					if (default_ == ")(THROW_ERROR)(*&$S}}~\"") {
-						std::cerr << "No string named '" << var_name << "'" << std::endl;
-						throw 0;
+						std::cerr << "\n\n\n\nNo string named '" << var_name << "' in the input file\n\n" << std::endl;
+						exit(1);
 					} else {
 						return default_;
 					}
@@ -159,15 +251,15 @@ namespace inp {
 
 			// Will get a value if it exists if not throw and error
 			double get_double(std::string var_name, double default_= unset) {
-				std::cout << var_name << " \n"; // << doubleVals.find(var_name) << " " << doubleVals.end() << std::endl;
+				std::cerr << var_name << " \n"; // << doubleVals.find(var_name) << " " << doubleVals.end() << std::endl;
 				if (doubleVals.find(var_name) != doubleVals.end()) {
 					return doubleVals[var_name];
 				}
 
 				else {
 					if (default_ == unset) {
-						std::cerr << "No string named '" << var_name << "'" << std::endl;
-						throw 0;
+						std::cerr << "\n\n\n\nNo double named '" << var_name << "' in  the input file\n\n" << std::endl;
+						exit(1);
 					} else {
 						return default_;
 					}
@@ -182,8 +274,8 @@ namespace inp {
 
 				else {
 					if (default_ == (int) unset) {
-						std::cerr << "No string named '" << var_name << "'" << std::endl;
-						throw 0;
+						std::cerr << "\n\n\n\nNo int named '" << var_name << "'\n\n" << std::endl;
+						exit(1);
 					} else {
 						return default_;
 					}
@@ -200,8 +292,8 @@ namespace inp {
 
 				else {
 					if (default_ == unset) {
-						std::cerr << "No string named '" << var_name << "'" << std::endl;
-						throw 0;
+						std::cerr << "\n\n\n\nNo number named '" << var_name << "'\n\n" << std::endl;
+						exit(1);
 					} else {
 						return default_;
 					}
@@ -233,7 +325,7 @@ namespace inp {
 
 			// 		// Do the parsing
 			// 		std::string temp_type = typeid(variable).name();
-			// 		std::cout << word << ",  " << temp_type << std::endl;
+			// 		std::cerr << word << ",  " << temp_type << std::endl;
 
 			// 		// Parse double
 			// 		if (temp_type == "d") {
@@ -258,16 +350,16 @@ namespace inp {
 
 			// 		// Unknown type
 			// 		else {
-			// 			std::cerr << "I don't recognise type '" << temp_type << "'.";
-			// 			std::cerr << " Change the `parse_line_util` function in the `input_function.hpp` to change this.";
-			// 			std::cerr << std::endl;
-			// 			throw "Exit";
+			// 			std::cerr << "\n\n\n\nI don't recognise type '" << temp_type << "'.";
+			// 			std::cerr << "\n\n Change the `parse_line_util` function in the `input_function.hpp` to change this.";
+			// 			std::cerr << s\n\ntd::endl;
+			// 			exit(1);
 
 			// 		}
 
 			// 		if (tripped_up) {
-			// 			std::cerr << "I don't understand the value '" << word << "'.";
-			// 			std::cerr << "\n Please change this to the type '" << temp_type << "'" << std::endl;
+			// 			std::cerr << "\n\n\n\nI don't understand the value '" << word << "'.";
+			// 			std::cerr << "\n\n\n Please change this to the type '" << temp_type << "'" << std::endl;
 			// 		}
 
 			// 		// Break if we reached a comment string
@@ -281,3 +373,96 @@ namespace inp {
 
 
 #endif
+
+//
+//
+//	/*
+//	 * A curiosity -not actually used anywhere. It was my attempt at defining a general array type that could store multiple types.
+//	*/
+//	class Arr{
+//		private:
+//			std::vector<int> valTypes;
+//			std::vector<double> Fvals;
+//			std::vector<int> Ivals;
+//			std::vector<std::string> Svals;
+//
+//			std::vector<int> inds;
+//
+//			int Icount=0;
+//			int Scount=0;
+//			int Fcount=0;
+//			int totItems=0;
+//
+//		public:
+//			void append (std::string val) {
+//				Svals.push_back(val);
+//				valTypes.push_back(typeSTR);
+//				inds.push_back(Scount);
+//				Scount++;
+//				totItems++;
+//			}
+//			void append (double val) {
+//				Fvals.push_back(val);
+//				valTypes.push_back(typeFLOAT);
+//				inds.push_back(Fcount);
+//				Fcount++;
+//				totItems++;
+//			}
+//			void append (float val) {
+//				Fvals.push_back( (double) val);
+//				valTypes.push_back(typeFLOAT);
+//				inds.push_back(Fcount);
+//				Fcount++;
+//				totItems++;
+//			}
+//			void append (int val) {
+//				Ivals.push_back(val);
+//				valTypes.push_back(typeINT);
+//				inds.push_back(Icount);
+//				Icount++;
+//				totItems++;
+//			}
+//
+//
+//			/*
+//			 * Will print all values in the array
+//			*/
+//			void show() {
+//				int i;
+//				std::cerr << "[";
+//				for (i=0; i<totItems-1; i++) {
+//					switch (valTypes[i]) {
+//						case typeSTR:
+//							std::cerr << Svals[inds[i]] << ", ";
+//							break;
+//						case typeINT:
+//							std::cerr << Ivals[inds[i]] << ", ";
+//							break;
+//						case typeFLOAT:
+//							std::cerr << Fvals[inds[i]] << ", ";
+//							break;
+//						default:
+//							std::cerr << "Broken!";
+//							exit(1);
+//					}
+//				}
+//				i = totItems-1;
+//				switch (valTypes[i]) {
+//					case typeSTR:
+//						std::cerr << Svals[inds[i]];
+//						break;
+//					case typeINT:
+//						std::cerr << Ivals[inds[i]];
+//						break;
+//					case typeFLOAT:
+//						std::cerr << Fvals[inds[i]];
+//						break;
+//					default:
+//						std::cerr << "Broken!";
+//						exit(1);
+//				}
+//				std::cerr << "]";
+//			}
+//	};
+
+

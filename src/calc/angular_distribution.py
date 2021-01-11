@@ -278,10 +278,8 @@ class Angular_Dist(gen_calc.Calc_Type):
         axes[1].set_xlabel(r"cos($\theta$)", fontsize=26)
 
         if label:
-            axes[0].legend(fontsize=16)
-            axes[1].legend(fontsize=16)
-
-        plt.legend()
+            axes[0].legend(fontsize=24)
+            #axes[1].legend(fontsize=16)
 
         #for i, ax in enumerate(axes):
         #    ax.set_xlim([-1.05, 1.05])

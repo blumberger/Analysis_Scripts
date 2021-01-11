@@ -22,19 +22,19 @@ std::unordered_map <int, std::string> reverse_str2int (std::unordered_map <std::
 namespace inp {
 
 	enum var_type {typeINT, typeFLOAT, typeSTR, typeARR};
-	enum methods {SLICE_POS, CALC_COM, CLUSTER_POS, SELECT_CLUSTER, MAKE_CP2K};
+	enum methods {SLICE_POS, CALC_COM, CLUSTER_POS, SELECT_CLUSTER, CALC_NN};
 	enum data_files {POS_XYZ, VEL_INP, AOM_INP};
 
 
 	std::unordered_map <int, std::vector<int>> data_dep_map = {
-		{MAKE_CP2K, {VEL_INP, POS_XYZ, AOM_INP}},
+		{CALC_NN, {POS_XYZ}},
 		{SELECT_CLUSTER, {}},
 		{CLUSTER_POS, {POS_XYZ}},
 		{CALC_COM, {POS_XYZ}},
 		{SLICE_POS, {POS_XYZ}}
 	};
 	std::unordered_map <std::string, int> method_codes = {
-		{"MAKE_CP2K", MAKE_CP2K},
+		{"WRAP_NEAREST_NEIGHBOURS", CALC_NN},
 		{"SELECT_CLUSTER", SELECT_CLUSTER},
 		{"CALC_CLUSTERS", CLUSTER_POS},
 		{"CALC_COM", CALC_COM},

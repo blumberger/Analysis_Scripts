@@ -30,6 +30,23 @@ namespace xyz {
 	    return at_inds;
 	}
 
+	// Will get the number of molecules from the num atoms and atoms per molecule.
+	// This should just be a simple divide but this checks if the 2 integers divide perfectly.
+	int get_nmol_from_atoms_atoms_per_mol(int natoms, int natom_per_molecule) {
+	    // Get number of molecules
+	    float nmolF = natoms / natom_per_molecule;
+	    int nmol = (int) nmolF;
+	    if (nmol != nmolF) {
+	        std::cerr << "\n\nIncorrect number of atoms per molecule" << std::endl << std::endl;
+	        std::cerr << "\t* Num Atoms: " << natoms << std::endl;
+	        std::cerr << "\t* Num Atoms Per Mol: " << natom_per_molecule << std::endl;
+	        std::cerr << "\t* Num Mol: " << nmolF << std::endl;
+	        exit(1);
+	    }
+
+	    return nmol;
+	}
+
 	class XYZ_File {
 	    private:
 
@@ -195,22 +212,6 @@ namespace xyz {
 
 	    protected:
 
-	        // Will get the number of molecules from the num atoms and atoms per molecule.
-	        // This should just be a simple divide but this checks if the 2 integers divide perfectly.
-	        int get_nmol_from_atoms_atoms_per_mol(int natom, int natom_per_molecule) {
-	            // Get number of molecules
-	            float nmolF = natoms / natom_per_molecule;
-	            int nmol = (int) nmolF;
-	            if (nmol != nmolF) {
-	                std::cerr << "\n\nIncorrect number of atoms per molecule" << std::endl << std::endl;
-	                std::cerr << "\t* Num Atoms: " << natoms << std::endl;
-	                std::cerr << "\t* Num Atoms Per Mol: " << natom_per_molecule << std::endl;
-	                std::cerr << "\t* Num Mol: " << nmolF << std::endl;
-	                exit(1);
-	            }
-
-	            return nmol;
-	        }
 
 	        // Set a mask to tell which atoms have a particular dimension within a range
 	        void set_at_mask(std::vector<std::vector<bool>> &mask, int dim,
@@ -261,7 +262,7 @@ namespace xyz {
 
 	        // Will write the data to a xyz file.
 			// at_inds has shape (tsteps, nat)
-	        void write(std::string &filepath, std::vector<std::vector<int>> at_inds={{}}) {
+	        void write(std::string const &filepath, std::vector<std::vector<int>> at_inds={{}}) {
 	        	file.open(filepath, std::ios::out);
 	        	if (nsteps == -1) {
 	        		std::cerr << "\n\nSteps not properly set" << std::endl;
@@ -645,14 +646,32 @@ namespace xyz {
 	        }
 
 	        // Will get the nearest molecules indexed by mol_inds.
-	        std::vector<std::vector<int>> get_nearest_COM_to_pos(XYZ_File &Check_COM_Pos,
-	        								std::vector<int> mols_to_ignore,
+			//
+			// This will loop through all the atoms stored in this class's attributes (xyz)
+			// and find any molecules with a center of mass close to those provided in the
+			// CheckCOMPos input.
+			//
+			// Inputs:
+			//		* CheckCOMPos <XYZ_File> => The COM to find nearest neighbours for
+			//		* ats_per_mol <int> => How many atoms per molecule.
+			//		* mols_to_ignore <std::vector<int>> => Any molecules to ignore 
+			//											   (it is sensible to input the inds
+			//											    of the molecules that are fed
+			//											    into CheckCOMPos).
+			//		* cutoff <double>	=> The cutoff used to define if something is near
+			//
+			// Outputs:
+			//		(std::vector<std::vector<int>>) The atom indices of close mols.
+	        std::vector<std::vector<int>> get_nearest_COM_to_pos(XYZ_File &CheckCOMPos,
 	        								const int ats_per_mol,
+	        								std::vector<int> mols_to_ignore={},
 	        								double const cutoff=12.0) 
 	        {
 	        	XYZ_File ThisCOM = get_COMs(ats_per_mol);
 
 	        	std::vector<int> nearest_mol_inds;
+
+				if (mols_to_ignore.size() == 0) mols_to_ignore = {-1};
 
 	        	auto rmax2=cutoff*cutoff;
 				int count=0;
@@ -663,7 +682,7 @@ namespace xyz {
         			}
 
         			auto m1 = ThisCOM.xyz[0][imol];
-        			for (auto m2 : Check_COM_Pos.xyz[0]) {
+        			for (auto m2 : CheckCOMPos.xyz[0]) {
         				if ((m1[0]-m2[0])*(m1[0]-m2[0])+ 
         					(m1[1]-m2[1])*(m1[1]-m2[1]) +
         					(m1[2]-m2[2])*(m1[2]-m2[2]) < rmax2) {
@@ -677,9 +696,6 @@ namespace xyz {
         		std::vector<std::vector<int>> step_at_inds (1, at_inds);
         		step_at_inds[0] = at_inds;
         		return step_at_inds;
-        		// auto NewFile = index_atoms(step_at_inds);
-
-	        	// return NewFile;
 	        }
 
 			/*

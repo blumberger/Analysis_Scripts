@@ -103,6 +103,46 @@ def is_math_line(line):
             return True
     return False
 
+
+def parse_nested_lists(s_in, init=True): 
+    """
+    Will parse a string into nested lists.
+
+    This basically just loops over each character until it finds a complete
+    enclosed list ([...]). It then removes the 2 outer most brackets and 
+    parses this new list and appends it to an array of lists.
+
+    Inputs:
+        * s_in <str> => String containing the nested list. This is a list
+                        enclosed by square braces e.g. python style.
+    Outputs:
+        list: A nested (or non-nested) list of lists.
+    """
+    s_in = s_in.strip() 
+    if init and ('[' != s_in[0] or ']' != s_in[-1]): 
+        raise TypeError("%s is not a nested list" % s_in) 
+    elif init: s_in = s_in[1:-1] 
+
+    if '[' not in s_in: return [type_check.eval_type(i) for i in s_in.split(",")]
+    s_in = s_in + "," 
+    lists = [] 
+    count=0 
+    start, end=s_in.find('['), 0 
+    for i, c in enumerate(s_in): 
+        if c == '[': count += 1 
+        elif c == ']': count -= 1 
+         
+        if count == 0 and c == ',': 
+            new_l = s_in[start:i].strip() 
+            if new_l[0] == '[': new_l = new_l[1:] 
+            if new_l[-1] == ']': new_l = new_l[:-1] 
+            lists.append(parse_nested_lists(new_l, False)) 
+            start = s_in[i:].find(",") + i + 1 
+             
+    return lists 
+
+
+
 ###########################################################################
 # I'm sure this is terrible practice but I couldn't find a way around it.
 ###########################################################################
@@ -1078,36 +1118,40 @@ class INP_File(object):
         # Split any lists up
         str_part, non_str = gen_parse.get_str_between_delims(line)
         words = [md_line]
+        parsed_val = False
         if ',' in non_str:
-            words = md_line.split(",")
+            if '[' in md_line:
+                value = parse_nested_lists(md_line)
+                parsed_val = True
 
-        # Loop over all values in lists
-        values = []
-        for word in words:
-            # If there is no metadata just set the value
-            if len(md_var_names) == 0:
-                value = type_check.eval_type(word)
+        if not parsed_val:
+            # Loop over all values in lists
+            values = []
+            for word in words:
+                # If there is no metadata just set the value
+                if len(md_var_names) == 0:
+                    value = type_check.eval_type(word)
+                    if type(value) == str:
+                        value = gen_parse.rm_quotation_marks(value)
+                        value, _ = self.find_vars_in_str(value)
+
+                # Replace all metadata instances with their values
+                else:
+                    # Loop over all metadata
+                    for var_i, (v_name, m_name) in enumerate(zip(md_var_names,
+                                                                 md_names)):
+                        Var = getattr(self, v_name)
+                        metadata = Var[m_name]
+                        word = word.replace(f"METADATA_{var_i}", str(metadata))
+                    value = word
+
                 if type(value) == str:
-                    value = gen_parse.rm_quotation_marks(value)
-                    value, _ = self.find_vars_in_str(value)
+                    value = type_check.eval_type(value)
+                values.append(value)
 
-            # Replace all metadata instances with their values
-            else:
-                # Loop over all metadata
-                for var_i, (v_name, m_name) in enumerate(zip(md_var_names,
-                                                             md_names)):
-                    Var = getattr(self, v_name)
-                    metadata = Var[m_name]
-                    word = word.replace(f"METADATA_{var_i}", str(metadata))
-                value = word
-
-            if type(value) == str:
-                value = type_check.eval_type(value)
-            values.append(value)
-
-        value = values
-        if len(value) == 1:
-            value = values[0]
+            value = values
+            if len(value) == 1:
+                value = values[0]
 
         return value
 

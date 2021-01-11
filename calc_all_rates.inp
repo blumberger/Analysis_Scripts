@@ -15,9 +15,10 @@
 #folder = "/home/matt/Data/Work/restraint_CP2K/FSSH_Data/OnlyActive_Region/run-fssh-0"
 #folder = "/home/matt/Data/Work/restraint_CP2K/AdStates/run-fssh-0/state_data/AdState_28"
 folder = "/home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC"
+folder = "/home/matt/Helford/Documents/Code_bits_and_bobs/MD_Analysis_Scripts/src/misc_C_modules/XYZ_Reader/100nsQuench/GoodCrystal"
 #filename = "pos-init.xyz"
 #filename = "run-pos-1.xyz"
-filename = "test.xyz"
+filename = "active_ats.xyz"
 #filename = "snapshot2250002.dat"
 
 #folder = "."
@@ -44,6 +45,7 @@ pos['AOM_COEFF_file'] = "$AOM_folder/Pentacene_Lammps_Single_Mol.include"
 #############
 ## Choose which things to plot
 pos['plot_coupling_connections'] = False
+pos['plot_coupling_COM'] = False
 #pos['plot_coupling_annotations'] = True
 pos['plot_coupling_atoms'] = False
 pos['effective_nuclear_frequency'] = 1600
@@ -86,7 +88,7 @@ data['a2_elev'] = 0
 #data['save_coupling_connection_plot'] = "$filename"
 
 #data['plot_coupling_mol_numbers'] = True
-data['save_coupling_connection_plot'] = "/home/matt/Documents/PhD/Notes/Perculation_Pathway/52-60x7A_3img_couplingMap.png"
+#data['save_coupling_connection_plot'] = "/home/matt/Documents/PhD/Notes/Perculation_Pathway/52-60x7A_3img_couplingMap.png"
 plot coupling_network from data
 
 exit

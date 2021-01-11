@@ -18,6 +18,8 @@ namespace fs = std::filesystem;
 void write_cluster_pos(std::string fp, xyz::XYZ_File &FullXYZ, std::vector<std::set<int>> const &cluster_inds, int apm);
 // Will write the velocities, VEL.init files, for the clustered atoms
 void write_cluster_vel(std::string fp, vel::Veloc_File &FullVel, std::vector<std::set<int>> const &cluster_inds, int apm);
+// Will write a fixed atoms file -letting CP2K know which atoms should be fixed in place
+void write_fixed_at_file(std::string fp, std::vector<int> fixed_ats, const int fixed_at_list_lim);
 
 
 int main() {
@@ -111,8 +113,19 @@ int main() {
 	} std::cerr << "\nFinished reading input data\n" << std::endl;
 
 
-	// Define some global variables
+	/*
+	 * Define some global variables
+	 */
+	// Mol properties
+	int apm = INP.get_int("atoms_per_molecule");
+	int nmol = xyz::get_nmol_from_atoms_atoms_per_mol(Pos.natoms, apm);
+	// Cluster array
 	std::vector<std::set<int>> clusters;
+	// Mol nums to track which atoms we're working with
+	std::vector<int> step1mol_nums(nmol, 0);
+	for (int i=0; i<nmol; i++) step1mol_nums[i] = i;
+	std::vector<std::vector<int>> current_mol_nums(Pos.nsteps, step1mol_nums);
+	// Original file data.
 	OrigPos.set_data(Pos.xyz, Pos.cols);
 	OrigVel = Vel.copy();
 
@@ -134,7 +147,6 @@ int main() {
 			case (inp::SLICE_POS):
 			{
 				struct inp::slice_instruct slices;
-				int apm = INP.get_int("atoms_per_molecule");
 
 				// Init slices dict
 				slices.zmin = (double) INP.get_num("zmin", -99999);
@@ -144,18 +156,32 @@ int main() {
 				slices.xmin = (double) INP.get_num("xmin", -99999);
 				slices.xmax = (double) INP.get_num("xmax",  99999);
 
-			    std::vector<std::vector<int>> mol_nums;
-			    auto act_ats = Pos.slice_by_COM(apm, slices, mol_nums, 
+				// Find indices of slices
+				std::vector<std::vector<int>> slice_inds;
+			    auto act_ats = Pos.slice_by_COM(apm, slices, slice_inds, 
 					     					   INP.get_string("mol_nums_slice_file", ""),
 						     				   INP.get_string("COM_file", ""));
+
+				// Edit the current_mol_num array to contain current mol nums -from slice
+				std::vector<int> buffer;	
+				for (int i=0; i<current_mol_nums.size(); i++) {
+					buffer.resize(current_mol_nums[i].size());
+					buffer = current_mol_nums[i];
+					current_mol_nums[i].resize(slice_inds[i].size());
+					for (int j=0; j<slice_inds[i].size(); j++) {
+						current_mol_nums[i][j] = buffer[slice_inds[i][j]]; 
+					}
+				}
+				
+				// Actually to the indexing
 				Pos = Pos.index_atoms(act_ats);
 				Vel = Vel.index_arr(act_ats[0]);
 
+				// Write files
 				std::string at_fp = folder_out+"/"+INP.get_string("slice_filepath", "");
 				if (at_fp != folder_out+"/") Pos.write(at_fp);
 				at_fp = folder_out+"/"+INP.get_string("slice_vel_filepath", "");
 				if (at_fp != folder_out+"/") Vel.write(at_fp);
-
 				
 				break;
 			}
@@ -164,7 +190,6 @@ int main() {
 			//  Will output the centers of mass in the specified file.
 			case (inp::CALC_COM):
 			{
-				int apm = INP.get_int("atoms_per_molecule");
 				Pos = Pos.get_COMs(apm);
 				auto out_file = INP.get_string("COM_filepath", "");
 				if (out_file != "") {
@@ -182,7 +207,6 @@ int main() {
 				auto str_clust_type = INP.get_string("cluster_type", "naive");
 				int cluster_min_points = INP.get_int("cluster_min_points", 10);
 				double cluster_cutoff = INP.get_num("cluster_cutoff");
-				int apm = INP.get_int("atoms_per_molecule");
 				
 				clusters = Pos.get_clusters(cluster_cutoff, str_clust_type, cluster_min_points);	
 
@@ -198,18 +222,25 @@ int main() {
 			// Will set the current positions to the cluster selected in instruct.txt
 			case (inp::SELECT_CLUSTER): 
 			{
+				// Init params and error checking
 				auto cluster_ind = INP.get_int("cluster_selection");
-				int apm = INP.get_int("atoms_per_molecule");
 				if (clusters.size() == 0) {
 					std::cerr << "\n\nPlease first use the 'CALC_CLUSTERS' method before selecting a cluster.\n\n" << std::endl;
 					exit(1);
 				}
 
+				// Get the cluster mol indices and conver to atomic indices
 				std::vector<int> cluster_inds (clusters[cluster_ind].begin(), clusters[cluster_ind].end());
-				std::vector<std::vector<int>> at_inds = {xyz::mol_inds_to_at_inds(cluster_inds, apm)};
+				std::vector<std::vector<int>> at_inds = {xyz::mol_inds_to_at_inds(cluster_inds, apm)};	
+				// Update the current mol nums
+				for (auto i=0; i<Pos.nsteps; i++) {
+					current_mol_nums[i].resize(cluster_inds.size());
+					current_mol_nums[i] = cluster_inds;
+				}
+				// Do the indexing
 				Pos = OrigPos.index_atoms(at_inds);
 				Vel = OrigVel.index_arr(at_inds[0]);
-
+				// Write files
 				auto fp = folder_out+"/"+INP.get_string("selected_cluster_filepath", "");
 				if (fp != folder_out+"/") Pos.write(fp);
 				fp = folder_out+"/"+INP.get_string("selected_cluster_vel_filepath", "");
@@ -218,10 +249,45 @@ int main() {
 				break;
 			}
 
-			case (inp::MAKE_CP2K): 
+			// Will wrap get the nearest neighbour mols by center of mass
+			case (inp::CALC_NN): 
 			{
-				std::cerr << "\n\nNot yet finished the make CP2K method.\n\n" << std::endl;
-				exit(1);
+				// Get nearest neighbours
+				double NN_cutoff = INP.get_num("NN_cutoff");
+				xyz::XYZ_File COM = Pos.get_COMs(apm);
+		        auto NN_ats = OrigPos.get_nearest_COM_to_pos(COM, apm,
+															 current_mol_nums[0],
+															 NN_cutoff);
+				/* Write files */
+				// Write the nearest neighbours
+				auto fp = folder_out+"/"+INP.get_string("NN_wrapped_filepath", "");
+				if (fp != folder_out+"/") OrigPos.write(fp, NN_ats);
+		        
+				// Write the FIXED_ATOMS file
+				fp = folder_out+"/"+INP.get_string("fixed_at_filepath", "");
+				if (fp != folder_out+"/") {
+					std::vector<int> fixed_ats (NN_ats[0].size(), 0);
+					for (int i=0; i<NN_ats[0].size(); i++) fixed_ats[i] = i;
+					write_fixed_at_file(fp, fixed_ats, 35);
+				}
+
+				// Write the full system -pos from the slice after the pos of fixed ats
+				fp = folder_out+"/"+INP.get_string("fixed_and_slice_filepath", "");
+				auto fp_v = folder_out+"/"+INP.get_string("fixed_and_slice_vel_filepath", "");
+				bool write = (fp != folder_out+"/") or (fp_v != folder_out+"/");
+				if (write == true) {
+					// MD_ats holds the index of nearest neigh atoms and then slice ats
+					std::vector<int> MD_ats(NN_ats[0].size()+Pos.natoms, 0);
+					for (int i=0; i<NN_ats[0].size(); i++) MD_ats[i] = NN_ats[0][i];
+					auto slice_inds = xyz::mol_inds_to_at_inds(current_mol_nums[0], apm);
+					for (int i=0; i<slice_inds.size(); i++) MD_ats[i+NN_ats[0].size()] = slice_inds[i];
+					std::vector<std::vector<int>> write_inds = {MD_ats};
+
+					// Write the files
+					if (fp != folder_out+"/") OrigPos.write(fp, write_inds);
+					if (fp_v != folder_out+"/") OrigVel.write(fp_v, write_inds[0]);
+				}
+				break;
 			}
 
 			// Let the user know the method hasn't been coded up yet and exit
@@ -314,7 +380,27 @@ void write_cluster_vel(std::string fp, vel::Veloc_File &FullVel, std::vector<std
 }
 
 
+/*
+ * Will write the fixed atoms file. This tells CP2K which atoms to feeze in place (probably NN wrapped ones)
+ *
+ * Inputs:
+ *		fp <std::string> => The filepath template (including folder) pointing to where we should save the data.
+ *		fixed_ats <std::vector<int>> => The atoms to fix in place
+ *		fixed_at_list_lim <int> => The num of items in each list in the fixed at file (a sensible value is atoms per mol)
+ */
+void write_fixed_at_file(std::string fp, std::vector<int> fixed_ats, const int fixed_at_list_lim) {
+    std::fstream file;
+    file.open(fp, std::ios::out);
+    file << "&FIXED_ATOMS";
 
+    for (auto i=0; i<fixed_ats.size(); i++) {
+		if (i % fixed_at_list_lim == 0) file << "\n\tLIST ";
+        file << fixed_ats[i] << " ";
+    }
+
+    file << "\n&END FIXED_ATOMS";            
+    file.close();
+}
 //
 //    /* 
 //        Read and Parse Files
@@ -430,34 +516,6 @@ void write_cluster_vel(std::string fp, vel::Veloc_File &FullVel, std::vector<std
 //
 //        // Write the fixed atoms file.
 //        if (fno["fix_at"] != "") {
-//            std::fstream fix_at_file;
-//            fix_at_file.open(fno["fix_at"], std::ios::out);
-//            fix_at_file << "&FIXED_ATOMS";
-//
-//            // Write the FIXED_ATOMS file
-//            const int fixed_at_list_lim = apm;
-//            const int niter = (int) (fixed_ats[0].size() + apm -1) / fixed_at_list_lim;
-//
-//            auto iat = 0;
-//            for (auto i=0; i<niter; i++) {
-//                fix_at_file << "\n\tLIST ";
-//                iat = i*fixed_at_list_lim;
-//                for (auto j=0; j<fixed_at_list_lim; j++) {
-//                    fix_at_file << iat << " ";
-//                    iat++;
-//                }
-//            }
-//            fix_at_file << iat << " ";
-//
-//
-//            // for (auto i=0; i<fixed_ats[0].size(); i++) {
-//            //     fix_at_file << fixed_ats[0][i]+1 << " ";
-//            //     if (i % fixed_at_list_lim == 0)
-//            //         fix_at_file << "\n\tLIST ";
-//            // }
-//
-//            fix_at_file << "\n&END FIXED_ATOMS";            
-//            fix_at_file.close();
 //        } 
 //
 //        // If required write the inactive atoms

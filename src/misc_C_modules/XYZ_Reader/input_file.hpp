@@ -140,7 +140,7 @@ namespace inp {
 				for (auto i=0; i<str.size(); i++) {
 					auto c = str.substr(i, 1);
 					if (c == "(") startInd = i;
-					if (c == ")") endInd = i;
+					if (c == ")") {endInd = i; break;}
 				}
 				
 				std::vector<std::string> str_methods = split_string(str.substr(startInd+1,

@@ -14,23 +14,26 @@ cluster_min_points = 10
 atoms_per_molecule=36
 
 # Input files
-in_folder = /home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC/100ns
-pos_filename = unwrap_intoCell_100ns_augmented.xyz
-vel_filename = NEW_VELOC.init
+#in_folder = /home/matt/Helford/Documents/Code_bits_and_bobs/XYZ_Reader/Repeat_With_PBC/100ns
+in_folder = /home/matt/Helford/Documents/Code_bits_and_bobs/MD_Analysis_Scripts/100nsQuench/NVE_FROM_LMP
+#pos_filename = unwrap_intoCell_100ns_augmented.xyz
+pos_filename = unwrap_intoCell_100ns.xyz
+vel_filename = VELOC.init
 AOM_single_mol = ../../data/AOM_COEFFs/Pentacene_Lammps_Single_Mol.include
 
 # The cluster layer
 cluster_selection = 7
 
 # What to do in the code
-methods = (CALC_COM, CALC_CLUSTERS, SELECT_CLUSTER, SLICE_POS, WRAP_NEAREST_NEIGHBOURS)
+methods = (CALC_COM, CALC_CLUSTERS)
+# , SELECT_CLUSTER, SLICE_POS, WRAP_NEAREST_NEIGHBOURS)
 
 
 # Mercury filepath
 mercury_filepath = /home/matt/Mercury/bin/mercury
 
 # Output files
-out_folder = ./100nsQuench/GoodCrystal
+out_folder = ./100nsQuench/Clusters_Original
 COM_filepath = com_full_system.xyz
 slice_filepath = active_ats.xyz
 NN_wrapped_filepath = NN.xyz
@@ -39,7 +42,7 @@ fixed_and_slice_filepath = pos-init.xyz
 fixed_and_slice_vel_filepath = VELOC.init
 decomp_file = DECOMP.inp
 
-#cluster_filepath = cluster*.xyz
+cluster_filepath = cluster*.xyz
 #cluster_vel_filepath = cluster_veloc*.init
 #selected_cluster_filepath = selected_cluster.xyz
 #slice_vel_filepath = VELOC.init

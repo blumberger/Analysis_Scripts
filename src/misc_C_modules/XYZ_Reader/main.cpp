@@ -191,11 +191,8 @@ int main() {
 			case (inp::CALC_COM):
 			{
 				Pos = Pos.get_COMs(apm);
-				auto out_file = INP.get_string("COM_filepath", "");
-				if (out_file != "") {
-					std::string out_path = folder_out + "/" + out_file;
-				    Pos.write(out_path);
-				}
+				auto out_path = folder_out+"/"+INP.get_string("COM_filepath", "");
+				if (out_path != folder_out+"/") { std::cerr << "\tWriting COM positions\n";  Pos.write(out_path);}
 				break;
 			}
 
@@ -212,9 +209,9 @@ int main() {
 
 				// Save the data
 				auto fp = folder_out + "/" + INP.get_string("cluster_filepath", "");
-				if (fp != folder_out + "/") write_cluster_pos(fp, OrigPos, clusters, apm);
+				if (fp != folder_out + "/") { std::cerr << "\tWriting All Cluster Positions\n"; write_cluster_pos(fp, OrigPos, clusters, apm);}
 				fp = folder_out + "/" + INP.get_string("cluster_vel_filepath", "");
-				if (fp != folder_out + "/")	write_cluster_vel(fp, OrigVel, clusters, apm);
+				if (fp != folder_out + "/")	{ std::cerr << "\tWriting All Cluster Velocities\n"; write_cluster_vel(fp, OrigVel, clusters, apm);}
 				
 				break;
 			}
@@ -242,9 +239,9 @@ int main() {
 				Vel = OrigVel.index_arr(at_inds[0]);
 				// Write files
 				auto fp = folder_out+"/"+INP.get_string("selected_cluster_filepath", "");
-				if (fp != folder_out+"/") Pos.write(fp);
+				if (fp != folder_out+"/") { std::cerr << "\tWriting Selected Cluster Positions\n"; Pos.write(fp); }
 				fp = folder_out+"/"+INP.get_string("selected_cluster_vel_filepath", "");
-				if (fp != folder_out+"/") Vel.write(fp);
+				if (fp != folder_out+"/") { std::cerr << "\tWriting Selected Cluster Velocities\n"; Vel.write(fp); }
 
 				break;
 			}
